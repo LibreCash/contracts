@@ -223,18 +223,7 @@ contract LibreCash is StandardToken, usingOraclize {
         string argument;
     } 
     
-    function LibreCash() {
-        totalSupply = 0;
-        owner1 = msg.sender;
-        owner2 = msg.sender;
-        oraclizeQueries.length = 2;
-        oraclizeQueries[0].datasource = "URL";
-        oraclizeQueries[0].argument = "json(https://api.kraken.com/0/public/Ticker?pair=ETHUSD).result.XETHZUSD.c.0";
-        oraclizeQueries[1].datasource = "WolframAlpha";
-        oraclizeQueries[1].argument = "1 ether per usd";
-        // FIXME: enable oraclize_setProof is production
-        //oraclize_setProof(proofType_TLSNotary);
-    }
+    
     
     uint public sellSpreadInvert = 50;
     uint public buySpreadInvert = 50;
@@ -248,6 +237,19 @@ contract LibreCash is StandardToken, usingOraclize {
     event LogSell(address Client, uint256 sendTokenAmount, uint256 EtherAmount, uint256 totalSupply);
     event LogBuy(address Client, uint256 TokenAmount, uint256 sendEtherAmount, uint256 totalSupply);
     event LogWhithdrawal (uint256 EtherAmount, address addressTo, uint invertPercentage);
+   
+   function LibreCash() {
+        totalSupply = 0;
+        owner1 = msg.sender;
+        owner2 = msg.sender;
+        oraclizeQueries.length = 2;
+        oraclizeQueries[0].datasource = "URL";
+        oraclizeQueries[0].argument = "json(https://api.kraken.com/0/public/Ticker?pair=ETHUSD).result.XETHZUSD.c.0";
+        oraclizeQueries[1].datasource = "WolframAlpha";
+        oraclizeQueries[1].argument = "1 ether per usd";
+        // FIXME: enable oraclize_setProof is production
+        //oraclize_setProof(proofType_TLSNotary);
+    }
     
   /**
      * @dev Throws if called by any account other than one of the owners. 
