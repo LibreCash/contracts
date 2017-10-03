@@ -209,7 +209,7 @@ contract LibreCash is StandardToken, usingOraclize {
     uint256 public sellPrice;
     uint256 public buyPrice;
     uint256 public UpdateCost=2*oraclize_getPrice("URL");
-    
+    bool public isActive = true;
     mapping (bytes32=>ClientRecord) clients;
     
     struct ClientRecord {
@@ -238,7 +238,15 @@ contract LibreCash is StandardToken, usingOraclize {
     event LogSell(address Client, uint256 sendTokenAmount, uint256 EtherAmount, uint256 totalSupply);
     event LogBuy(address Client, uint256 TokenAmount, uint256 sendEtherAmount, uint256 totalSupply);
     event LogWhithdrawal (uint256 EtherAmount, address addressTo, uint invertPercentage);
-   
+    
+    modifier ExchangeActive() {
+      // Not yet started
+      if (!isActive) {
+        throw;
+      }
+      _;
+    }
+    
    function LibreCash() {
         totalSupply = 0;
         owner1 = msg.sender;
@@ -310,24 +318,24 @@ contract LibreCash is StandardToken, usingOraclize {
     // Price is being determined by the algorithm in recalculatePrice()
     // You can also send the ether directly to the contract address   
     
-    function buy() payable external {
+    function buy() payable external ExchangeActive {
         require (msg.value > minEtherAmount);
         buyLimit (0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF); 
     }
     
-    function buyLimit (uint _limit) payable public  {
+    function buyLimit (uint _limit) payable public  ExchangeActive {
         require (msg.value > minEtherAmount);
         update(0, 1, msg.sender, msg.value, _limit);
     }
     
 
-    function sell (uint256 amount) external {
+    function sell (uint256 amount) external ExchangeActive {
         require (balances[msg.sender] >= amount );        // checks if the sender has enough to sell
         require (amount >= minTokenAmount);
         sellLimit (amount, 0x0); 
     }
     
-    function sellLimit (uint256 amount, uint _limit) public {
+    function sellLimit (uint256 amount, uint _limit) public ExchangeActive {
         require (balances[msg.sender] >= amount );        // checks if the sender has enough to sell
         require (amount >= minTokenAmount);
         update(0, 2, msg.sender, amount,0);
