@@ -240,7 +240,6 @@ contract LibreCash is StandardToken, usingOraclize {
     event LogWhithdrawal (uint256 EtherAmount, address addressTo, uint invertPercentage);
     
     modifier ExchangeActive() {
-      // Not yet started
       if (!isActive) {
         throw;
       }
