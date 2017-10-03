@@ -208,12 +208,15 @@ contract LibreCash is StandardToken, usingOraclize {
     uint public ETHUSD;
     uint256 public sellPrice;
     uint256 public buyPrice;
+    uint256 public UpdateCost=2*oraclize_getPrice("URL");
     
     mapping (bytes32=>ClientRecord) clients;
+    
     struct ClientRecord {
-        bool isBuy;
+        uint BSU; // Buy, sell or update
         address ClientAddress;
         uint256 ClientAmount;
+        uint ClientLimit;
     } 
     
     uint currentQuery = 0;
@@ -222,8 +225,6 @@ contract LibreCash is StandardToken, usingOraclize {
         string datasource;
         string argument;
     } 
-    
-    
     
     uint public sellSpreadInvert = 50;
     uint public buySpreadInvert = 50;
@@ -296,8 +297,10 @@ contract LibreCash is StandardToken, usingOraclize {
     
     function donate() payable onlyOwner {}
     // Sending ether directly to the contract invokes buy() and assigns tokens to the sender
+    
     function () payable {
-        buy();
+        require (msg.value > minEtherAmount);
+        buyLimit (0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF); 
     }
 
     // ***************************************************************************
@@ -307,9 +310,63 @@ contract LibreCash is StandardToken, usingOraclize {
     // Price is being determined by the algorithm in recalculatePrice()
     // You can also send the ether directly to the contract address   
     
-    function buy() payable {
+    function buy() payable external {
         require (msg.value > minEtherAmount);
-        update(0, true, msg.sender, msg.value);  
+        buyLimit (0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF); 
+    }
+    
+    function buyLimit (uint _limit) payable public  {
+        require (msg.value > minEtherAmount);
+        update(0, 1, msg.sender, msg.value, _limit);
+    }
+    
+
+    function sell (uint256 amount) external {
+        require (balances[msg.sender] >= amount );        // checks if the sender has enough to sell
+        require (amount >= minTokenAmount);
+        sellLimit (amount, 0x0); 
+    }
+    
+    function sellLimit (uint256 amount, uint _limit) public {
+        require (balances[msg.sender] >= amount );        // checks if the sender has enough to sell
+        require (amount >= minTokenAmount);
+        update(0, 2, msg.sender, amount,0);
+    }
+    
+   
+    function update(uint delay, uint _BSU, address _address, uint256 _amount, uint _limit) payable {
+        if (oraclize_getPrice("URL") > this.balance) {
+            newOraclizeQuery("Oraclize query was NOT sent, please add some ETH to cover for the query fee");
+        } else {
+            newOraclizeQuery("Oraclize query was sent, standing by for the answer..");
+            bytes32 queryId = oraclize_query(delay, oraclizeQueries[currentQuery].datasource, oraclizeQueries[currentQuery].argument);
+            clients[queryId].BSU = _BSU;
+            clients[queryId].ClientAddress = _address;
+            clients[queryId].ClientAmount = _amount;
+            clients[queryId].ClientLimit = _limit;
+        }
+    }  
+    
+    function __callback(bytes32 myid, string result, bytes proof) {if (msg.sender != oraclize_cbAddress()) throw;
+        newPriceTicker(result);
+        ETHUSD = parseInt(result, 2); // save it in storage as $ cents
+        // do something with ETHUSD
+        buyPrice = ETHUSD - ETHUSD / buySpreadInvert;
+        sellPrice = ETHUSD + ETHUSD / sellSpreadInvert;
+        
+        if (this.balance > totalSupply / sellPrice * 100) {
+           surplusEther = this.balance - (totalSupply / sellPrice * 100);
+        } else {
+            surplusEther = 0;
+        }
+        
+        
+        if (clients[myid].BSU == 1) {
+            buyAfterUpdate (myid, clients[myid].ClientAddress, clients[myid].ClientAmount);
+        } else if (clients[myid].BSU == 2) {
+            sellAfterUpdate (myid, clients[myid].ClientAddress, clients[myid].ClientAmount);
+        }
+        
     }
     
     function buyAfterUpdate (bytes32 queryid, address _address, uint256 _amount) internal {
@@ -321,14 +378,8 @@ contract LibreCash is StandardToken, usingOraclize {
         LogBuy(_address, amount, _amount, totalSupply);
         delete clients[queryid];     
     }
-
-    function sell (uint256 amount) {
-        require (balances[msg.sender] >= amount );        // checks if the sender has enough to sell
-        require (amount >= minTokenAmount);
-        update(0, false, msg.sender, amount);
-    }
     
-    function sellAfterUpdate (bytes32 queryid, address _address, uint256 _amount) internal {
+     function sellAfterUpdate (bytes32 queryid, address _address, uint256 _amount) internal {
         uint256 TokenAmount;
         uint256 EtherAmount  = _amount / sellPrice * 100;
         if (EtherAmount > this.balance) {                  // checks if the contract has enough to sell
@@ -349,38 +400,6 @@ contract LibreCash is StandardToken, usingOraclize {
         LogSell(_address, TokenAmount, EtherAmount, totalSupply); 
         delete clients[queryid]; 
     }
-    
-    function __callback(bytes32 myid, string result, bytes proof) {if (msg.sender != oraclize_cbAddress()) throw;
-        newPriceTicker(result);
-        ETHUSD = parseInt(result, 2); // save it in storage as $ cents
-        // do something with ETHUSD
-        buyPrice = ETHUSD - ETHUSD / buySpreadInvert;
-        sellPrice = ETHUSD + ETHUSD / sellSpreadInvert;
-        if (this.balance > totalSupply / sellPrice * 100) {
-           surplusEther = this.balance - (totalSupply / sellPrice * 100);
-        } else {
-            surplusEther =0;
-        }
-        
-        if (clients[myid].isBuy) {
-            buyAfterUpdate (myid, clients[myid].ClientAddress, clients[myid].ClientAmount);
-        } else {
-            sellAfterUpdate (myid, clients[myid].ClientAddress, clients[myid].ClientAmount);
-        }
-        
-    }
-    
-    function update(uint delay, bool _isBuy, address _address, uint256 _amount) payable {
-        if (oraclize_getPrice("URL") > this.balance) {
-            newOraclizeQuery("Oraclize query was NOT sent, please add some ETH to cover for the query fee");
-        } else {
-            newOraclizeQuery("Oraclize query was sent, standing by for the answer..");
-            bytes32 queryId = oraclize_query(delay, oraclizeQueries[currentQuery].datasource, oraclizeQueries[currentQuery].argument);
-            clients[queryId].isBuy = _isBuy;
-            clients[queryId].ClientAddress = _address;
-            clients[queryId].ClientAmount = _amount;
-        }
-    }  
 
     
     function safeWhithdrawal (uint invertPercentage) onlyOwner {
@@ -391,6 +410,9 @@ contract LibreCash is StandardToken, usingOraclize {
          
     }
 
-    
+    function ETHUSDUpdate () payable {
+        require (msg.value >= UpdateCost); 
+        update(0, 3, 0, 0, 0);
+    }
     
 }
