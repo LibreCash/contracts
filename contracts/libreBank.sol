@@ -18,7 +18,6 @@ contract libreBank is Ownable,Pausable {
     enum limitType { minUsdRate, maxUsdRate, minTransactionAmount, minSpread, maxSpread }
 
     /*
-    
     event newOraclizeQuery(string description);
     event newPriceTicker(string price);
     event LogSell(address Client, uint256 sendTokenAmount, uint256 EtherAmount, uint256 totalSupply);
@@ -115,6 +114,6 @@ contract libreBank is Ownable,Pausable {
         uint256 tokensAmount = msg.value.mul(ethUsdRate).div(getTokenPrice());
         libreToken.mint(benificiar,tokensAmount);
     }
-    // Not Impemented Yet
+    // ! Not Impemented Yet
     function sellTokens() {;}
 }
