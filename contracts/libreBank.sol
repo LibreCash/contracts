@@ -3,13 +3,12 @@ pragma solidity ^0.4.10;
 import "./zeppelin/lifecycle/Pausable.sol";
 import "./zeppelin/ownership/Ownable.sol";
 import "./zeppelin/math/SafeMath.sol";
-import 
 
 interface token {
     /*function transfer(address receiver, uint amount);*/
     function balanceOf(address _owner) returns (uint256);
     function mint(address _to,uint256 _amount);
-    function getTokensAmount() public returns(uint256)
+    function getTokensAmount() public returns(uint256);
 }
 
 contract libreBank is Ownable,Pausable {
@@ -32,11 +31,11 @@ contract libreBank is Ownable,Pausable {
     token libreToken;
 
     function setLimitValue(limitType limitName, uint256 value) internal {
-        limits[int(limitName)] = value;
+        limits[uint(limitName)] = value;
     }
 
-    function getLimitValue(limitType limitName )internal returns (uint256)  {
-        return limits[int(limitName)];
+    function getLimitValue(limitType limitName )internal returns (uint256) {
+        return limits[uint(limitName)];
     }
 
     function getMinTransactionAmount() constant external returns(uint256) {
@@ -48,7 +47,7 @@ contract libreBank is Ownable,Pausable {
     }
 
     function setSpreadLimits(uint256 minSpead, uint256 maxSpread) onlyOwner {
-        setLimitValue(limitType.minSpead,minSpead);
+        setLimitValue(limitType.minSpread,minSpead);
         setLimitValue(limitType.maxSpread,maxSpread);
         
     }
@@ -84,7 +83,7 @@ contract libreBank is Ownable,Pausable {
     }
 
     function totalTokens() returns (uint256) {
-        return libreToken.totalSupply;
+        return libreToken.getTokensAmount();
     }
 
     function setCurrencyRate(uint256 rate) onlyOwner {
@@ -95,7 +94,7 @@ contract libreBank is Ownable,Pausable {
     }
 
     function withdrawEther(address beneficiar) onlyOwner {
-        beneficiar.send(this.value);
+        beneficiar.send(this.balance);
     }
 
 
@@ -115,5 +114,5 @@ contract libreBank is Ownable,Pausable {
         libreToken.mint(benificiar,tokensAmount);
     }
     // ! Not Impemented Yet
-    function sellTokens() {;}
+    function sellTokens() {}
 }

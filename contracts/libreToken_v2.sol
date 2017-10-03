@@ -23,8 +23,8 @@ contract libreCoin is MintableToken,PausableToken {
     }
 
     // Override default minting function
-    function mint (address _to, uint256 _value) onlyBank {
-        super.mint(_to,_value);
+    function mint(address _to, uint256 _amount) onlyOwner canMint onlyBank returns (bool) {
+        super.mint(_to,_amount);
     }
 
     function getTokensAmount() public returns(uint256) {
