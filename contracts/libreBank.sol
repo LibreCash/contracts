@@ -1,8 +1,8 @@
 pragma solidity ^0.4.10;
 
 import "./zeppelin/lifecycle/Pausable.sol";
-import "./zeppelin/ownership/Ownable.sol";
 import "./zeppelin/math/SafeMath.sol";
+
 
 interface token {
     /*function transfer(address receiver, uint amount);*/
@@ -11,23 +11,40 @@ interface token {
     function getTokensAmount() public returns(uint256);
 }
 
+interface oracleInterface {
+    function update();
+    function getName() constant returns(string);
+}
+
 contract libreBank is Ownable,Pausable {
     using SafeMath for uint256;
     
-    enum limitType { minUsdRate, maxUsdRate, minTransactionAmount, minSpread, maxSpread }
+    enum limitType { minUsdRate, maxUsdRate, minTransactionAmount, minSellSpread, maxSpread,minBuySpread,maxBuySpread }
+    event newPriceTicker(string oracleName, string price);
 
     /*
-    event newOraclizeQuery(string description);
-    event newPriceTicker(string price);
     event LogSell(address Client, uint256 sendTokenAmount, uint256 EtherAmount, uint256 totalSupply);
     event LogBuy(address Client, uint256 TokenAmount, uint256 sendEtherAmount, uint256 totalSupply);
     event LogWhithdrawal (uint256 EtherAmount, address addressTo, uint invertPercentage);
     */
 
+    struct oracleData {
+        string name;
+        address oracleAddress; // Maybe replace it on mapping (see below)
+        uint256 rating;
+        bool enabled;
+    }
 
+    oracleData[] oracles;
+    uint256 updateDataRequest;
+    
+    mapping (string=>address) oraclesAddress;
+
+ 
     uint256 public currencyUpdateTime;
     uint256 public ethUsdRate = 30000; // In $ cents
     uint256[] limits;
+    oracleInterface currentOracle;
     token libreToken;
 
     function setLimitValue(limitType limitName, uint256 value) internal {
@@ -46,12 +63,35 @@ contract libreBank is Ownable,Pausable {
         setLimitValue(limitType.minTransactionAmount,amountInWei);
     }
 
-    function setSpreadLimits(uint256 minSpead, uint256 maxSpread) onlyOwner {
-        setLimitValue(limitType.minSpread,minSpead);
-        setLimitValue(limitType.maxSpread,maxSpread);
+    function setBuySpreadLimits(uint256 minBuySpread, uint256 minBuySpread) onlyOwner {
+        setLimitValue(limitType.minBuySpread,minSpead);
+        setLimitValue(limitType.maxBuySpread,maxSpread);
         
     }
 
+    function setSellSpreadLimits(uint256 minSellSpread, uint256 maxSellSpread) onlyOwner {
+        setLimitValue(limitType.minSellSpread,minSellSpread);
+        setLimitValue(limitType.maxSellSpread,maxSellSpread);
+    }
+
+    function setSpread(uint256 _buySpread,uint256 _sellSpread) onlyOnwer {
+        bool isBuyInLimit = buySpread > getLimitValue(limitType.minBuySpread) && buySpread < getLimitValue(limitType.maxBuySpread);
+        bool isSellInLimit = sellSpread > getLimitValue(limitType.minSellSpread) && sellSpread < getLimitValue(limitType.maxSellSpread);
+        require(isBuyInLimit && isSellInLimit);
+        buySpread = _buySpread;
+        sellSpread = _sellSpread;
+    }
+
+    function addOracle(address oracleAddress) onlyOwner {
+        require(oracleAddress != 0x0);
+        oracleInterface(oracleAddress);
+        oracleData memory thisOracle = new oracleData(oracleInterface.getName(),oracleAddress,0,true);
+        oracles.push(thisOracle);
+    }
+    function getOracleName(uint number) public constant returns(string) {
+        return oracles[number].name;
+    }
+    
     // Ограничие на периодичность обновления курса - не чаще чем раз в 5 минут
     modifier needUpdate() {
         require(!isRateActual());
@@ -86,6 +126,7 @@ contract libreBank is Ownable,Pausable {
         return libreToken.getTokensAmount();
     }
 
+
     function setCurrencyRate(uint256 rate) onlyOwner {
         bool validRate = rate > 0 && rate < getLimitValue(limitType.maxUsdRate) && rate > getLimitValue(limitType.minUsdRate);
         require(validRate);
@@ -102,10 +143,19 @@ contract libreBank is Ownable,Pausable {
         ethUsdRate = getRate();
     }
 
-    function getRate() returns(uint256) {
-        // Not implemented yet
-        return 280;
+    function getRate() private returns(bool) {
+        uint256[] oracleResults;
+        for (uint256 i = 0; i < oracles.length; i++) {
+            if (oracles[i].enabled) oracleInterface(oracle[i].oracleAddress).update();
+        }
+        return true;
     }
+
+    function oraclesCallback(string name,uint256 value,uint256 timestamp) {
+        // Implement it later
+    }
+
+
 
     function buyTokens(address benificiar) {
         require(msg.value > getLimitValue(limitType.minTransactionAmount));
@@ -116,3 +166,5 @@ contract libreBank is Ownable,Pausable {
     // ! Not Impemented Yet
     function sellTokens() {}
 }
+
+
