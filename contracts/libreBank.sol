@@ -19,7 +19,7 @@ interface oracleInterface {
 contract libreBank is Ownable,Pausable {
     using SafeMath for uint256;
     
-    enum limitType { minUsdRate, maxUsdRate, minTransactionAmount, minSellSpread, maxSpread,minBuySpread,maxBuySpread }
+    enum limitType { minUsdRate, maxUsdRate, minTransactionAmount, minSellSpread, maxSpread, minBuySpread, maxBuySpread }
     event newPriceTicker(string oracleName, string price);
 
     /*
