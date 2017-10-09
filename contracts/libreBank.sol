@@ -43,6 +43,9 @@ contract libreBank is Ownable,Pausable {
  
     uint256 public currencyUpdateTime;
     uint256 public ethUsdRate = 30000; // In $ cents
+    uint256 public BuyPrice; // In $ cents
+    uint256 public SellPrice; // In $ cents
+
     uint256[] limits;
     oracleInterface currentOracle;
     token libreToken;
@@ -63,7 +66,7 @@ contract libreBank is Ownable,Pausable {
         setLimitValue(limitType.minTransactionAmount,amountInWei);
     }
 
-    function setBuySpreadLimits(uint256 minBuySpread, uint256 minBuySpread) onlyOwner {
+    function setBuySpreadLimits(uint256 minBuySpread, uint256 maxBuySpread) onlyOwner {
         setLimitValue(limitType.minBuySpread,minSpead);
         setLimitValue(limitType.maxBuySpread,maxSpread);
         
@@ -159,28 +162,15 @@ contract libreBank is Ownable,Pausable {
 
     function buyTokens(address benificiar) {
         require(msg.value > getLimitValue(limitType.minTransactionAmount));
-
-        uint256 tokensAmount = msg.value.mul(ethUsdRate).div(getTokenPrice());
+        uint256 tokensAmount;
+        if (!isRateActual) {
+            updateRate();
+            }
+        tokensAmount = msg.value.mul(BuyPrice).div(100);
         libreToken.mint(benificiar,tokensAmount);
+        // LogBuy(benificiar, msg.value, _amount, totalSupply);
     }
-
-    // ***************************************************************************
-
-    // Buy token by sending ether here
-    //
-    // Price is being determined by the algorithm in recalculatePrice()
-    // You can also send the ether directly to the contract address   
-    
-    function buy() payable external ExchangeActive {
-        require (msg.value > minEtherAmount);
-        buyLimit (0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF); 
-    }
-    
-    function buyLimit (uint _limit) payable public  ExchangeActive {
-        require (msg.value > minEtherAmount);
-        update(0, 1, msg.sender, msg.value, _limit);
-    }
-    // ! Not Impemented Yet
+  // ! Not Impemented Yet
     function sellTokens() {}
 }
 
