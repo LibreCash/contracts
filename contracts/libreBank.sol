@@ -166,12 +166,35 @@ contract libreBank is Ownable,Pausable {
         if (!isRateActual) {
             updateRate();
             }
-        tokensAmount = msg.value.mul(BuyPrice).div(100);
+        tokensAmount = msg.value.mul(buyPrice).div(100);
         libreToken.mint(benificiar,tokensAmount);
         // LogBuy(benificiar, msg.value, _amount, totalSupply);
     }
   // ! Not Impemented Yet
-    function sellTokens() {}
+    function sellTokens(uint256 _amount) {
+        require (balances[msg.sender] >= amount );        // checks if the sender has enough to sell
+        require (amount >= minTokenAmount);
+        uint256 TokensAmount;
+        uint256 EthersAmount;
+        if (!isRateActual) {
+            updateRate();
+            }
+        if (EthersAmount > this.balance) {                  // checks if the bank has enough Ethers to send
+            TokensAmount = this.balance.mul(sellPrice).div(100);
+            EthersAmount = this.balance;
+        } else {
+            TokensAmount = _amount;
+            EthersAmount = _amount.div(sellPrice).mul(100);
+        }
+        if (!_address.send(EthersAmount)) {        // sends ether to the seller. It's important
+            throw;                                         // to do this last to avoid recursion attacks
+        } else {
+           libreToken.burn(msg.sender,tokensAmount);
+        }
+        //LogSell(_address, TokensAmount, EthersAmount, totalSupply);
+    }
+
+    
 }
 
 
