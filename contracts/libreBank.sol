@@ -19,11 +19,7 @@ interface oracleInterface {
 contract libreBank is Ownable,Pausable {
     using SafeMath for uint256;
     
-<<<<<<< HEAD
-    enum limitType { minUsdRate, maxUsdRate, minTransactionAmount, minSellSpread, maxSpread,minBuySpread,maxBuySpread }
-=======
     enum limitType { minUsdRate, maxUsdRate, minTransactionAmount, minSellSpread, maxSellSpread, minBuySpread, maxBuySpread }
->>>>>>> remotes/origin/dimon
     event newPriceTicker(string oracleName, string price);
 
     /*
