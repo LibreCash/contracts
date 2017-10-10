@@ -47,21 +47,13 @@ contract libreBank is Ownable,Pausable {
  
     uint256 public currencyUpdateTime;
     uint256 public ethUsdRate = 30000; // In $ cents
-<<<<<<< HEAD
-    uint256 public BuyPrice; // In $ cents
-    uint256 public SellPrice; // In $ cents
-=======
     //uint256 public BuyPrice; // In $ cents
     //uint256 public SellPrice; // In $ cents
->>>>>>> remotes/origin/dimon
 
     uint256[] limits;
     oracleInterface currentOracle;
     token libreToken;
-<<<<<<< HEAD
-=======
     uint256 minTokenAmount = 1; // used in sellTokens(...)
->>>>>>> remotes/origin/dimon
 
     function setLimitValue(limitType limitName, uint256 value) internal {
         limits[uint(limitName)] = value;
@@ -79,23 +71,6 @@ contract libreBank is Ownable,Pausable {
         setLimitValue(limitType.minTransactionAmount,amountInWei);
     }
 
-<<<<<<< HEAD
-    function setBuySpreadLimits(uint256 minBuySpread, uint256 maxBuySpread) onlyOwner {
-        setLimitValue(limitType.minBuySpread,minSpead);
-        setLimitValue(limitType.maxBuySpread,maxSpread);
-        
-    }
-
-    function setSellSpreadLimits(uint256 minSellSpread, uint256 maxSellSpread) onlyOwner {
-        setLimitValue(limitType.minSellSpread,minSellSpread);
-        setLimitValue(limitType.maxSellSpread,maxSellSpread);
-    }
-
-    function setSpread(uint256 _buySpread,uint256 _sellSpread) onlyOnwer {
-        bool isBuyInLimit = buySpread > getLimitValue(limitType.minBuySpread) && buySpread < getLimitValue(limitType.maxBuySpread);
-        bool isSellInLimit = sellSpread > getLimitValue(limitType.minSellSpread) && sellSpread < getLimitValue(limitType.maxSellSpread);
-        require(isBuyInLimit && isSellInLimit);
-=======
     function setBuySpreadLimits(uint256 _minBuySpread, uint256 _maxBuySpread) onlyOwner {
         setLimitValue(limitType.minBuySpread, _minBuySpread);
         setLimitValue(limitType.maxBuySpread, _maxBuySpread);
@@ -110,7 +85,6 @@ contract libreBank is Ownable,Pausable {
     function setSpread(uint256 _buySpread, uint256 _sellSpread) onlyOwner {
         require(_buySpread > getLimitValue(limitType.minBuySpread) && buySpread < getLimitValue(limitType.maxBuySpread));
         require(_sellSpread > getLimitValue(limitType.minSellSpread) && sellSpread < getLimitValue(limitType.maxSellSpread));
->>>>>>> remotes/origin/dimon
         buySpread = _buySpread;
         sellSpread = _sellSpread;
     }
@@ -188,18 +162,6 @@ contract libreBank is Ownable,Pausable {
         // Implement it later
     }
 
-<<<<<<< HEAD
-
-
-    function buyTokens(address benificiar) {
-        require(msg.value > getLimitValue(limitType.minTransactionAmount));
-        uint256 tokensAmount;
-        if (!isRateActual) {
-            updateRate();
-            }
-        tokensAmount = msg.value.mul(buyPrice).div(100);
-        libreToken.mint(benificiar,tokensAmount);
-=======
     function buyTokens(address benificiar) {
         require(msg.value > getLimitValue(limitType.minTransactionAmount));
         uint256 buyPrice;
@@ -215,33 +177,10 @@ contract libreBank is Ownable,Pausable {
         // in case of possible overflows should do assert() or require() for sellPrice>ethUsdRate and buyPrice<..., but we need a small research
         tokensAmount = msg.value.mul(buyPrice).div(100); // maybe we can not use div(100) and make rate in dollars?
         libreToken.mint(benificiar, tokensAmount);
->>>>>>> remotes/origin/dimon
         // LogBuy(benificiar, msg.value, _amount, totalSupply);
     }
   // ! Not Impemented Yet
     function sellTokens(uint256 _amount) {
-<<<<<<< HEAD
-        require (balances[msg.sender] >= amount );        // checks if the sender has enough to sell
-        require (amount >= minTokenAmount);
-        uint256 TokensAmount;
-        uint256 EthersAmount;
-        if (!isRateActual) {
-            updateRate();
-            }
-        if (EthersAmount > this.balance) {                  // checks if the bank has enough Ethers to send
-            TokensAmount = this.balance.mul(sellPrice).div(100);
-            EthersAmount = this.balance;
-        } else {
-            TokensAmount = _amount;
-            EthersAmount = _amount.div(sellPrice).mul(100);
-        }
-        if (!_address.send(EthersAmount)) {        // sends ether to the seller. It's important
-            throw;                                         // to do this last to avoid recursion attacks
-        } else {
-           libreToken.burn(msg.sender,tokensAmount);
-        }
-        //LogSell(_address, TokensAmount, EthersAmount, totalSupply);
-=======
         require (msg.sender.balance >= _amount);        // checks if the sender has enough to sell
         // todo: make ERC20-like contract and use balanceOf(msg.sender)
         require (_amount >= minTokenAmount);
@@ -269,7 +208,6 @@ contract libreBank is Ownable,Pausable {
            libreToken.burn(msg.sender, tokensAmount);
         }
         //LogSell(_address, eokensAmount, ethersAmount, totalSupply);
->>>>>>> remotes/origin/dimon
     }
 
     
