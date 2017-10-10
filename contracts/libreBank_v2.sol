@@ -156,6 +156,14 @@ contract libreBank is Ownable,Pausable {
 
     function oraclesCallback(string name,uint256 value,uint256 timestamp) {
         // Implement it later
+         uint256 currentSpread = SafeMath.add(limits[limitType.minBuySpread], limits[limitType.minSellSpread]);
+        uint256 halfSpread = SafeMath.div(currentSpread, 2);
+        // require(halfSpread < currentSpread); // -- not sure if we need to check (possibly no), I need to research types and possible vulnerabilities - Dima
+        // ethUsdRate now - base ecxhange rate in cents, so:
+        buyPrice = SafeMath.sub(ethUsdRate, halfSpread);
+        sellPrice = SafeMath.add(ethUsdRate, halfSpread);
+         
+       
     }
 
     // ***************************************************************************
@@ -180,12 +188,7 @@ contract libreBank is Ownable,Pausable {
         //if (!isRateActual) { //commented because updateRate's modifier already checks the necessity, but maybe should do some refactoring
             updateRate();
         //}
-        uint256 currentSpread = SafeMath.add(limits[limitType.minBuySpread], limits[limitType.minSellSpread]);
-        uint256 halfSpread = SafeMath.div(currentSpread, 2);
-        // require(halfSpread < currentSpread); // -- not sure if we need to check (possibly no), I need to research types and possible vulnerabilities - Dima
-        // ethUsdRate now - base ecxhange rate in cents, so:
-        buyPrice = SafeMath.sub(ethUsdRate, halfSpread);
-        // in case of possible overflows should do assert() or require() for sellPrice>ethUsdRate and buyPrice<..., but we need a small research
+       
         tokensAmount = msg.value.mul(buyPrice).div(100); // maybe we can not use div(100) and make rate in dollars?
         libreToken.mint(benificiar, tokensAmount);
         // LogBuy(benificiar, msg.value, _amount, totalSupply);
@@ -198,11 +201,7 @@ contract libreBank is Ownable,Pausable {
         //if (!isRateActual) { //commented because updateRate's modifier already checks the necessity, but maybe should do some refactoring
             updateRate();
         //}
-        uint256 currentSpread = SafeMath.add(limits[limitType.minBuySpread], limits[limitType.minSellSpread]);
-        uint256 halfSpread = SafeMath.div(currentSpread, 2);
-        // require(halfSpread < currentSpread); // -- not sure if we need to check (possibly no), I need to research types and possible vulnerabilities - Dima
-        // ethUsdRate now - base ecxhange rate in cents, so:
-        buyPrice = SafeMath.sub(ethUsdRate, halfSpread);
+       
         // in case of possible overflows should do assert() or require() for sellPrice>ethUsdRate and buyPrice<..., but we need a small research
         tokensAmount = msg.value.mul(buyPrice).div(100); // maybe we can not use div(100) and make rate in dollars?
         libreToken.mint(benificiar, tokensAmount);
@@ -220,9 +219,8 @@ contract libreBank is Ownable,Pausable {
         //if (!isRateActual) { //commented because updateRate's modifier already checks the necessity, but maybe should do some refactoring
             updateRate();
         //}
-        uint256 currentSpread = SafeMath.add(limits[limitType.minBuySpread], limits[limitType.minSellSpread]);
-        uint256 halfSpread = SafeMath.div(currentSpread, 2);
-        sellPrice = SafeMath.add(ethUsdRate, halfSpread);
+       
+        
         if (ethersAmount > this.balance) {                  // checks if the bank has enough Ethers to send
             // think about it: if this.balance is balanceOf(msg.sender)? if so, just use it because of ERC20
             tokensAmount = this.balance.mul(sellPrice).div(100);
