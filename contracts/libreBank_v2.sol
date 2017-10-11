@@ -285,10 +285,10 @@ contract libreBank is Ownable,Pausable {
     function buyAfter (uint256 orderID) internal {
         // in case of possible overflows should do assert() or require() for sellPrice>ethUsdRate and buyPrice<..., but we need a small research
         uint256 ethersAmount = Orders[orderID].orderAmount;
-        uint256 tokensAmount = ethersAmount.mul(_buyPrice).div(100);
+        uint256 tokensAmount = ethersAmount.mul(buyPrice).div(100);
         address benificiar = Orders[orderID].clientAddress;  
         libreToken.mint(benificiar, tokensAmount);
-        LogBuy(benificiar, tokensAmount, ethersAmount, _buyPrice);
+        LogBuy(benificiar, tokensAmount, ethersAmount, buyPrice);
     }
   
     function sellTokens(uint256 _amount) public {
@@ -317,20 +317,20 @@ contract libreBank is Ownable,Pausable {
     function sellAfter (uint256 orderID) internal {
         address benificiar = Orders[orderID].clientAddress;
         uint256 tokensAmount;
-        uint256 ethersAmount = tokensAmount.div(_sellPrice).mul(100);
+        uint256 ethersAmount = tokensAmount.div(sellPrice).mul(100);
         if (ethersAmount > this.balance) {                  // checks if the bank has enough Ethers to send
-            tokensAmount = this.balance.mul(_sellPrice).div(100); 
+            tokensAmount = this.balance.mul(sellPrice).div(100); 
             libreToken.mint(benificiar, Orders[orderID].orderAmount.sub(tokensAmount));
             ethersAmount = this.balance;
         } else {
             tokensAmount = Orders[orderID].orderAmount;
-            ethersAmount = tokensAmount.div(_sellPrice).mul(100);
+            ethersAmount = tokensAmount.div(sellPrice).mul(100);
         }
         if (!benificiar.send(ethersAmount)) { 
             libreToken.mint(benificiar, tokensAmount);
             throw;                                         
         } 
-        LogSell(benificiar, tokensAmount, ethersAmount, _sellPrice);
+        LogSell(benificiar, tokensAmount, ethersAmount, sellPrice);
     }
 
     function clearOrders () internal {
