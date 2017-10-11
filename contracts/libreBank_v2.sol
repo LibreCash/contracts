@@ -333,13 +333,14 @@ contract libreBank is Ownable,Pausable {
         LogSell(benificiar, tokensAmount, ethersAmount, _sellPrice);
     }
 
-    function clearOrders internal {
-        for (uint i = 0; i < Orders.length; i++) {
-            if Orders[i].isBuy {
+    function clearOrders () internal {
+        uint ordersLength = Orders.length;
+        for (uint i = 0; i < ordersLength; i++) {
+            if (Orders[i].isBuy) {
                 buyAfter (i); 
-            } else sellAfter (i); 
+            } else {sellAfter (i);}
         }
-        for (uint i = 0; i < Orders.length; i++) {
+        for (i = 0; i < ordersLength; i++) {
             delete  Orders[0];
         }
     }
