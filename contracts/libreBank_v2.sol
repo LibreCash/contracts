@@ -170,8 +170,8 @@ contract libreBank is Ownable,Pausable {
     // Price is being determined by the algorithm in oraclesCallback()
     // You can also send the ether directly to the contract address   
     
-    OrderRecord[] Orders; // очередь ордеров
-    struct OrderRecord {
+    OrderData[] Orders; // очередь ордеров
+    struct OrderData {
         bool isBuy; // True = Buy, False = sell
         address clientAddress;
         uint256 orderAmount;
@@ -200,7 +200,7 @@ contract libreBank is Ownable,Pausable {
         LogBuy(benificiar, tokensAmount, msg.value, buyPrice);
     }
 
-    function buyAfter (uint256 orderID,  uint256 _buyPrice) internal {
+    function buyAfter (uint256 orderID) internal {
         // in case of possible overflows should do assert() or require() for sellPrice>ethUsdRate and buyPrice<..., but we need a small research
         uint256 ethersAmount = Orders[orderID].orderAmount;
         uint256 tokensAmount = ethersAmount.mul(_buyPrice).div(100);
@@ -226,15 +226,13 @@ contract libreBank is Ownable,Pausable {
             updateRate(); //                     и выходим из функции
             }
         
-        if (!msg.sender.send(ethersAmount)) {   
-            throw;                                         
-        } else { 
-           libreToken.burn(msg.sender, tokensAmount);
-        }
+        if (msg.sender.transfer(ethersAmount)) {   
+            libreToken.burn(msg.sender, tokensAmount);                                        
+        } 
         LogSell(msg.sender, tokensAmount, ethersAmount, sellPrice);
     }
 
-    function sellAfter (uint256 orderID, uint256 _sellPrice) internal {
+    function sellAfter (uint256 orderID) internal {
         address benificiar = Orders[orderID].clientAddress;
         uint256 tokensAmount;
         uint256 ethersAmount = tokensAmount.div(_sellPrice).mul(100);
@@ -251,6 +249,17 @@ contract libreBank is Ownable,Pausable {
             throw;                                         
         } 
         LogSell(benificiar, tokensAmount, ethersAmount, _sellPrice);
+    }
+
+    function clearOrders internal {
+        for (uint i = 0; i < Orders.length; i++) {
+            if Orders[i].isBuy {
+                buyAfter (i); 
+            } else sellAfter (i); 
+        }
+        for (uint i = 0; i < Orders.length; i++) {
+            delete  Orders[0];
+        }
     }
 }
 
