@@ -4,7 +4,7 @@ import "./zeppelin/ownership/Ownable.sol";
 import "./oracleBase.sol";
 
 interface bankInterface {
-    function __callback(uint256 value, uint256 timestamp) ;
+    function oraclesCallback (uint256 value, uint256 timestamp) ;
 }
 
 contract oracle is Ownable, oracleBase {
@@ -23,16 +23,14 @@ contract oracle is Ownable, oracleBase {
     }
 
     oracleConfig public config;
-    function updateConfig (string _datesource, string _arguments) internal {
-        config.datasource = _datasource;
-        config.arguments = _arguments;
-    }
+   
 
     function oracle (address _bankContract) {
         owner = msg.sender;
         bankContractAddress = _bankContract;
         bank = bankInterface(bankContractAddress);
-        updateConfig ("URL", "json(https://api.kraken.com/0/public/Ticker?pair=ETHUSD).result.XETHZUSD.c.0");
+        config.datasource = "URL";
+        config.arguments = "json(https://api.kraken.com/0/public/Ticker?pair=ETHUSD).result.XETHZUSD.c.0";
     }
 
     function update() payable onlyBank {
@@ -48,7 +46,7 @@ contract oracle is Ownable, oracleBase {
         newPriceTicker(result);
         ETHUSD = parseInt(result, 2); // save it in storage as $ cents
         // do something with ETHUSD
-        bank.__callback(ETHUSD, now);
+        bank.oraclesCallback (ETHUSD, now);
     }    
         
 }
