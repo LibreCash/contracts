@@ -46,5 +46,3 @@ contract libreCoin is MintableToken,PausableToken {
         Burn(burner, _value);
     }
 }
-
-
