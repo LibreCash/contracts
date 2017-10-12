@@ -12,6 +12,8 @@ contract libreCoin is MintableToken,PausableToken {
     uint32 public constant decimals = 18;
     address public bankContract;
 
+    event Burn(address indexed burner, uint256 value);
+
     modifier onlyBank() {
         require(msg.sender == bankContract);
         _;
@@ -29,6 +31,19 @@ contract libreCoin is MintableToken,PausableToken {
 
     function getTokensAmount() public returns(uint256) {
         return totalSupply;
+    }
+
+    /**
+     * @dev Burns a specific amount of tokens.
+     * @param _value The amount of token to be burned.
+     */
+    function burn(uint256 _value) public {
+        require(_value > 0);
+
+       address burner = msg.sender;
+        balances[burner] = balances[burner].sub(_value);
+        totalSupply = totalSupply.sub(_value);
+        Burn(burner, _value);
     }
 }
 
