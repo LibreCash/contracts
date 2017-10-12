@@ -31,6 +31,8 @@ contract oracle is Ownable, oracleBase {
         bank = bankInterface(bankContractAddress);
         config.datasource = "URL";
         config.arguments = "json(https://api.kraken.com/0/public/Ticker?pair=ETHUSD).result.XETHZUSD.c.0";
+        // FIXME: enable oraclize_setProof is production
+        //oraclize_setProof(proofType_TLSNotary);
     }
 
     function update() payable onlyBank {
