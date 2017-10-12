@@ -1,13 +1,14 @@
 pragma solidity ^0.4.11;
 
 import "./zeppelin/ownership/Ownable.sol";
+import "./oracleBase.sol";
 
 interface bankInterface {
     function __callback(uint256 value, uint256 timestamp) ;
 }
 
-contract oracle is Ownable, usingOraclize {
-    string public constant name = "Bitinex Oraclize Async";
+contract oracle is Ownable, oracleBase {
+    string public constant name = "Bitfinex Oraclize Async";
     string public constant oracleType = "ETHUSD";
     address public bankContractAddress;
     address public owner;
@@ -15,6 +16,19 @@ contract oracle is Ownable, usingOraclize {
     bankInterface bank;
     event newOraclizeQuery(string description);
     event newPriceTicker(string price);
+
+    struct oracleConfig {
+        string datesource;
+        string arguments;
+    }
+
+    oracleConfig config;
+    function updateConfig (string _datesource, string _arguments) onlyOwner {
+        config.datasource = _datasource;
+        config.arguments = _arguments;
+    }
+
+
 
     function oracle (address _bankContract) {
         owner = msg.sender;
@@ -27,7 +41,7 @@ contract oracle is Ownable, usingOraclize {
             newOraclizeQuery("Oraclize query was NOT sent, please add some ETH to cover for the query fee");
         } else {
             newOraclizeQuery("Oraclize query was sent, standing by for the answer..");
-            oraclize_query(delay, datasource, argument);
+            oraclize_query(0, config.datasource, config.arguments);
           
         }
     }  
