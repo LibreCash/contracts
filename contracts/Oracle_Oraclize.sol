@@ -36,7 +36,7 @@ contract oracle is Ownable, usingOraclize {
         newPriceTicker(result);
         ETHUSD = parseInt(result, 2); // save it in storage as $ cents
         // do something with ETHUSD
-        bank.callback(ETHUSD, now);
+        bank.__callback(ETHUSD, now);
     }    
         
 }
