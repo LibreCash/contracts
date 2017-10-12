@@ -23,12 +23,10 @@ contract oracle is Ownable, oracleBase {
     }
 
     oracleConfig public config;
-    function updateConfig (string _datesource, string _arguments) onlyOwner {
+    function updateConfig (string _datesource, string _arguments) internal {
         config.datasource = _datasource;
         config.arguments = _arguments;
     }
-
-
 
     function oracle (address _bankContract) {
         owner = msg.sender;
