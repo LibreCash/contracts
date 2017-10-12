@@ -35,10 +35,18 @@ contract libreBank is Ownable,Pausable {
         bool enabled;
     }
 
+    struct oracleResult {
+        address oracleAddress;
+        uint256 value;
+        uint256 timestamp;
+    }
+    oracleResult[] oracleResults;
     oracleData[] oracles;
     uint256 updateDataRequest;
     
     mapping (string=>address) oraclesAddress;
+    mapping (address=>bool) isOracle;
+    uint256 oraclesUpdated;
 
  
     uint256 public currencyUpdateTime;
@@ -63,10 +71,9 @@ contract libreBank is Ownable,Pausable {
         setLimitValue(limitType.minTransactionAmount,amountInWei);
     }
 
-    function setBuySpreadLimits(uint256 minBuySpread, uint256 minBuySpread) onlyOwner {
-        setLimitValue(limitType.minBuySpread,minSpead);
-        setLimitValue(limitType.maxBuySpread,maxSpread);
-        
+    function setBuySpreadLimits(uint256 _minBuySpread, uint256 _maxBuySpread) onlyOwner {
+        setLimitValue(limitType.minBuySpread,_minBuySpread);
+        setLimitValue(limitType.maxBuySpread,_maxBuySpread);
     }
 
     function setSellSpreadLimits(uint256 minSellSpread, uint256 maxSellSpread) onlyOwner {
@@ -146,16 +153,33 @@ contract libreBank is Ownable,Pausable {
     function getRate() private returns(bool) {
         uint256[] oracleResults;
         for (uint256 i = 0; i < oracles.length; i++) {
-            if (oracles[i].enabled) oracleInterface(oracle[i].oracleAddress).update();
+            if (oracles[i].enabled) 
+                oracleInterface(oracle[i].oracleAddress).update();
         }
         return true;
     }
 
-    function oraclesCallback(string name,uint256 value,uint256 timestamp) {
-        // Implement it later
+    function updateFinished() returns (bool) {
+        if(oraclesUpdated == oracles.length) {
+            oraclesUpdated = 0;
+            return true;
+        }
+        return false;
+    }
+    function callback(uint256 value,uint256 timestamp) {
+        require(isOracle[msg.sender]);
+        oracleResult currentResult = oracleResults(msg.sender,value,timestamp);
+        oracleResults.push(currentResult);
+        oraclesUpdated++;
+        if( updateFinished() ) 
+            aggregateData();
     }
 
-
+    function aggregateData() {
+        // Not implemented yet
+        delete oracleResults;
+        return; 
+    }
 
     function buyTokens(address benificiar) {
         require(msg.value > getLimitValue(limitType.minTransactionAmount));
