@@ -316,7 +316,7 @@ contract libreBank is Ownable,Pausable {
 
     function sellAfter (uint256 orderID) internal {
         address benificiar = Orders[orderID].clientAddress;
-        uint256 tokensAmount;
+        uint256 tokensAmount = Orders[orderID].orderAmount;
         uint256 ethersAmount = tokensAmount.div(sellPrice).mul(100);
         if (ethersAmount > this.balance) {                  // checks if the bank has enough Ethers to send
             tokensAmount = this.balance.mul(sellPrice).div(100); 
