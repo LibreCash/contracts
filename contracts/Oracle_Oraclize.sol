@@ -2,18 +2,24 @@ pragma solidity ^0.4.11;
 
 import "./zeppelin/ownership/Ownable.sol";
 
+interface bankInterface {
+    function callback(uint256 value, uint256 timestamp) returns(bool);
+}
+
 contract oracle is Ownable, usingOraclize {
-    string public constant name = "ETHUSD Oraclize Async";
-    address public bankContract;
+    string public constant name = "Bitinex Oraclize Async";
+    string public constant oracleType = "ETHUSD";
+    address public bankContractAddress;
     address public owner;
     uint public ETHUSD;
+    bankInterface bank;
     event newOraclizeQuery(string description);
     event newPriceTicker(string price);
 
     function oracle (address _bankContract) {
         owner = msg.sender;
-        bankContract = _bankContract;
-
+        bankContractAddress = _bankContract;
+        bank = bankInterface(bankContractAddress);
     }
 
     function update() payable onlyBank {
@@ -33,7 +39,4 @@ contract oracle is Ownable, usingOraclize {
         
     }    
         
-}
-
-
 }
