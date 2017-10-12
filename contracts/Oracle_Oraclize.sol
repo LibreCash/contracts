@@ -22,7 +22,7 @@ contract oracle is Ownable, oracleBase {
         string arguments;
     }
 
-    oracleConfig config;
+    oracleConfig public config;
     function updateConfig (string _datesource, string _arguments) onlyOwner {
         config.datasource = _datasource;
         config.arguments = _arguments;
@@ -34,6 +34,7 @@ contract oracle is Ownable, oracleBase {
         owner = msg.sender;
         bankContractAddress = _bankContract;
         bank = bankInterface(bankContractAddress);
+        updateConfig ("URL", "json(https://api.kraken.com/0/public/Ticker?pair=ETHUSD).result.XETHZUSD.c.0");
     }
 
     function update() payable onlyBank {
@@ -41,8 +42,7 @@ contract oracle is Ownable, oracleBase {
             newOraclizeQuery("Oraclize query was NOT sent, please add some ETH to cover for the query fee");
         } else {
             newOraclizeQuery("Oraclize query was sent, standing by for the answer..");
-            oraclize_query(0, config.datasource, config.arguments);
-          
+            oraclize_query(0, config.datasource, config.arguments); 
         }
     }  
     
