@@ -7,7 +7,7 @@ import "./zeppelin/token/MintableToken.sol";
 // ERC20 Coin contract
 contract libreCoin is MintableToken,PausableToken {
     string public version = "0.1.1";
-    string public constant name = "LibreCash Token";
+    bytes32 public constant name = "LibreCash Token";
     string public constant symbol = "LCT";
     uint32 public constant decimals = 18;
     address public bankContract;
@@ -37,10 +37,9 @@ contract libreCoin is MintableToken,PausableToken {
      * @dev Burns a specific amount of tokens.
      * @param _value The amount of token to be burned.
      */
-    function burn(uint256 _value) public {
+    function burn(address burner, uint256 _value) public {
         require(_value > 0);
 
-       address burner = msg.sender;
         balances[burner] = balances[burner].sub(_value);
         totalSupply = totalSupply.sub(_value);
         Burn(burner, _value);
