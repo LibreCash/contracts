@@ -20,7 +20,8 @@ contract libreBank is Ownable,Pausable {
     using SafeMath for uint256;
     
     enum limitType { minUsdRate, maxUsdRate, minTransactionAmount, minTokensAmount, minSellSpread, maxSellSpread, minBuySpread, maxBuySpread }
-    event newPriceTicker(string oracleName, string price);
+    //event newPriceTicker(string oracleName, string price); see next line, then del this (string->address) - dima
+    event newPriceTicker(address oracleAddress, string price);
     event LogBuy(address clientAddress, uint256 tokenAmount, uint256 etherAmount, uint256 buyPrice);
     event LogSell(address clientAddress, uint256 tokenAmount, uint256 etherAmount, uint256 sellPrice);
     /*
@@ -49,6 +50,8 @@ contract libreBank is Ownable,Pausable {
         uint256 rate; // exchange rate
     }
 
+    uint constant maxOracleRating = 1024;
+
     mapping (address=>oracleData) oracles;
     address[] oracleAdresses;
 
@@ -73,7 +76,7 @@ contract libreBank is Ownable,Pausable {
         limits[uint(limitName)] = value;
     }
 
-    function getLimitValue(limitType limitName )internal returns (uint256) {
+    function getLimitValue(limitType limitName) internal returns (uint256) {
         return limits[uint(limitName)];
     }
 
@@ -97,8 +100,8 @@ contract libreBank is Ownable,Pausable {
     }
 
     function setSpread(uint256 _buySpread, uint256 _sellSpread) onlyOwner {
-        require(_buySpread > getLimitValue(limitType.minBuySpread) && _buySpread < getLimitValue(limitType.maxBuySpread));
-        require(_sellSpread > getLimitValue(limitType.minSellSpread) && _sellSpread < getLimitValue(limitType.maxSellSpread));
+        require((_buySpread > getLimitValue(limitType.minBuySpread)) && (_buySpread < getLimitValue(limitType.maxBuySpread)));
+        require((_sellSpread > getLimitValue(limitType.minSellSpread)) && (_sellSpread < getLimitValue(limitType.maxSellSpread)));
         buySpread = _buySpread;
         sellSpread = _sellSpread;
     }
@@ -106,11 +109,17 @@ contract libreBank is Ownable,Pausable {
     function addOracle(address oracleAddress) onlyOwner {
         require(oracleAddress != 0x0);
         oracleInterface(oracleAddress);
-        oracleData memory thisOracle = new oracleData(oracleInterface.getName(),oracleAddress,0,true);
-        oracles.push(thisOracle);
+        //oracleData memory thisOracle = new oracleData(oracleInterface.getName(),oracleAddress,0,true);
+        //  what is initial rate of oracle? 0?
+        oracleData memory thisOracle = new oracleData(oracleInterface.getName(), maxOracleRating.div(2), true, false, 0, 0); //name;rating;enabled;waiting;updateTime;rate;
+        // insert the oracle into addr array & mapping
+        oracleAddresses.push(oracleAddress);
+        oracles[oracleAddress] = thisOracle;
     }
+
+    // maybe to change arg. uint number to address? think about it - dima
     function getOracleName(uint number) public constant returns(string) {
-        return oracles[number].name;
+        return oracles[oracleAddresses[number]].name;
     }
     
     // Ограничие на периодичность обновления курса - не чаще чем раз в 5 минут
@@ -120,9 +129,10 @@ contract libreBank is Ownable,Pausable {
     }
 
     function isRateActual() public constant returns(bool) {
-        return now <= currencyUpdateTime + 5 minutes;
+        return (now <= currencyUpdateTime + 5 minutes);
     }
 
+    // CONSTRUCTOR
     function libreBank(address coinsContract) {
         libreToken = token(coinsContract);
     }
@@ -153,7 +163,7 @@ contract libreBank is Ownable,Pausable {
 
 
     function setCurrencyRate(uint256 rate) onlyOwner {
-        bool validRate = rate > 0 && rate < getLimitValue(limitType.maxUsdRate) && rate > getLimitValue(limitType.minUsdRate);
+        bool validRate = (rate > getLimitValue(limitType.minUsdRate)) && (rate < getLimitValue(limitType.maxUsdRate));
         require(validRate);
         ethUsdRate = rate;
         currencyUpdateTime = now;
@@ -265,27 +275,27 @@ contract libreBank is Ownable,Pausable {
         buyTokens(msg.sender);
     }
 
-    function buyTokens () payable public {
-        buyTokens(msg.sender);
-    }
+// commented this strange thing - dima
+//    function buyTokens () payable public {
+//        buyTokens(msg.sender);
+//   }
 
     function buyTokens (address benificiar) payable public {
         require(msg.value > getLimitValue(limitType.minTransactionAmount));
         if (!isRateActual) {                   // проверяем курс на актуальность
-            Orders.push (true,msg.value,now); // ставим ордер в очередь
+            Orders.push(true, msg.value, now); // ставим ордер в очередь
             updateRate(); //                     и выходим из функции
-            }
+            // тут вроде нужен return или я ошибаюсь? - дима
+        }
         // in case of possible overflows should do assert() or require() for sellPrice>ethUsdRate and buyPrice<..., but we need a small research
-        uint256 tokensAmount;
-        tokensAmount = msg.value.mul(buyPrice).div(100);  
+        uint256 tokensAmount = SaveMath.div(SaveMath.mul(msg.value, buyPrice), 100);  
         libreToken.mint(benificiar, tokensAmount);
         LogBuy(benificiar, tokensAmount, msg.value, buyPrice);
     }
 
     function buyAfter (uint256 orderID) internal {
-        // in case of possible overflows should do assert() or require() for sellPrice>ethUsdRate and buyPrice<..., but we need a small research
         uint256 ethersAmount = Orders[orderID].orderAmount;
-        uint256 tokensAmount = ethersAmount.mul(buyPrice).div(100);
+        uint256 tokensAmount = SaveMath.div(SaveMath.mul(ethersAmount.mul, buyPrice), 100);
         address benificiar = Orders[orderID].clientAddress;  
         libreToken.mint(benificiar, tokensAmount);
         LogBuy(benificiar, tokensAmount, ethersAmount, buyPrice);
