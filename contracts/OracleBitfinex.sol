@@ -4,11 +4,11 @@ import "./zeppelin/ownership/Ownable.sol";
 import "./OracleBase.sol";
 
 interface bankInterface {
-    function oraclesCallback (uint256 value, uint256 timestamp);
+    function oraclesCallback (uint256 value, uint256 timestamp) ;
 }
 
 contract OracleKraken is Ownable, OracleBase {
-    string public constant name = "Kraken Oraclize Async";
+    string public constant name = "Bitfinex Oraclize Async";
     string public constant oracleType = "ETHUSD";
     address public bankContractAddress;
 //    address public owner;
@@ -33,7 +33,8 @@ contract OracleKraken is Ownable, OracleBase {
         bankContractAddress = _bankContract;
         bank = bankInterface(bankContractAddress);
         config.datasource = "URL";
-        config.arguments = "json(https://api.kraken.com/0/public/Ticker?pair=ETHUSD).result.XETHZUSD.c.0";
+        // mid - среднее значение между bid и ask у битфинекса, считаю целесообразным
+        config.arguments = "json(https://api.bitfinex.com/v1/pubticker/ethusd).mid";
         // FIXME: enable oraclize_setProof is production
         // разобраться с setProof - что с ним не так? - Дима
         oraclize_setProof(proofType_TLSNotary);
