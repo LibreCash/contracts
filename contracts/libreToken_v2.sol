@@ -7,7 +7,7 @@ import "./zeppelin/token/MintableToken.sol";
 // ERC20 Coin contract
 contract libreCoin is MintableToken,PausableToken {
     string public version = "0.1.1";
-    string public constant name = "LibreCash Token";
+    bytes32 public constant name = "LibreCash Token";
     string public constant symbol = "LCT";
     uint32 public constant decimals = 18;
     address public bankContract;

@@ -6,19 +6,19 @@ import "./zeppelin/math/SafeMath.sol";
 
 interface token {
     /*function transfer(address receiver, uint amount);*/
-    function balanceOf(address _owner) returns (uint256);
-    function mint(address _to,uint256 _amount);
+    function balanceOf(address _owner) public returns (uint256);
+    function mint(address _to,uint256 _amount) public;
     function getTokensAmount() public returns(uint256);
     function burn(address burner, uint256 _value) public;
 }
 
 interface oracleInterface {
     function update();
-    function getName() constant returns(string);
+    function getName() constant public returns(bytes32);
 }
 
 
-contract libreBank is Ownable,Pausable {
+contract libreBank is Ownable, Pausable {
     using SafeMath for uint256;
     
     enum limitType { minUsdRate, maxUsdRate, minTransactionAmount, minTokensAmount, minSellSpread, maxSellSpread, minBuySpread, maxBuySpread }
@@ -32,7 +32,7 @@ contract libreBank is Ownable,Pausable {
     uint256 updateDataRequest;
     
     struct oracleData {
-        string name;
+        bytes32 name;
         uint256 rating;
         bool enabled;
         bool waiting;
@@ -119,7 +119,7 @@ contract libreBank is Ownable,Pausable {
      * @dev Gets oracle name
      * @param _address The oracle address
      */
-    function getOracleName(address _address) public constant returns(string) {
+    function getOracleName(address _address) public constant returns(bytes32) {
         return oracles[_address].name;
     }
     
@@ -313,7 +313,7 @@ contract libreBank is Ownable,Pausable {
         }
         if (!isRateActual()) {                   // проверяем курс на актуальность
             libreToken.burn(msg.sender, tokensAmount); // уменьшаем баланс клиента (в случае отмены ордера, токены клиенту возвращаются)
-            orders.push(false,tokensAmount,now); // ставим ордер в очередь
+            orders.push(OrderData(false,msg.sender,tokensAmount,now)); // ставим ордер в очередь // msg.sender тут подходит? - Дима
             updateRate(); //                     и выходим из функции
             }
         // либо send, либо transfer исключение выдаст. посмотреть потом, можно ли transfer ограничиться
