@@ -21,6 +21,7 @@ interface oracleInterface {
 contract libreBank is Ownable, Pausable {
     using SafeMath for uint256;
     
+    // сравнить с тем, что в oraclebase - dima
     event NewPriceTicker(address oracleAddress, string price);
     event LogBuy(address clientAddress, uint256 tokenAmount, uint256 etherAmount, uint256 buyPrice);
     event LogSell(address clientAddress, uint256 tokenAmount, uint256 etherAmount, uint256 sellPrice);

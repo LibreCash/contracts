@@ -8,12 +8,18 @@ interface bankInterface {
 }
 
 contract OracleKraken is Ownable, OracleBase {
-    string public constant name = "Bitfinex Oraclize Async";
-    string public constant oracleType = "ETHUSD";
+//    string public constant name = "Bitfinex Oraclize Async";
+//    string public constant oracleType = "ETHUSD";
     address public bankContractAddress;
 //    address public owner;
     uint public ETHUSD;
     bankInterface bank;
+    bytes32 oracleName = "Bitfinex Oraclize Async";
+    bytes16 oracleType = "ETHUSD";
+    string datasource = "URL";
+    // https://bitfinex.readme.io/v1/reference#rest-public-ticker
+    string arguments = "json(https://api.bitfinex.com/v1/pubticker/ethusd).mid";
+
     mapping(bytes32=>bool) validIds; // ensure that each query response is processed only once
 
 // закомментил что есть в oracleBase.sol
@@ -27,14 +33,16 @@ contract OracleKraken is Ownable, OracleBase {
 
 //    OracleConfig public config;
    
-
-    function OracleKraken (address _bankContract) public {
+    // такой тип наследования описан: https://github.com/ethereum/wiki/wiki/%5BRussian%5D-%D0%A0%D1%83%D0%BA%D0%BE%D0%B2%D0%BE%D0%B4%D1%81%D1%82%D0%B2%D0%BE-%D0%BF%D0%BE-Solidity#arguments-for-base-constructors
+    function OracleKraken (address _bankContract) OracleBase(oracleName, datasource, arguments, oracleType) public {
         owner = msg.sender;
+
         bankContractAddress = _bankContract;
         bank = bankInterface(bankContractAddress);
-        config.datasource = "URL";
+        //config.datasource = datasource;
         // mid - среднее значение между bid и ask у битфинекса, считаю целесообразным
-        config.arguments = "json(https://api.bitfinex.com/v1/pubticker/ethusd).mid";
+        // https://bitfinex.readme.io/v1/reference#rest-public-ticker
+        //config.arguments = arguments;
         // FIXME: enable oraclize_setProof is production
         // разобраться с setProof - что с ним не так? - Дима
         oraclize_setProof(proofType_TLSNotary);
@@ -57,7 +65,7 @@ contract OracleKraken is Ownable, OracleBase {
         NewPriceTicker(result);
         ETHUSD = parseInt(result, 2); // save it in storage as $ cents
         // do something with ETHUSD
-        delete validIds[myid];
+        delete(validIds[myid]);
         bank.oraclesCallback (ETHUSD, now);
     }    
         

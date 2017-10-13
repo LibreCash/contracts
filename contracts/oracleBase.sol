@@ -5,12 +5,13 @@ import "./zeppelin/ownership/Ownable.sol";
 
 contract OracleBase is Ownable, usingOraclize {
     event NewOraclizeQuery(string description);
-    event NewPriceTicker(string oracleName, uint256 price, uint256 timestamp);
+    // надеюсь, нет ограничений на использование bytes32 в событии. Надо посмотреть, как web3.js это воспримет
+    event NewPriceTicker(bytes32 oracleName, uint256 price, uint256 timestamp);
 
-    string public name;
+    bytes32 public oracleName;
+    bytes16 public oracleType; // Human-readable oracle type e.g ETHUSD
     string public description;
     uint256 lastResult;
-    string oracleType; // Human-readable oracle type e.g ETHUSD
     uint256 lastResultTimestamp;
     uint256 public updateCost;
     address public owner;
@@ -27,20 +28,17 @@ contract OracleBase is Ownable, usingOraclize {
         description = _description;
     }
 
-    function OracleBase(string _name, string _datasource, string _arguments, string _type) public {
+    function OracleBase(bytes32 _name, string _datasource, string _arguments, bytes16 _type) public {
         owner = msg.sender;
-        name = _name;
+        oracleName = _name;
         oracleType = _type;
         config.datasource = _datasource;
         config.arguments = _arguments;
         updateCost = 2*oraclize_getPrice(_datasource);
     }
 
-// не понял, зачем тут эти две функции (далее закомментил), они в дочерних контрактах описываются
-// можно этот контракт сделать абстрактным и описать их заголовки только
-// возможно, я не прав
-// Дима
- /*   function update(uint delay, uint _BSU, address _address, uint256 _amount, uint _limit) payable {
+
+    function update(uint delay, uint _BSU, address _address, uint256 _amount, uint _limit) payable {
         require(this.balance > updateCost);
         bytes32 queryId = oraclize_query(delay, config.datasource, config.arguments);
         validIds[queryId] = true;
@@ -50,18 +48,19 @@ contract OracleBase is Ownable, usingOraclize {
     function __callback(bytes32 myid, string result, bytes proof) {
         require (msg.sender == oraclize_cbAddress());
         uint256 currentTime = now;
+        // where is parseInt? shall we declare? http://remebit.com/converting-strings-to-integers-in-solidity/
         uint ETHUSD = parseInt(result, 2); // in $ cents
         lastResult = ETHUSD;
         lastResultTimestamp = currentTime;
-        delete validIds[myid];
-        NewPriceTicker(name,ETHUSD,currentTime);
-    }*/
-
-    function getName() constant returns(string) public {
-        return name;
+        delete(validIds[myid]);
+        NewPriceTicker(oracleName, ETHUSD, currentTime);
     }
 
-    function getType() constant returns(string) public {
+    function getName() constant public returns(bytes32) {
+        return oracleName;
+    }
+
+    function getType() constant public returns(bytes16) {
         return oracleType;
     }
 }
