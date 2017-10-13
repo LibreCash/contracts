@@ -38,9 +38,9 @@ contract OracleBase is Ownable, usingOraclize {
     }
 
 
-    function update(uint delay, uint _BSU, address _address, uint256 _amount, uint _limit) payable {
+    function update() payable {
         require(this.balance > updateCost);
-        bytes32 queryId = oraclize_query(delay, config.datasource, config.arguments);
+        bytes32 queryId = oraclize_query(0, config.datasource, config.arguments);
         validIds[queryId] = true;
         NewOraclizeQuery("Oraclize query was sent, standing by for the answer...");
     }
