@@ -13,7 +13,7 @@ interface token {
 }
 
 interface oracleInterface {
-    function update();
+    function update() public;
     function getName() constant public returns(bytes32);
 }
 
@@ -21,17 +21,16 @@ interface oracleInterface {
 contract libreBank is Ownable, Pausable {
     using SafeMath for uint256;
     
-    enum limitType { minUsdRate, maxUsdRate, minTransactionAmount, minTokensAmount, minSellSpread, maxSellSpread, minBuySpread, maxBuySpread }
     event NewPriceTicker(address oracleAddress, string price);
     event LogBuy(address clientAddress, uint256 tokenAmount, uint256 etherAmount, uint256 buyPrice);
     event LogSell(address clientAddress, uint256 tokenAmount, uint256 etherAmount, uint256 sellPrice);
-    /*
-    event LogWithdrawal (uint256 EtherAmount, address addressTo, uint invertPercentage);
-    */
+    /* event LogWithdrawal (uint256 EtherAmount, address addressTo, uint invertPercentage); */
+
+    enum limitType { minUsdRate, maxUsdRate, minTransactionAmount, minTokensAmount, minSellSpread, maxSellSpread, minBuySpread, maxBuySpread }
 
     uint256 updateDataRequest;
     
-    struct oracleData {
+    struct OracleData {
         bytes32 name;
         uint256 rating;
         bool enabled;
@@ -40,9 +39,9 @@ contract libreBank is Ownable, Pausable {
         uint256 ethUsdRate; // exchange rate
     }
 
-    uint constant maxOracleRating = 10000;
+    uint constant MAX_ORACLE_RATING = 10000;
 
-    mapping (address=>oracleData) oracles;
+    mapping (address=>OracleData) oracles;
     address[] oracleAddresses;
 
     uint256 numWaitingOracles = 2**256 - 1; // init as maximum
@@ -108,7 +107,7 @@ contract libreBank is Ownable, Pausable {
         oracleInterface currentOracleInterface = oracleInterface(_address);
         //oracleData memory thisOracle = new oracleData(oracleInterface.getName(),oracleAddress,0,true);
         //  what is initial ethUsdRate of oracle? 0?
-        oracleData memory thisOracle = oracleData({name: currentOracleInterface.getName(), rating: maxOracleRating.div(2), 
+        OracleData memory thisOracle = OracleData({name: currentOracleInterface.getName(), rating: MAX_ORACLE_RATING.div(2), 
                                                     enabled: true, waiting: false, updateTime: 0, ethUsdRate: 0});
         // insert the oracle into addr array & mapping
         oracleAddresses.push(_address);
@@ -167,7 +166,7 @@ contract libreBank is Ownable, Pausable {
         currencyUpdateTime = now;
     }
 
-    function updateRate() needUpdate {
+    function updateRate() public needUpdate {
         requestUpdateRates();
         // I think we don't need the next code
         // the function should wait for callbacks or we should change the way it works
@@ -193,7 +192,9 @@ contract libreBank is Ownable, Pausable {
                 numWaitingOracles++;
             }
             timeUpdateRequested = now;
-            if (numWaitingOracles <= 2) { return false; } // 1-2 enabled oracles - false result. we need more oracles
+            if (numWaitingOracles <= 2) {
+                return false;
+            } // 1-2 enabled oracles - false result. we need more oracles
             // but we can not refer to return (i don't do throw here because update() already sent) - think about number of needed oracles
             return true;
         } // foreach oracles
@@ -210,7 +211,7 @@ contract libreBank is Ownable, Pausable {
         // the average rate would be: (sum of rating*rate)/(sum of ratings)
         // so the more rating oracle has, the more powerful his rate is
         for (uint i = 0; i < oracleAddresses.length; i++) {
-            oracleData currentOracle = oracles[oracleAddresses[i]];
+            OracleData currentOracle = oracles[oracleAddresses[i]];
             if (now <= currentOracle.updateTime + 5 minutes) { //up to date
                 if (currentOracle.enabled) {
                     numReadyOracles++;
