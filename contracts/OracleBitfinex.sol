@@ -7,7 +7,7 @@ interface bankInterface {
     function oraclesCallback (uint256 value, uint256 timestamp) ;
 }
 
-contract OracleKraken is  OracleBase {
+contract OracleBitfinex is  OracleBase {
 //    string public constant name = "Bitfinex Oraclize Async";
 //    string public constant oracleType = "ETHUSD";
     address public bankContractAddress;
@@ -37,7 +37,7 @@ contract OracleKraken is  OracleBase {
 //    OracleConfig public config;
    
     // такой тип наследования описан: https://github.com/ethereum/wiki/wiki/%5BRussian%5D-%D0%A0%D1%83%D0%BA%D0%BE%D0%B2%D0%BE%D0%B4%D1%81%D1%82%D0%B2%D0%BE-%D0%BF%D0%BE-Solidity#arguments-for-base-constructors
-    function OracleKraken() OracleBase(oracleName, datasource, arguments, oracleType) public { //OracleBase(oracleName, datasource, arguments, oracleType)
+    function OracleBitfinex() OracleBase(oracleName, datasource, arguments, oracleType) public { //OracleBase(oracleName, datasource, arguments, oracleType)
         owner = msg.sender;
 
         //bankContractAddress = _bankContract;
