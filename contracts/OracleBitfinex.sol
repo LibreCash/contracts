@@ -60,6 +60,7 @@ contract OracleBitfinex is  OracleBase {
 
     // модификатор временно убрал, пока он не реализован
     function update() payable {
+        require (msg.sender == bankContractAddress);
         if (oraclize_getPrice("URL") > this.balance) {
             newOraclizeQuery("Oraclize query was NOT sent, please add some ETH to cover for the query fee");
         } else {
