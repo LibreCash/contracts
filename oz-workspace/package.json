@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "description": "tutorialtoken",
   "main": "truffle.js",
-  "repository": "bitbucket:https://bitbucket.org/librecrypto/ethcontract/src",
+  "repository": "npm/npm",
   "directories": {
     "test": "test"
   },

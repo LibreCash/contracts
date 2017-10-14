@@ -1,9 +1,8 @@
 {
-  "name": "tutorialtoken",
+  "name": "pet-shop",
   "version": "1.0.0",
-  "description": "tutorialtoken",
+  "description": "",
   "main": "truffle.js",
-  "repository": "bitbucket:https://bitbucket.org/librecrypto/ethcontract/src",
   "directories": {
     "test": "test"
   },
@@ -17,6 +16,6 @@
     "lite-server": "^2.3.0"
   },
   "dependencies": {
-    "zeppelin-solidity": "^1.3.0"
+    "solium": "^0.5.5"
   }
 }
