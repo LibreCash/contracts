@@ -1,3 +1,24 @@
-"scripts": {
+{
+  "name": "Libre",
+  "version": "1.0.0",
+  "description": "",
+  "main": "truffle.js",
+  "directories": {
+    "test": "test"
+  },
+  "scripts": {
+    "dev": "lite-server",
     "test": "mocha"
+  },
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "lite-server": "^2.3.0"
+  },
+  "dependencies": {
+    "grunt": "^1.0.1",
+    "mocha": "^4.0.1",
+    "solium": "^0.5.5",
+    "zeppelin-solidity": "^1.3.0"
   }
+}
