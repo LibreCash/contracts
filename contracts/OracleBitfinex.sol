@@ -4,10 +4,10 @@ import "./zeppelin/ownership/Ownable.sol";
 import "./OracleBase.sol";
 
 interface bankInterface {
-    function oraclesCallback (uint256 value, uint256 timestamp) ;
+    function oraclesCallback(address _address, uint256 value, uint256 timestamp);
 }
 
-contract OracleBitfinex is  OracleBase {
+contract OracleBitfinex is OracleBase {
 //    string public constant name = "Bitfinex Oraclize Async";
 //    string public constant oracleType = "ETHUSD";
     address public bankContractAddress;
@@ -77,9 +77,9 @@ contract OracleBitfinex is  OracleBase {
         rate = parseInt(result, 2); // save it in storage as $ cents
         // do something with rate
         delete(validIds[myid]);
-        bank.oraclesCallback (rate, now);
+        bank.oraclesCallback(bankContractAddress, rate, now);
     }    
-    function donate() payable  {}
+    function donate() payable { }
     // Sending ether directly to the contract invokes buy() and assigns tokens to the sender 
 
 
