@@ -10,14 +10,13 @@ module.exports = {
 localtest: {
   provider: TestRPC.provider(),
   network_id:"*"
-  }
   },
    
   // add a section for mocha defaults
   mocha: {
-  reporter: "spec",
-  reporterOptions: {
-  mochaFile: 'TEST-truffle.xml'
+    reporter: "spec",
+    reporterOptions: {
+      mochaFile: 'TEST-truffle.xml'
+    }
   }
-  }
-};
+}

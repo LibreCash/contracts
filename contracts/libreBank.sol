@@ -12,13 +12,18 @@ interface token {
     function burn(address burner, uint256 _value) public;
 }
 
+
 interface oracleInterface {
     function update() public;
     function getName() constant public returns(bytes32);
 }
 
-
-contract libreBank is Ownable, Pausable {
+/**
+ * @title LibreBank.
+ *
+ * @dev Bank contract.
+ */
+contract LibreBank is Ownable, Pausable {
     using SafeMath for uint256;
     
     // сравнить с тем, что в oraclebase - dima
@@ -37,7 +42,7 @@ contract libreBank is Ownable, Pausable {
         bool enabled;
         bool waiting;
         uint256 updateTime; // time of callback
-        uint256 ethUsdRate; // exchange rate
+        uint256 cryptoFiatRate; // exchange rate
     }
 
     uint constant MAX_ORACLE_RATING = 10000;
@@ -52,10 +57,10 @@ contract libreBank is Ownable, Pausable {
 // end new oracleData
  
     uint256 public currencyUpdateTime;
-    uint256 public ethUsdRate = 30000; // In $ cents
+    uint256 public cryptoFiatRate = 30000; // In $ cents
 
     uint256[] limits;
-    oracleInterface currentOracle;
+//    oracleInterface currentOracle;
     token libreToken;
     uint256 minTokenAmount = 1; // used in sellTokens(...)
     uint256 buyPrice; // in cents
@@ -64,35 +69,67 @@ contract libreBank is Ownable, Pausable {
     uint256 buySpread; // in cents
     uint256 sellSpread; // in cents
     // переменных пока избыточно, при создании алгоритма расчёта определимся
+    // TODO: массив по enum
 
-    function setLimitValue(limitType limitName, uint256 value) internal {
-        limits[uint(limitName)] = value;
+    /**
+     * @dev Sets one of the limits.
+     * @param _limitName The limit name.
+     * @param _value The value.
+     */
+    function setLimitValue(limitType _limitName, uint256 _value) internal {
+        limits[uint(_limitName)] = _value;
     }
 
-    function getLimitValue(limitType limitName) internal returns (uint256) {
-        return limits[uint(limitName)];
+    /**
+     * @dev Gets value of one of the limits.
+     * @param _limitName The limit name.
+     */
+    function getLimitValue(limitType _limitName) constant internal returns (uint256) {
+        return limits[uint(_limitName)];
     }
 
+    /**
+     * @dev Gets minimal transaction amount.
+     */
     function getMinTransactionAmount() constant external returns(uint256) {
         return getLimitValue(limitType.minTransactionAmount);
     }
     
-    function setMinTransactionAmount(uint256 amountInWei) onlyOwner {
-        setLimitValue(limitType.minTransactionAmount,amountInWei);
+    /**
+     * @dev Sets minimal transaction amount (if ETH then in Wei).
+     * @param _amount Minimal transaction amount.
+     */
+    function setMinTransactionAmount(uint256 _amount) onlyOwner public {
+        setLimitValue(limitType.minTransactionAmount, _amount);
     }
 
-    function setBuySpreadLimits(uint256 _minBuySpread, uint256 _maxBuySpread) onlyOwner {
+    /**
+     * @dev Sets minimal and maximal buy spreads.
+     * @param _minBuySpread Minimal buy spread.
+     * @param _maxBuySpread Maximal buy spread.
+     */
+    function setBuySpreadLimits(uint256 _minBuySpread, uint256 _maxBuySpread) onlyOwner public {
         setLimitValue(limitType.minBuySpread, _minBuySpread);
         setLimitValue(limitType.maxBuySpread, _maxBuySpread);
         
     }
 
-    function setSellSpreadLimits(uint256 _minSellSpread, uint256 _maxSellSpread) onlyOwner {
+    /**
+     * @dev Sets minimal and maximal sell spreads.
+     * @param _minSellSpread Minimal sell spread.
+     * @param _maxSellSpread Maximal sell spread.
+     */
+    function setSellSpreadLimits(uint256 _minSellSpread, uint256 _maxSellSpread) onlyOwner public {
         setLimitValue(limitType.minSellSpread, _minSellSpread);
         setLimitValue(limitType.maxSellSpread, _maxSellSpread);
     }
 
-    function setSpread(uint256 _buySpread, uint256 _sellSpread) onlyOwner {
+    /**
+     * @dev Sets current buy and sell spreads spreads.
+     * @param _buySpread Current buy spread.
+     * @param _sellSpread Current sell spread.
+     */
+    function setSpread(uint256 _buySpread, uint256 _sellSpread) onlyOwner public {
         require((_buySpread > getLimitValue(limitType.minBuySpread)) && (_buySpread < getLimitValue(limitType.maxBuySpread)));
         require((_sellSpread > getLimitValue(limitType.minSellSpread)) && (_sellSpread < getLimitValue(limitType.maxSellSpread)));
         buySpread = _buySpread;
@@ -100,124 +137,154 @@ contract libreBank is Ownable, Pausable {
     }
 
     /**
-     * @dev Adds an oracle
-     * @param _address The oracle address
+     * @dev Adds an oracle.
+     * @param _address The oracle address.
      */
-    function addOracle(address _address) onlyOwner {
+    function addOracle(address _address) onlyOwner public {
         require(_address != 0x0);
         oracleInterface currentOracleInterface = oracleInterface(_address);
-        //oracleData memory thisOracle = new oracleData(oracleInterface.getName(),oracleAddress,0,true);
-        //  what is initial ethUsdRate of oracle? 0?
+
         OracleData memory thisOracle = OracleData({name: currentOracleInterface.getName(), rating: MAX_ORACLE_RATING.div(2), 
-                                                    enabled: true, waiting: false, updateTime: 0, ethUsdRate: 0});
+                                                    enabled: true, waiting: false, updateTime: 0, cryptoFiatRate: 0});
         // insert the oracle into addr array & mapping
         oracleAddresses.push(_address);
         oracles[_address] = thisOracle;
     }
 
     /**
-     * @dev Gets oracle name
-     * @param _address The oracle address
+     * @dev Gets oracle name.
+     * @param _address The oracle address.
      */
     function getOracleName(address _address) public constant returns(bytes32) {
         return oracles[_address].name;
     }
     
-    // Ограничие на периодичность обновления курса - не чаще чем раз в 5 минут
+    // Ограничение на периодичность обновления курса - не чаще чем раз в 5 минут
     modifier needUpdate() {
         require(!isRateActual());
         _;
     }
 
+    /**
+     * @dev Checks if the rate is up to date (5 minutes).
+     */
     function isRateActual() public constant returns(bool) {
         return (now <= currencyUpdateTime + 5 minutes);
     }
 
-    function libreBank(address coinsContract) {
-        libreToken = token(coinsContract);
+    function libreBank(address _tokenContract) public {
+        libreToken = token(_tokenContract);
     }
     
-    function donate() payable {}
-
-    function getTokenPrice() returns(uint256) {
-        // Implement price calc logic later
-        uint256 tokenPrice = 100; // In $ cent
-        return tokenPrice;
+    /**
+     * @dev Changes token contract address.
+     */
+    function changeTokenContract(address _tokenContract) onlyOwner public {
+        libreToken = token(_tokenContract);
     }
 
-    
+    /**
+     * @dev Receives donations.
+     */
+    function donate() payable public {}
 
-    function setTokenToSell(address tokenAddress) onlyOwner {
-        libreToken = token(tokenAddress);
+    /**
+     * @dev cryptoFiatRate getter.
+     */
+    function getTokenPrice() needUpdate public constant returns(uint256) {
+        return cryptoFiatRate;
     }
 
-    function totalTokens() returns (uint256) {
+    /**
+     * @dev Gets total tokens count.
+     */
+    function totalTokenCount() public returns (uint256) {
         return libreToken.getTokensAmount();
     }
 
-    function withdrawEther(address beneficiar) onlyOwner {
-        beneficiar.send(this.balance);
+    /**
+     * @dev Transfers crypto.
+     */
+   function withdrawCrypto(address _beneficiar) onlyOwner public {
+        _beneficiar.transfer(this.balance);
     }
 
-
-    function setCurrencyRate(uint256 rate) onlyOwner {
-        bool validRate = (rate > getLimitValue(limitType.minUsdRate)) && (rate < getLimitValue(limitType.maxUsdRate));
+    /**
+     * @dev Sets currency rate and updates timestamp.
+     */
+    function setCurrencyRate(uint256 _rate) onlyOwner internal {
+        bool validRate = (_rate > getLimitValue(limitType.minUsdRate)) && (_rate < getLimitValue(limitType.maxUsdRate));
         require(validRate);
-        ethUsdRate = rate;
+        cryptoFiatRate = _rate;
         currencyUpdateTime = now;
     }
 
-    function updateRate() public needUpdate {
-        requestUpdateRates();
-    }
+//    function updateRate() public needUpdate {
+//        requestUpdateRates();
+//    }
 
-    function requestUpdateRates() private returns (bool) {
-        // uint256[] oracleResults; // - was not used
+    // пока на все случаи возможные
+    uint256 constant MIN_ENABLED_ORACLES = 2;
+    uint256 constant MIN_WAITING_ORACLES = 2;
+    uint256 constant MIN_READY_ORACLES = 2;
+    uint256 constant MIN_ENABLED_NOT_WAITING_ORACLES = 2;
+
+
+    /**
+     * @dev Touches oracles asking them to get new rates.
+     */
+    function requestUpdateRates() internal returns (bool) {
+        if (numEnabledOracles <= MIN_ENABLED_ORACLES) {
+            return false;
+        } // 1-2 enabled oracles - false result. we need more oracles. But anyway requests sent
+        // numWaitingOracles goes -1 after each callback
+        numWaitingOracles = 0;
         for (uint256 i = 0; i < oracleAddresses.length; i++) {
-            // numWaitingOracles goes -1 after each callback
-            numWaitingOracles = 0;
             if (oracles[oracleAddresses[i]].enabled) {
                 oracleInterface(oracleAddresses[i]).update();
                 oracles[oracleAddresses[i]].waiting = true;
                 numWaitingOracles++;
             }
             timeUpdateRequested = now;
-            if (numWaitingOracles <= 2) {
-                return false;
-            } // 1-2 enabled oracles - false result. we need more oracles
             // but we can not refer to return (i don't do throw here because update() already sent) - think about number of needed oracles
-            return true;
         } // foreach oracles
+        return true;
     }
 
     /**
-     * @dev Calculate ETH/USD rate from "oracles" array
+     * @dev Calculates crypto/fiat rate from "oracles" array.
      */
-    function getRate() private returns (bool) {
+    function getRate() internal returns (bool) {
         // check if numWaitingOracles is small enough in compare with all oracles
-        require (numWaitingOracles < 3);
-        require ((numWaitingOracles!=0) && (numEnabledOracles-numWaitingOracles>3)); // if numWaitingOracles not zero, check if count of ready oracles > 3
+        //require (numWaitingOracles <= MIN_WAITING_ORACLES);
+        //require ((numWaitingOracles!=0) && (numEnabledOracles-numWaitingOracles >= MIN_ENABLED_NOT_WAITING_ORACLES)); // if numWaitingOracles not zero, check if count of ready oracles > 3
                                                                                   // TODO: think about oracle weight and maybe use weights instead of count (num...) 
+        if (numWaitingOracles > MIN_WAITING_ORACLES) {
+            return false;
+        }
+        if (!(numWaitingOracles!=0) || !(numEnabledOracles-numWaitingOracles >= MIN_ENABLED_NOT_WAITING_ORACLES)) {
+            return false;
+        }
         uint256 numReadyOracles = 0;
         uint256 sumRatings = 0;
         uint256 integratedRates = 0;
         // the average rate would be: (sum of rating*rate)/(sum of ratings)
         // so the more rating oracle has, the more powerful his rate is
         for (uint i = 0; i < oracleAddresses.length; i++) {
-            OracleData currentOracle = oracles[oracleAddresses[i]];
+            OracleData storage currentOracle = oracles[oracleAddresses[i]];
             if (now <= currentOracle.updateTime + 5 minutes) { //up to date
                 if (currentOracle.enabled) {
                     numReadyOracles++;
                     // values for calculating the rate
                     sumRatings += currentOracle.rating;
-                    integratedRates += currentOracle.rating.mul(currentOracle.ethUsdRate);
+                    integratedRates += currentOracle.rating.mul(currentOracle.cryptoFiatRate);
                 }
             } else { // oracle's rate is older than 5 mins
                 // just nothing? we don't increment readyOracles
             } // if old data
         } // foreach oracles
-        require (numReadyOracles > 2); // maybe change/add rating of oracles
-        require (numEnabledOracles.div(numReadyOracles) < 2); // numReadyOracles!=0 is already; need more than 50% ready oracles
+        require (numReadyOracles > MIN_READY_ORACLES); // maybe change/add rating of oracles
+        require (numEnabledOracles.div(numReadyOracles) <= 2); // numReadyOracles!=0 is already; need more than or equal to 50% ready oracles
         // here we can count the rate and return true
         uint256 finalRate = integratedRates.div(sumRatings); // formula is in upper comment
         setCurrencyRate(finalRate);
@@ -225,12 +292,12 @@ contract libreBank is Ownable, Pausable {
     }
 
     /**
-     * @dev The callback from oracles
-     * @param _address The oracle address
-     * @param _rate The oracle ETH/USD rate
-     * @param _time Update time sent from oracle
+     * @dev The callback from oracles.
+     * @param _address The oracle address.
+     * @param _rate The oracle ETH/USD rate.
+     * @param _time Update time sent from oracle.
      */
-    function oraclesCallback(address _address, uint256 _rate, uint256 _time) {
+    function oraclesCallback(address _address, uint256 _rate, uint256 _time) public {
         // Implement it later
         if (!oracles[_address].waiting) {
             // we didn't wait for this oracul
@@ -239,15 +306,13 @@ contract libreBank is Ownable, Pausable {
             // all ok, we waited for it
             numWaitingOracles--;
             // maybe we should check for existance of structure oracles[_address]? to think about it
-            oracles[_address].ethUsdRate = _rate;
+            oracles[_address].cryptoFiatRate = _rate;
             oracles[_address].updateTime = _time;
             oracles[_address].waiting = false;
             // we don't need to update oracle name, so?
             // so i deleted 'string name' from func's arguments
+            getRate(); // returns true or false, maybe we will want check it later
         }
-        // so this callback function JUST updates the gotten rate value and timestamp
-        // new getRate function checks if we can count the rate (due to count of good callbacks) and counts
-        // we shold call getRate when we need it       
     }
 
     // ***************************************************************************
@@ -257,7 +322,7 @@ contract libreBank is Ownable, Pausable {
     // Price is being determined by the algorithm in oraclesCallback()
     // You can also send the ether directly to the contract address   
     
-    enum OrderType {ORDER_BUY, ORDER_SELL }
+    enum OrderType { ORDER_BUY, ORDER_SELL }
     struct OrderData {
         OrderType orderType;
         address clientAddress;
@@ -272,87 +337,108 @@ contract libreBank is Ownable, Pausable {
         buyTokens(msg.sender);
     }
 
-    function buyTokens (address benificiar) payable public {
+    /**
+     * @dev Lets user buy tokens.
+     * @param _beneficiar The buyer's address.
+     */
+    function buyTokens(address _beneficiar) payable public {
+        require(_beneficiar != 0x0);
         require(msg.value > getLimitValue(limitType.minTransactionAmount));
         if (!isRateActual()) {                   // проверяем курс на актуальность
-            // делаем так, потому что лишнее удаление и создание элементов выйдет дороже
-            // при шлифовке найти вариант с минимальным потреблением газа
-            orderCount++;
-            orders.length = orderCount;
-            orders[orderCount-1] = OrderData(OrderType.ORDER_BUY, benificiar, msg.value, now); // ставим ордер в очередь
-            updateRate();
+            orders.push(OrderData(OrderType.ORDER_BUY, _beneficiar, msg.value, now)); // ставим ордер в очередь
+            // ^ при любых ранее удалённых элементах добавляет в конец - проверил
+            //updateRate();
             return; // и выходим из функции
         }
         uint256 tokensAmount = msg.value.mul(buyPrice).div(100);  
-        libreToken.mint(benificiar, tokensAmount);
-        LogBuy(benificiar, tokensAmount, msg.value, buyPrice);
+        libreToken.mint(_beneficiar, tokensAmount);
+        LogBuy(_beneficiar, tokensAmount, msg.value, buyPrice);
     }
 
-    function buyAfter (uint256 _orderID) internal returns (bool) {
-        uint256 ethersAmount = orders[_orderID].orderAmount;
+    /**
+     * @dev Fills buy order from queue.
+     * @param _orderID The order ID.
+     */
+    function fillBuyOrder(uint256 _orderID) internal returns (bool) {
+        if (!isRateActual()) {
+            return false;
+        }
+        uint256 cryptoAmount = orders[_orderID].orderAmount;
         uint256 tokensAmount = ethersAmount.mul(buyPrice).div(100);
         address benificiar = orders[_orderID].clientAddress;  
         libreToken.mint(benificiar, tokensAmount);
-        LogBuy(benificiar, tokensAmount, ethersAmount, buyPrice);
+        LogBuy(benificiar, tokensAmount, cryptoAmount, buyPrice);
+        return true;
     }
   
+    /**
+     * @dev Lets user sell tokens.
+     * @param _amount The amount of tokens.
+     */
     function sellTokens(uint256 _amount) public {
         require (libreToken.balanceOf(msg.sender) >= _amount);        // checks if the sender has enough to sell
         require (_amount >= getLimitValue(limitType.minTokensAmount));
         
         uint256 tokensAmount;
-        uint256 ethersAmount = _amount.div(sellPrice).mul(100);
-        if (ethersAmount > this.balance) {                  // checks if the bank has enough Ethers to send
+        uint256 cryptoAmount = _amount.div(sellPrice).mul(100);
+        if (cryptoAmount > this.balance) {                  // checks if the bank has enough Ethers to send
             tokensAmount = this.balance.mul(sellPrice).div(100); // нужна дополнительная проверка, на случай повторного запроса при пустых резервах банка
-            ethersAmount = this.balance;
+            cryptoAmount = this.balance;
         } else {
             tokensAmount = _amount;
         }
         if (!isRateActual()) {                   // проверяем курс на актуальность
             libreToken.burn(msg.sender, tokensAmount); // уменьшаем баланс клиента (в случае отмены ордера, токены клиенту возвращаются)
-            orderCount++;
-            orders.length = orderCount;
-            orders[orderCount-1] = OrderData(OrderType.ORDER_SELL, msg.sender, tokensAmount, now); // ставим ордер в очередь
-            updateRate();
+            orders.push(OrderData(OrderType.ORDER_SELL, msg.sender, tokensAmount, now)); // ставим ордер в очередь
+            //updateRate();
             return; // и выходим из функции
         }
         
-        msg.sender.transfer(ethersAmount);
+        msg.sender.transfer(cryptoAmount);
         libreToken.burn(msg.sender, tokensAmount); 
-        LogSell(msg.sender, tokensAmount, ethersAmount, sellPrice);
+        LogSell(msg.sender, tokensAmount, cryptoAmount, sellPrice);
     }
 
-    function sellAfter(uint256 orderID) internal returns (bool) {
-        address benificiar = orders[orderID].clientAddress;
-        uint256 tokensAmount = orders[orderID].orderAmount;
-        uint256 ethersAmount = tokensAmount.div(sellPrice).mul(100);
-        if (ethersAmount > this.balance) {                  // checks if the bank has enough Ethers to send
+    /**
+     * @dev Fills sell order from queue.
+     * @param _orderID The order ID.
+     */
+    function fillSellOrder(uint256 _orderID) internal returns (bool) {
+        address beneficiar = orders[_orderID].clientAddress;
+        uint256 tokensAmount = orders[_orderID].orderAmount;
+        uint256 cryptoAmount = tokensAmount.div(sellPrice).mul(100);
+        if (this.balance < cryptoAmount) {  // checks if the bank has enough Ethers to send
             tokensAmount = this.balance.mul(sellPrice).div(100); 
-            libreToken.mint(benificiar, orders[orderID].orderAmount.sub(tokensAmount));
-            ethersAmount = this.balance;
+            libreToken.mint(beneficiar, orders[_orderID].orderAmount.sub(tokensAmount));
+            cryptoAmount = this.balance;
         } else {
-            tokensAmount = orders[orderID].orderAmount;
-            ethersAmount = tokensAmount.div(sellPrice).mul(100);
+            tokensAmount = orders[_orderID].orderAmount;
+            cryptoAmount = tokensAmount.div(sellPrice).mul(100);
         }
-        if (!benificiar.send(ethersAmount)) { 
-            libreToken.mint(benificiar, tokensAmount);
-            return;                                         
+        if (!beneficiar.send(cryptoAmount)) { 
+            libreToken.mint(beneficiar, tokensAmount); // so as burned at sellTokens
+            return false;                                         
         } 
-        LogSell(benificiar, tokensAmount, ethersAmount, sellPrice);
+        LogSell(beneficiar, tokensAmount, cryptoAmount, sellPrice);
+        return true;
     }
 
     uint256 bottomOrderIndex = 0; // поднять потом наверх
-    function clearOrders() internal returns (bool) {
+
+    /**
+     * @dev Fills order queue.
+     */
+    function fillOrders() public returns (bool) {
         require (bottomOrderIndex < orders.length);
         uint ordersLength = orders.length;
         for (uint i = bottomOrderIndex; i < ordersLength; i++) {
             if (orders[i].orderType == OrderType.ORDER_BUY) {
-                if (!buyAfter(i)) {
+                if (!fillBuyOrder(i)) {
                     bottomOrderIndex = i;
                     return false;
                 } 
             } else {
-                if (!sellAfter(i)) {
+                if (!fillSellOrder(i)) {
                     bottomOrderIndex = i;
                     return false;
                 }
@@ -360,11 +446,10 @@ contract libreBank is Ownable, Pausable {
             delete(orders[i]); // в solidity массив не сдвигается, тут будет нулевой элемент
         } // for
         bottomOrderIndex = 0;
-        // массив не чистим, см. ответ про траты газа:
+        // см. ответ про траты газа:
         // https://ethereum.stackexchange.com/questions/3373/how-to-clear-large-arrays-without-blowing-the-gas-limit
-        orderCount = 0;
         return true;
-    } // function clearOrders()
+    } // function fillOrders()
 }
 
 
