@@ -169,17 +169,6 @@ contract libreBank is Ownable, Pausable {
 
     function updateRate() public needUpdate {
         requestUpdateRates();
-        // I think we don't need the next code
-        // the function should wait for callbacks or we should change the way it works
-        // !!!!
-        // следующий код здесь не нужен
-        // нужно или ждать тут колбэки или не использовать эту функцию
-
-        /*currentSpread = SafeMath.add(limits[limitType.minBuySpread], limits[limitType.minSellSpread]);
-        uint256 halfSpread = SafeMath.div(currentSpread, 2);
-        // require(halfSpread < currentSpread); // -- not sure if we need to check (possibly no), I need to research types and possible vulnerabilities - Dima
-        buyPrice = SafeMath.sub(ethUsdRate, halfSpread);
-        sellPrice = SafeMath.add(ethUsdRate, halfSpread);*/
     }
 
     function requestUpdateRates() private returns (bool) {
@@ -201,6 +190,9 @@ contract libreBank is Ownable, Pausable {
         } // foreach oracles
     }
 
+    /**
+     * @dev Calculate ETH/USD rate from "oracles" array
+     */
     function getRate() private returns (bool) {
         // check if numWaitingOracles is small enough in compare with all oracles
         require (numWaitingOracles < 3);
@@ -265,14 +257,16 @@ contract libreBank is Ownable, Pausable {
     // Price is being determined by the algorithm in oraclesCallback()
     // You can also send the ether directly to the contract address   
     
-    OrderData[] orders; // очередь ордеров
+    enum OrderType {ORDER_BUY, ORDER_SELL }
     struct OrderData {
-        bool isBuy; // True = Buy, False = sell
+        OrderType orderType;
         address clientAddress;
         uint256 orderAmount;
         uint256 orderTimestamp;
         //uint ClientLimit;
     } 
+    OrderData[] orders; // очередь ордеров
+    uint256 orderCount = 0;
 
     function () payable external {
         buyTokens(msg.sender);
@@ -281,22 +275,23 @@ contract libreBank is Ownable, Pausable {
     function buyTokens (address benificiar) payable public {
         require(msg.value > getLimitValue(limitType.minTransactionAmount));
         if (!isRateActual()) {                   // проверяем курс на актуальность
-
-            orders.push(OrderData(true, benificiar, msg.value, now)); // ставим ордер в очередь
-            // Олег, проверь строчкой выше - добавил beneficiar как адрес клиента, верно? - Дима
-            updateRate(); // и выходим из функции
-            // тут вроде нужен return или я ошибаюсь? - дима
+            // делаем так, потому что лишнее удаление и создание элементов выйдет дороже
+            // при шлифовке найти вариант с минимальным потреблением газа
+            orderCount++;
+            orders.length = orderCount;
+            orders[orderCount-1] = OrderData(OrderType.ORDER_BUY, benificiar, msg.value, now); // ставим ордер в очередь
+            updateRate();
+            return; // и выходим из функции
         }
-        // in case of possible overflows should do assert() or require() for sellPrice>ethUsdRate and buyPrice<..., but we need a small research
         uint256 tokensAmount = msg.value.mul(buyPrice).div(100);  
         libreToken.mint(benificiar, tokensAmount);
         LogBuy(benificiar, tokensAmount, msg.value, buyPrice);
     }
 
-    function buyAfter (uint256 orderID) internal {
-        uint256 ethersAmount = orders[orderID].orderAmount;
+    function buyAfter (uint256 _orderID) internal returns (bool) {
+        uint256 ethersAmount = orders[_orderID].orderAmount;
         uint256 tokensAmount = ethersAmount.mul(buyPrice).div(100);
-        address benificiar = orders[orderID].clientAddress;  
+        address benificiar = orders[_orderID].clientAddress;  
         libreToken.mint(benificiar, tokensAmount);
         LogBuy(benificiar, tokensAmount, ethersAmount, buyPrice);
     }
@@ -304,7 +299,7 @@ contract libreBank is Ownable, Pausable {
     function sellTokens(uint256 _amount) public {
         require (libreToken.balanceOf(msg.sender) >= _amount);        // checks if the sender has enough to sell
         require (_amount >= getLimitValue(limitType.minTokensAmount));
-        //uint256 
+        
         uint256 tokensAmount;
         uint256 ethersAmount = _amount.div(sellPrice).mul(100);
         if (ethersAmount > this.balance) {                  // checks if the bank has enough Ethers to send
@@ -315,17 +310,19 @@ contract libreBank is Ownable, Pausable {
         }
         if (!isRateActual()) {                   // проверяем курс на актуальность
             libreToken.burn(msg.sender, tokensAmount); // уменьшаем баланс клиента (в случае отмены ордера, токены клиенту возвращаются)
-            orders.push(OrderData(false,msg.sender,tokensAmount,now)); // ставим ордер в очередь // msg.sender тут подходит? - Дима
-            updateRate(); //                     и выходим из функции
-            }
-        // либо send, либо transfer исключение выдаст. посмотреть потом, можно ли transfer ограничиться
-        if (msg.sender.transfer(ethersAmount)) {   
-            libreToken.burn(msg.sender, tokensAmount);                                        
-        } 
+            orderCount++;
+            orders.length = orderCount;
+            orders[orderCount-1] = OrderData(OrderType.ORDER_SELL, msg.sender, tokensAmount, now); // ставим ордер в очередь
+            updateRate();
+            return; // и выходим из функции
+        }
+        
+        msg.sender.transfer(ethersAmount);
+        libreToken.burn(msg.sender, tokensAmount); 
         LogSell(msg.sender, tokensAmount, ethersAmount, sellPrice);
     }
 
-    function sellAfter (uint256 orderID) internal {
+    function sellAfter(uint256 orderID) internal returns (bool) {
         address benificiar = orders[orderID].clientAddress;
         uint256 tokensAmount = orders[orderID].orderAmount;
         uint256 ethersAmount = tokensAmount.div(sellPrice).mul(100);
@@ -339,22 +336,35 @@ contract libreBank is Ownable, Pausable {
         }
         if (!benificiar.send(ethersAmount)) { 
             libreToken.mint(benificiar, tokensAmount);
-            throw;                                         
+            return;                                         
         } 
         LogSell(benificiar, tokensAmount, ethersAmount, sellPrice);
     }
 
-    function clearOrders () internal {
+    uint256 bottomOrderIndex = 0; // поднять потом наверх
+    function clearOrders() internal returns (bool) {
+        require (bottomOrderIndex < orders.length);
         uint ordersLength = orders.length;
-        for (uint i = 0; i < ordersLength; i++) {
-            if (orders[i].isBuy) {
-                buyAfter (i); 
-            } else {sellAfter (i);}
-        }
-        for (i = 0; i < ordersLength; i++) {
-            delete orders[0];
-        }
-    }
+        for (uint i = bottomOrderIndex; i < ordersLength; i++) {
+            if (orders[i].orderType == OrderType.ORDER_BUY) {
+                if (!buyAfter(i)) {
+                    bottomOrderIndex = i;
+                    return false;
+                } 
+            } else {
+                if (!sellAfter(i)) {
+                    bottomOrderIndex = i;
+                    return false;
+                }
+            }
+            delete(orders[i]); // в solidity массив не сдвигается, тут будет нулевой элемент
+        } // for
+        bottomOrderIndex = 0;
+        // массив не чистим, см. ответ про траты газа:
+        // https://ethereum.stackexchange.com/questions/3373/how-to-clear-large-arrays-without-blowing-the-gas-limit
+        orderCount = 0;
+        return true;
+    } // function clearOrders()
 }
 
 
