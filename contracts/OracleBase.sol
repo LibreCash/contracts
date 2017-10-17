@@ -45,7 +45,7 @@ contract OracleBase is Ownable, usingOraclize {
         NewOraclizeQuery("Oraclize query was sent, standing by for the answer...");
     }
 
-    function __callback(bytes32 myid, string result, bytes proof) {
+    function __callback(bytes32 myid, string result/*, bytes proof*/) {
         require (msg.sender == oraclize_cbAddress());
         uint256 currentTime = now;
         // where is parseInt? shall we declare? http://remebit.com/converting-strings-to-integers-in-solidity/

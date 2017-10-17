@@ -1,5 +1,11 @@
+<<<<<<< HEAD
 
 # Created by https://www.gitignore.io/api/node
+=======
+# Created by https://www.gitignore.io/api/node
+# Visual Studio Code
+.vscode
+>>>>>>> remotes/origin/dimon
 
 ### Node ###
 # Logs
@@ -36,6 +42,11 @@ bower_components
 # Compiled binary addons (http://nodejs.org/api/addons.html)
 build/Release
 
+<<<<<<< HEAD
+=======
+build/contracts
+
+>>>>>>> remotes/origin/dimon
 # Dependency directories
 node_modules/
 jspm_packages/
