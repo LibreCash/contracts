@@ -9,10 +9,11 @@ contract OracleKraken is OracleBase {
     string constant ORACLE_DATASOURCE = "URL";
     string constant ORACLE_ARGUMENTS = "json(https://api.kraken.com/0/public/Ticker?pair=ETHUSD).result.XETHZUSD.c.0";
     
-    function OracleKraken() public {
+    function OracleKraken(address _bankContract) public {
         oracleName = ORACLE_NAME;
         oracleType = ORACLE_TYPE;
         oracleConfig = OracleConfig({datasource: ORACLE_DATASOURCE, arguments: ORACLE_ARGUMENTS});
+        bankContractAddress = _bankContract;
         updateCosts();
         //update();
     }
