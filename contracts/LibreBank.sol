@@ -30,6 +30,7 @@ contract LibreBank is Ownable, Pausable {
     event NewPriceTicker(address oracleAddress, string price);
     event LogBuy(address clientAddress, uint256 tokenAmount, uint256 etherAmount, uint256 buyPrice);
     event LogSell(address clientAddress, uint256 tokenAmount, uint256 etherAmount, uint256 sellPrice);
+    event InsufficientOracleData(string description, uint256 oracleCount);
     /* event LogWithdrawal (uint256 EtherAmount, address addressTo, uint invertPercentage); */
 
     enum limitType { minUsdRate, maxUsdRate, minTransactionAmount, minTokensAmount, minSellSpread, maxSellSpread, minBuySpread, maxBuySpread }
@@ -235,6 +236,7 @@ contract LibreBank is Ownable, Pausable {
      */
     function requestUpdateRates() internal returns (bool) {
         if (numEnabledOracles <= MIN_ENABLED_ORACLES) {
+            InsufficientOracleData("Not enough enabled oracles to request updating rates", numEnabledOracles);
             return false;
         } // 1-2 enabled oracles - false result. we need more oracles. But anyway requests sent
         // numWaitingOracles goes -1 after each callback
@@ -260,9 +262,12 @@ contract LibreBank is Ownable, Pausable {
         //require ((numWaitingOracles!=0) && (numEnabledOracles-numWaitingOracles >= MIN_ENABLED_NOT_WAITING_ORACLES)); // if numWaitingOracles not zero, check if count of ready oracles > 3
                                                                                   // TODO: think about oracle weight and maybe use weights instead of count (num...) 
         if (numWaitingOracles > MIN_WAITING_ORACLES) {
+            InsufficientOracleData("Too many oracles are waiting for rates now.", numWaitingOracles);
             return false;
         }
-        if (!(numWaitingOracles!=0) || !(numEnabledOracles-numWaitingOracles >= MIN_ENABLED_NOT_WAITING_ORACLES)) {
+        uint256 numReceivedOracles = numEnabledOracles - numWaitingOracles;
+        if (numReceivedOracles < MIN_ENABLED_NOT_WAITING_ORACLES) {
+            InsufficientOracleData("Not enough enabled oracles with received rate.", numReceivedOracles);
             return false;
         }
         uint256 numReadyOracles = 0;
@@ -283,8 +288,14 @@ contract LibreBank is Ownable, Pausable {
                 // just nothing? we don't increment readyOracles
             } // if old data
         } // foreach oracles
-        require (numReadyOracles > MIN_READY_ORACLES); // maybe change/add rating of oracles
-        require (numEnabledOracles.div(numReadyOracles) <= 2); // numReadyOracles!=0 is already; need more than or equal to 50% ready oracles
+        if (numReadyOracles > MIN_READY_ORACLES) {
+            InsufficientOracleData("Not enough not outdated oracles.", numReadyOracles);
+            return false;
+        } // maybe change/add rating of oracles
+        if (numEnabledOracles.div(numReadyOracles) > 2) {
+            InsufficientOracleData("Ready oracles are less than 50% of all enabled oracles.", numReadyOracles);
+            return false;
+        } // numReadyOracles!=0 is already; need more than or equal to 50% ready oracles
         // here we can count the rate and return true
         uint256 finalRate = integratedRates.div(sumRatings); // formula is in upper comment
         setCurrencyRate(finalRate);
