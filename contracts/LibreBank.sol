@@ -32,7 +32,8 @@ contract LibreBank is Ownable, Pausable {
     event LogSell(address clientAddress, uint256 tokenAmount, uint256 etherAmount, uint256 sellPrice);
     /* event LogWithdrawal (uint256 EtherAmount, address addressTo, uint invertPercentage); */
 
-    enum limitType { minUsdRate, maxUsdRate, minTransactionAmount, minTokensAmount, minSellSpread, maxSellSpread, minBuySpread, maxBuySpread }
+    enum limitType { minUsdRate, maxUsdRate, minTransactionAmount, minTokensAmount, minSellSpread, maxSellSpread, minBuySpread, maxBuySpread, variance }
+    enum rateType { target, issuance,burn, avg }
 
     uint256 updateDataRequest;
     
@@ -49,12 +50,11 @@ contract LibreBank is Ownable, Pausable {
 
     mapping (address=>OracleData) oracles;
     address[] oracleAddresses;
-
+    uint256[] rates;
     uint256 numWaitingOracles = 2**256 - 1; // init as maximum
     uint256 numEnabledOracles;
     // maybe we should add weightWaitingOracles - sum of rating of waiting oracles
     uint256 timeUpdateRequested;
-// end new oracleData
  
     uint256 public currencyUpdateTime;
     uint256 public cryptoFiatRate = 30000; // In $ cents
@@ -68,6 +68,7 @@ contract LibreBank is Ownable, Pausable {
     uint256 currentSpread; // in cents
     uint256 buySpread; // in cents
     uint256 sellSpread; // in cents
+    uint256 avgRate; // Average rate
     // переменных пока избыточно, при создании алгоритма расчёта определимся
     // TODO: массив по enum
 
@@ -137,6 +138,24 @@ contract LibreBank is Ownable, Pausable {
     }
 
     /**
+     * @dev Sets custom rate value
+     * @param type Type of rate.
+     * @param value Value to set.
+     */    
+    function setRate(rateType _type,uint256 value) internal {
+        require(value > 0);
+        rates[uint(_type)] = value;
+    }
+
+     /**
+     * @dev Gets custom rate value
+     * @param type Type of rate.
+     */ 
+    function getRate(rateType _type) constant returns(uint256) {
+        return rates[uint(_type)];
+    }
+
+    /**
      * @dev Adds an oracle.
      * @param _address The oracle address.
      */
@@ -149,6 +168,30 @@ contract LibreBank is Ownable, Pausable {
         // insert the oracle into addr array & mapping
         oracleAddresses.push(_address);
         oracles[_address] = thisOracle;
+    }
+
+    /**
+     * @dev Disable oracle.
+     * @param _address The oracle address.
+     */
+    function disableOracle(address _address) public onlyOwner {
+        oracles[_address].enabled = false;
+    }
+
+    /**
+     * @dev Enable oracle.
+     * @param _address The oracle address.
+     */
+    function enableOracle(address _address) public onlyOwner {
+        oracles[_address].enabled = true;
+    }
+
+    /**
+     * @dev Delete oracle.
+     * @param _address The oracle address.
+     */
+    function deleteOracle(address _address) public onlyOwner {
+        delete oracles[_address];
     }
 
     /**
