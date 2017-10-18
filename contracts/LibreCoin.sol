@@ -29,17 +29,30 @@ contract LibreCoin is MintableToken, PausableToken {
      * @dev Sets new bank address.
      * @param _bankContractAddress The bank address.
      */
-    function setBankAddress(address _bankContractAddress) onlyOwner private {
+    function setBankAddress(address _bankContractAddress) onlyOwner public /*private*/ {
         require(_bankContractAddress != 0x0);
         bankContract = _bankContractAddress;
     }
+
+    // только для тестов
+    function toString(address x) returns (string) {
+        bytes memory b = new bytes(20);
+        for (uint i = 0; i < 20; i++)
+            b[i] = byte(uint8(uint(x) / (2**(8*(19 - i)))));
+        return string(b);
+    }
+    function getBankAddress() constant public returns (string) {
+        string memory returnValue = toString(bankContract);
+        return returnValue;
+    }
+    // конец временного фрагмента для тестов
 
     /**
      * @dev Overrides default minting function.
      * @param _to The address.
      * @param _amount The amount.
      */
-    function mint(address _to, uint256 _amount) onlyOwner canMint onlyBank public returns (bool) {
+    function mint(address _to, uint256 _amount) canMint onlyBank public returns (bool) {
         super.mint(_to, _amount);
     }
 
@@ -56,7 +69,6 @@ contract LibreCoin is MintableToken, PausableToken {
      */
     function burn(address burner, uint256 _value) public {
         require(_value > 0);
-
         balances[burner] = balances[burner].sub(_value);
         totalSupply = totalSupply.sub(_value);
         Burn(burner, _value);
