@@ -24,6 +24,9 @@ contract OracleBitfinex is OracleBase {
     function getRate() public returns(uint256) {
         return rate;
     }
+    function setRate(uint256 _rate) public {
+        rate = _rate;
+    }
 
     
     function donate() payable { }
