@@ -43,7 +43,7 @@ contract OracleBase is Ownable, usingOraclize {
 
     function OracleBase() public {
         owner = msg.sender;
-        oraclize_setProof(proofType_TLSNotary);
+        oraclize_setProof(proofType_TLSNotary | proofStorage_IPFS);
     }
 
     /**
