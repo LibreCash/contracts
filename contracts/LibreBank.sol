@@ -47,7 +47,7 @@ contract LibreBank is Ownable, Pausable {
     }
 
     uint constant MAX_ORACLE_RATING = 10000;
-
+    uint256 RELEVANCE_PERIOD = 5 minutes;
     mapping (address=>OracleData) oracles;
     address[] oracleAddresses;
     uint256[] rates;
@@ -87,6 +87,11 @@ contract LibreBank is Ownable, Pausable {
      */
     function getLimitValue(limitType _limitName) constant internal returns (uint256) {
         return limits[uint(_limitName)];
+    }
+
+    function setRelevancePeriod(uint256 _relevancePeriod) onlyOwner {
+        require(_relevancePeriod > 0);
+        RELEVANCE_PERIOD = _relevancePeriod;
     }
 
     /**
@@ -212,7 +217,7 @@ contract LibreBank is Ownable, Pausable {
      * @dev Checks if the rate is up to date (5 minutes).
      */
     function isRateActual() public constant returns(bool) {
-        return (now <= currencyUpdateTime + 5 minutes);
+        return (now <= currencyUpdateTime + RELEVANCE_PERIOD);
     }
 
     function libreBank(address _tokenContract) public {
