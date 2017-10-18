@@ -60,7 +60,8 @@ contract OracleBase is Ownable, usingOraclize {
     }
 
     function updateRate() payable public {
-        require (msg.sender == bankContractAddress);
+        // для тестов отдельно оракула закомментировал след. строку
+        //require (msg.sender == bankContractAddress);
         require (now > lastResultTimestamp + MIN_UPDATE_TIME);
         receivedRate = false;
         if (oraclize_getPrice("URL") > this.balance) {
@@ -81,8 +82,7 @@ contract OracleBase is Ownable, usingOraclize {
         // do something with rate
         delete(validIds[myid]);
         lastResultTimestamp = now;
-        // ВРЕМЕННО ДЛЯ ТЕСТОВ ПОГАСИЛ СЛЕД. СТРОКУ
-        //bank.oraclesCallback(bankContractAddress, rate, now);
+        bank.oraclesCallback(bankContractAddress, rate, now);
     }
 
 
