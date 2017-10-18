@@ -16,11 +16,11 @@ module.exports = function(deployer) {
       //console.log("!!!bank:" + bankAddress);
 
       deployer.deploy(OracleBitfinex, bankAddress);
-      deployer.deploy(OracleBitstamp, bankAddress);    
-      deployer.deploy(OracleGDAX, bankAddress);
-      deployer.deploy(OracleGemini, bankAddress);    
-      deployer.deploy(OracleKraken, bankAddress);
-      deployer.deploy(OracleWEX, bankAddress);
+      //deployer.deploy(OracleBitstamp, bankAddress);    
+      //deployer.deploy(OracleGDAX, bankAddress);
+      //deployer.deploy(OracleGemini, bankAddress);    
+      //deployer.deploy(OracleKraken, bankAddress);
+      //deployer.deploy(OracleWEX, bankAddress);
     });
   });
 };
