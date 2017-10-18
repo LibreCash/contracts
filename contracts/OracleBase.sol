@@ -27,6 +27,7 @@ contract OracleBase is Ownable, usingOraclize {
     bankInterface bank;
     // пока не знаю, надо ли. добавил как флаг для тестов
     bool public receivedRate = false;
+    uint256 MIN_UPDATE_TIME = 5 minutes;
 
     struct OracleConfig {
         string datasource;
@@ -60,6 +61,7 @@ contract OracleBase is Ownable, usingOraclize {
 
     function update() payable public {
         require (msg.sender == bankContractAddress);
+        require (now <= lastResultTimestamp + MIN_UPDATE_TIME);
         receivedRate = false;
         if (oraclize_getPrice("URL") > this.balance) {
             newOraclizeQuery("Oraclize query was NOT sent, please add some ETH to cover for the query fee");
@@ -78,6 +80,7 @@ contract OracleBase is Ownable, usingOraclize {
         rate = parseInt(result, 2); // save it in storage as $ cents
         // do something with rate
         delete(validIds[myid]);
+        lastResultTimestamp = now;
         bank.oraclesCallback(bankContractAddress, rate, now);
     }
 
