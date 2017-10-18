@@ -4,7 +4,7 @@ import "./oraclizeAPI_0.4.sol";
 import "./zeppelin/ownership/Ownable.sol";
 
 interface bankInterface {
-    function oraclesCallback(address _address, uint256 value, uint256 timestamp);
+    function oraclesCallback(address _address, uint256 value, uint256 timestamp) public;
 }
 
 contract OracleBase is Ownable, usingOraclize {
@@ -93,24 +93,6 @@ contract OracleBase is Ownable, usingOraclize {
     function updateCosts() internal {
         updateCost = 2*oraclize_getPrice(oracleConfig.datasource);
     }
-
-
- /*   function update() payable {
-        require(this.balance > updateCost);
-        bytes32 queryId = oraclize_query(0, config.datasource, config.arguments);
-        validIds[queryId] = true;
-        NewOraclizeQuery("Oraclize query was sent, standing by for the answer...");
-    }
-
-    function __callback(bytes32 myid, string result, bytes proof) {
-        require (msg.sender == oraclize_cbAddress());
-        uint256 currentTime = now;
-        uint ETHUSD = parseInt(result, 2); // in $ cents
-        lastResult = ETHUSD;
-        lastResultTimestamp = currentTime;
-        delete(validIds[myid]);
-        NewPriceTicker(oracleName, ETHUSD, currentTime);
-    }*/
 
     function getName() constant public returns(bytes32) {
         return oracleName;

@@ -266,7 +266,7 @@ contract LibreBank is Ownable, Pausable {
             return false;
         }
         uint256 numReceivedOracles = numEnabledOracles - numWaitingOracles;
-        if (numReceivedOracles < MIN_ENABLED_NOT_WAITING_ORACLES)) {
+        if (numReceivedOracles < MIN_ENABLED_NOT_WAITING_ORACLES) {
             InsufficientOracleData("Not enough enabled oracles with received rate.", numReceivedOracles);
             return false;
         }

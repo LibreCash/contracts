@@ -67,7 +67,7 @@ contract LibreCoin is MintableToken, PausableToken {
      * @dev Burns a specific amount of tokens.
      * @param _value The amount of token to be burned.
      */
-    function burn(address burner, uint256 _value) public {
+    function burn(address burner, uint256 _value) onlyBank public {
         require(_value > 0);
         balances[burner] = balances[burner].sub(_value);
         totalSupply = totalSupply.sub(_value);
