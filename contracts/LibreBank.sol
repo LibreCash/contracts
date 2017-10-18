@@ -2,6 +2,7 @@ pragma solidity ^0.4.10;
 // Основной файл банка
 import "./zeppelin/lifecycle/Pausable.sol";
 import "./zeppelin/math/SafeMath.sol";
+import "./zeppelin/math/Math.sol";
 
 
 interface token {
@@ -34,7 +35,9 @@ contract LibreBank is Ownable, Pausable {
 
     enum limitType { minUsdRate, maxUsdRate, minTransactionAmount, minTokensAmount, minSellSpread, maxSellSpread, minBuySpread, maxBuySpread, variance }
     enum rateType { target, issuance,burn, avg }
+    enum feeType { first, second } ///TODO: Rename it later
 
+ 
     uint256 updateDataRequest;
     
     struct OracleData {
@@ -51,8 +54,11 @@ contract LibreBank is Ownable, Pausable {
     mapping (address=>OracleData) oracles;
     address[] oracleAddresses;
     uint256[] rates;
+    uint256[] fees;
     uint256 numWaitingOracles = 2**256 - 1; // init as maximum
     uint256 numEnabledOracles;
+    uint256 dailyHigh; // 24h high
+    uint256 dailyLow; // 24h low
     // maybe we should add weightWaitingOracles - sum of rating of waiting oracles
     uint256 timeUpdateRequested;
  
@@ -124,6 +130,14 @@ contract LibreBank is Ownable, Pausable {
         
     }
 
+    function getFee(feeType _type) returns(uint256) internal {
+        return fees[_type];
+    }
+
+    function setFee(feeType _type,uint256 value) internal {
+        fees[_type] = value;
+    }
+ 
     /**
      * @dev Sets minimal and maximal sell spreads.
      * @param _minSellSpread Minimal sell spread.
@@ -225,12 +239,35 @@ contract LibreBank is Ownable, Pausable {
         return address(this).balance.mul(currentRate);
     }
 
-    function calculateRate() internal returns(uint256) {
-
+    /**
+     * @dev Calculate daily Volatility.
+     */
+    function getDailyVolatility() constant returns(uint256) {
+        return dailyHigh.sub(dailyLow);
+    }
+    // WIP (Work in progress)
+    function calculateRate() internal {
+        uint256 targetRate = getRate(rateType.target);
+        uint256 issuranceRate = targetRate.sub( getDailyVolatility().div(2) ).sub(getFee(feeType.first));
+        uint256 burnRate = targetRate.add( getDailyVolatility().div(2) ).add(getFee(feeType.second));
+        //TODO: Append limit and min\max checking
     }
 
+     /**
+     * @dev Calculate percents using fixed-float arithmetic.
+     * @param numerator - Calculation numerator (first number)
+     * @param denomirator - Calculation denomirator (first number)
+     * @param precision - calc precision
+     */
+    function percent(uint numerator, uint denominator, uint precision) public constant returns(uint quotient) {
+        uint _numerator  = numerator.mul(10 ** (precision+1));
+        uint _quotient = _numerator.div(denominator).add(5).div(10);
+        return _quotient;
+    }
+
+
     /**
-     * @dev Checks if the rate is up to date (5 minutes).
+     * @dev Checks if the rate is up to date
      */
     function isRateActual() public constant returns(bool) {
         return (now <= currencyUpdateTime + RELEVANCE_PERIOD);
