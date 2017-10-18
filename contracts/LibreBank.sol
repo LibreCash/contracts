@@ -89,6 +89,10 @@ contract LibreBank is Ownable, Pausable {
         return limits[uint(_limitName)];
     }
 
+    /**
+     * @dev Set value of relevance period.
+     * @param _relevancePeriod Relevance period.
+     */
     function setRelevancePeriod(uint256 _relevancePeriod) onlyOwner {
         require(_relevancePeriod > 0);
         RELEVANCE_PERIOD = _relevancePeriod;
@@ -211,6 +215,18 @@ contract LibreBank is Ownable, Pausable {
     modifier needUpdate() {
         require(!isRateActual());
         _;
+    }
+
+    /**
+     * @dev Calculate current fund capitalization.
+     */
+    function getCapitalize() constant returns(uint256) {
+        uint256 currentRate = getRate(rateType.target);
+        return address(this).balance.mul(currentRate);
+    }
+
+    function calculateRate() internal returns(uint256) {
+
     }
 
     /**
