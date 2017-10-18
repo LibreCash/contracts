@@ -29,6 +29,11 @@ contract OracleBase is Ownable, usingOraclize {
     bool public receivedRate = false;
     uint256 MIN_UPDATE_TIME = 5 minutes;
 
+    modifier onlyBank() {
+        require(msg.sender == bankContractAddress);
+        _;
+    }
+
     struct OracleConfig {
         string datasource;
         string arguments;
@@ -59,7 +64,7 @@ contract OracleBase is Ownable, usingOraclize {
         //bank = bankInterface(_bankContract);//0x14D00996c764aAce61b4DFB209Cc85de3555b44b Rinkeby bank address
     }
 
-    function updateRate() payable public {
+    function updateRate() payable public onlyBank {
         // для тестов отдельно оракула закомментировал след. строку
         //require (msg.sender == bankContractAddress);
         require (now > lastResultTimestamp + MIN_UPDATE_TIME);
