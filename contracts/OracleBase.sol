@@ -59,9 +59,9 @@ contract OracleBase is Ownable, usingOraclize {
         //bank = bankInterface(_bankContract);//0x14D00996c764aAce61b4DFB209Cc85de3555b44b Rinkeby bank address
     }
 
-    function update() payable public {
+    function updateRate() payable public {
         require (msg.sender == bankContractAddress);
-        require (now <= lastResultTimestamp + MIN_UPDATE_TIME);
+        require (now > lastResultTimestamp + MIN_UPDATE_TIME);
         receivedRate = false;
         if (oraclize_getPrice("URL") > this.balance) {
             newOraclizeQuery("Oraclize query was NOT sent, please add some ETH to cover for the query fee");
@@ -81,7 +81,8 @@ contract OracleBase is Ownable, usingOraclize {
         // do something with rate
         delete(validIds[myid]);
         lastResultTimestamp = now;
-        bank.oraclesCallback(bankContractAddress, rate, now);
+        // ВРЕМЕННО ДЛЯ ТЕСТОВ ПОГАСИЛ СЛЕД. СТРОКУ
+        //bank.oraclesCallback(bankContractAddress, rate, now);
     }
 
 

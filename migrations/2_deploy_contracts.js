@@ -10,17 +10,17 @@ var OracleWEX = artifacts.require("./OracleWEX.sol");
 module.exports = function(deployer) {
   deployer.deploy(LibreCoin).then(function() {
     var tokenAddress = LibreCoin.address;
-    console.log("!!!token:" + tokenAddress);
-    deployer.deploy(LibreBank, tokenAddress);
+    //console.log("!!!token:" + tokenAddress);
+    deployer.deploy(LibreBank, tokenAddress).then(function() {
+      var bankAddress = LibreBank.address;
+      //console.log("!!!bank:" + bankAddress);
 
-    var bankAddress = LibreBank.address;
-    console.log("!!!bank:" + bankAddress);
-
-    deployer.deploy(OracleBitfinex, bankAddress);
-    deployer.deploy(OracleBitstamp, bankAddress);    
-    deployer.deploy(OracleGDAX, bankAddress);
-    deployer.deploy(OracleGemini, bankAddress);    
-    deployer.deploy(OracleKraken, bankAddress);
-    deployer.deploy(OracleWEX, bankAddress);    
+      deployer.deploy(OracleBitfinex, bankAddress);
+      deployer.deploy(OracleBitstamp, bankAddress);    
+      deployer.deploy(OracleGDAX, bankAddress);
+      deployer.deploy(OracleGemini, bankAddress);    
+      deployer.deploy(OracleKraken, bankAddress);
+      deployer.deploy(OracleWEX, bankAddress);
+    });
   });
 };
