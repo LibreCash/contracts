@@ -69,8 +69,12 @@ contract usingOraclize {
 
     OraclizeI oraclize;
     modifier oraclizeAPI {
-        if((address(OAR)==0)||(getCodeSize(address(OAR))==0)) oraclize_setNetwork(networkID_auto);
-        oraclize = OraclizeI(OAR.getAddress());
+        if((address(OAR)==0)||(getCodeSize(address(OAR))==0))
+            oraclize_setNetwork(networkID_auto);
+
+        if(address(oraclize) != OAR.getAddress())
+            oraclize = OraclizeI(OAR.getAddress());
+
         _;
     }
     modifier coupon(string code){
@@ -759,7 +763,7 @@ contract usingOraclize {
     }
     
     function oraclize_newRandomDSQuery(uint _delay, uint _nbytes, uint _customGasLimit) internal returns (bytes32){
-        if ((_nbytes == 0)||(_nbytes > 32)) throw;
+        if ((_nbytes == 0)||(_nbytes > 32)) revert();
         bytes memory nbytes = new bytes(1);
         nbytes[0] = byte(_nbytes);
         bytes memory unonce = new bytes(32);
@@ -823,7 +827,7 @@ contract usingOraclize {
         copyBytes(proof, 3+1, 64, appkey1_pubkey, 0);
         
         bytes memory tosign2 = new bytes(1+65+32);
-        tosign2[0] = 1; //role
+        tosign2[0] = bytes1(1); //role
         copyBytes(proof, sig2offset-65, 65, tosign2, 1);
         bytes memory CODEHASH = hex"fd94fa71bc0ba10d39d464d0d8f465efeef0a2764e3887fcc9df41ded20f505c";
         copyBytes(CODEHASH, 0, 32, tosign2, 1+65);
@@ -849,10 +853,10 @@ contract usingOraclize {
     
     modifier oraclize_randomDS_proofVerify(bytes32 _queryId, string _result, bytes _proof) {
         // Step 1: the prefix has to match 'LP\x01' (Ledger Proof version 1)
-        if ((_proof[0] != "L")||(_proof[1] != "P")||(_proof[2] != 1)) throw;
+        if ((_proof[0] != "L")||(_proof[1] != "P")||(_proof[2] != 1)) revert();
         
         bool proofVerified = oraclize_randomDS_proofVerify__main(_proof, _queryId, bytes(_result), oraclize_getNetworkName());
-        if (proofVerified == false) throw;
+        if (proofVerified == false) revert();
         
         _;
     }
@@ -870,7 +874,7 @@ contract usingOraclize {
     function matchBytes32Prefix(bytes32 content, bytes prefix) internal returns (bool){
         bool match_ = true;
         
-        for (var i=0; i<prefix.length; i++){
+        for (uint256 i=0; i<prefix.length; i++){
             if (content[i] != prefix[i]) match_ = false;
         }
         
@@ -933,7 +937,7 @@ contract usingOraclize {
 
         if (to.length < minLength) {
             // Buffer too small
-            throw; // Should be a better way?
+            revert(); // Should be a better way?
         }
 
         // NOTE: the offset 32 is added to skip the `size` field of both bytes variables

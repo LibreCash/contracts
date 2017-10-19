@@ -2,6 +2,7 @@ pragma solidity ^0.4.10;
 // Основной файл банка
 import "./zeppelin/lifecycle/Pausable.sol";
 import "./zeppelin/math/SafeMath.sol";
+import "./zeppelin/math/Math.sol";
 
 
 interface token {
@@ -33,8 +34,11 @@ contract LibreBank is Ownable, Pausable {
     event InsufficientOracleData(string description, uint256 oracleCount);
     /* event LogWithdrawal (uint256 EtherAmount, address addressTo, uint invertPercentage); */
 
-    enum limitType { minUsdRate, maxUsdRate, minTransactionAmount, minTokensAmount, minSellSpread, maxSellSpread, minBuySpread, maxBuySpread }
+    enum limitType { minUsdRate, maxUsdRate, minTransactionAmount, minTokensAmount, minSellSpread, maxSellSpread, minBuySpread, maxBuySpread, variance }
+    enum rateType { target, issuance,burn, avg }
+    enum feeType { first, second } ///TODO: Rename it later
 
+ 
     uint256 updateDataRequest;
     
     struct OracleData {
@@ -47,15 +51,17 @@ contract LibreBank is Ownable, Pausable {
     }
 
     uint constant MAX_ORACLE_RATING = 10000;
-
+    uint256 RELEVANCE_PERIOD = 5 minutes;
     mapping (address=>OracleData) oracles;
     address[] oracleAddresses;
-
+    uint256[] rates;
+    uint256[] fees;
     uint256 numWaitingOracles = 2**256 - 1; // init as maximum
     uint256 numEnabledOracles;
+    uint256 dailyHigh; // 24h high
+    uint256 dailyLow; // 24h low
     // maybe we should add weightWaitingOracles - sum of rating of waiting oracles
     uint256 timeUpdateRequested;
-// end new oracleData
  
     uint256 public currencyUpdateTime;
     uint256 public cryptoFiatRate = 30000; // In $ cents
@@ -69,6 +75,7 @@ contract LibreBank is Ownable, Pausable {
     uint256 currentSpread; // in cents
     uint256 buySpread; // in cents
     uint256 sellSpread; // in cents
+    uint256 avgRate; // Average rate
     // переменных пока избыточно, при создании алгоритма расчёта определимся
     // TODO: массив по enum
 
@@ -87,6 +94,15 @@ contract LibreBank is Ownable, Pausable {
      */
     function getLimitValue(limitType _limitName) constant internal returns (uint256) {
         return limits[uint(_limitName)];
+    }
+
+    /**
+     * @dev Set value of relevance period.
+     * @param _relevancePeriod Relevance period.
+     */
+    function setRelevancePeriod(uint256 _relevancePeriod) onlyOwner {
+        require(_relevancePeriod > 0);
+        RELEVANCE_PERIOD = _relevancePeriod;
     }
 
     /**
@@ -115,6 +131,14 @@ contract LibreBank is Ownable, Pausable {
         
     }
 
+    function getFee(feeType _type) internal returns(uint256) {
+        return fees[uint(_type)];
+    }
+
+    function setFee(feeType _type,uint256 value) internal {
+        fees[uint(_type)] = value;
+    }
+ 
     /**
      * @dev Sets minimal and maximal sell spreads.
      * @param _minSellSpread Minimal sell spread.
@@ -138,6 +162,24 @@ contract LibreBank is Ownable, Pausable {
     }
 
     /**
+     * @dev Sets custom rate value
+     * @param _type Type of rate.
+     * @param value Value to set.
+     */    
+    function setRate(rateType _type,uint256 value) internal {
+        require(value > 0);
+        rates[uint(_type)] = value;
+    }
+
+     /**
+     * @dev Gets custom rate value
+     * @param _type Type of rate.
+     */ 
+    function getRate(rateType _type) constant returns(uint256) {
+        return rates[uint(_type)];
+    }
+
+    /**
      * @dev Adds an oracle.
      * @param _address The oracle address.
      */
@@ -153,11 +195,43 @@ contract LibreBank is Ownable, Pausable {
     }
 
     /**
+     * @dev Disable oracle.
+     * @param _address The oracle address.
+     */
+    function disableOracle(address _address) public onlyOwner {
+        oracles[_address].enabled = false;
+    }
+
+    /**
+     * @dev Enable oracle.
+     * @param _address The oracle address.
+     */
+    function enableOracle(address _address) public onlyOwner {
+        oracles[_address].enabled = true;
+    }
+
+    /**
+     * @dev Delete oracle.
+     * @param _address The oracle address.
+     */
+    function deleteOracle(address _address) public onlyOwner {
+        delete oracles[_address];
+    }
+
+    /**
      * @dev Gets oracle name.
      * @param _address The oracle address.
      */
     function getOracleName(address _address) public constant returns(bytes32) {
         return oracles[_address].name;
+    }
+    
+    /**
+     * @dev Gets oracle rating.
+     * @param _address The oracle address.
+     */
+    function getOracleRating(address _address) public constant returns(uint256) {
+        return oracles[_address].rating;
     }
     
     // Ограничение на периодичность обновления курса - не чаще чем раз в 5 минут
@@ -167,10 +241,45 @@ contract LibreBank is Ownable, Pausable {
     }
 
     /**
-     * @dev Checks if the rate is up to date (5 minutes).
+     * @dev Calculate current fund capitalization.
+     */
+    function getCapitalize() constant returns(uint256) {
+        uint256 currentRate = getRate(rateType.target);
+        return address(this).balance.mul(currentRate);
+    }
+
+    /**
+     * @dev Calculate daily Volatility.
+     */
+    function getDailyVolatility() constant returns(uint256) {
+        return dailyHigh.sub(dailyLow);
+    }
+    // WIP (Work in progress)
+    function calculateRate() internal {
+        uint256 targetRate = getRate(rateType.target);
+        uint256 issuranceRate = targetRate.sub( getDailyVolatility().div(2) ).sub(getFee(feeType.first));
+        uint256 burnRate = targetRate.add( getDailyVolatility().div(2) ).add(getFee(feeType.second));
+        //TODO: Append limit and min\max checking
+    }
+
+     /**
+     * @dev Calculate percents using fixed-float arithmetic.
+     * @param numerator - Calculation numerator (first number)
+     * @param denominator - Calculation denomirator (first number)
+     * @param precision - calc precision
+     */
+    function percent(uint numerator, uint denominator, uint precision) public constant returns(uint quotient) {
+        uint _numerator  = numerator.mul(10 ** (precision+1));
+        uint _quotient = _numerator.div(denominator).add(5).div(10);
+        return _quotient;
+    }
+
+
+    /**
+     * @dev Checks if the rate is up to date
      */
     function isRateActual() public constant returns(bool) {
-        return (now <= currencyUpdateTime + 5 minutes);
+        return (now <= currencyUpdateTime + RELEVANCE_PERIOD);
     }
 
     function libreBank(address _tokenContract) public {
@@ -461,6 +570,17 @@ contract LibreBank is Ownable, Pausable {
         // https://ethereum.stackexchange.com/questions/3373/how-to-clear-large-arrays-without-blowing-the-gas-limit
         return true;
     } // function fillOrders()
+
+
+    /**
+    * @dev Reject all ERC23 compatible tokens
+    * @param from_ address The address that is transferring the tokens
+    * @param value_ uint256 the amount of the specified token
+    * @param data_ Bytes The data passed from the caller.
+    */
+    function tokenFallback(address from_, uint256 value_, bytes data_) external {
+        revert();
+    }
 }
 
 

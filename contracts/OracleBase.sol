@@ -29,6 +29,10 @@ contract OracleBase is Ownable, usingOraclize {
     bool public receivedRate = false;
     uint256 MIN_UPDATE_TIME = 5 minutes;
 
+    // --debug section--
+        address public oracleCallbacker;
+    // --/debug section--
+
     modifier onlyBank() {
         require(msg.sender == bankContractAddress);
         _;
@@ -44,7 +48,6 @@ contract OracleBase is Ownable, usingOraclize {
     function hasReceivedRate() public returns (bool) {
         return receivedRate;
     }
-
 
     function OracleBase() public {
         owner = msg.sender;
@@ -64,7 +67,7 @@ contract OracleBase is Ownable, usingOraclize {
         //bank = bankInterface(_bankContract);//0x14D00996c764aAce61b4DFB209Cc85de3555b44b Rinkeby bank address
     }
 
-    function updateRate() payable public onlyBank {
+    function updateRate() payable public /*onlyBank*/ {
         // для тестов отдельно оракула закомментировал след. строку
         //require (msg.sender == bankContractAddress);
         require (now > lastResultTimestamp + MIN_UPDATE_TIME);
@@ -72,14 +75,19 @@ contract OracleBase is Ownable, usingOraclize {
         if (oraclize_getPrice("URL") > this.balance) {
             newOraclizeQuery("Oraclize query was NOT sent, please add some ETH to cover for the query fee");
         } else {
-            newOraclizeQuery("Oraclize query was sent, standing by for the answer...");
             bytes32 queryId = oraclize_query(0, oracleConfig.datasource, oracleConfig.arguments);
+            newOraclizeQuery("Oraclize query was sent, standing by for the answer...");
             validIds[queryId] = true;
         }
     }  
     
+    /**
+    * @dev Oraclize default callback with set proof
+    */
    function __callback(bytes32 myid, string result, bytes proof) public {
         require(validIds[myid]);
+        newOraclizeQuery("__callback proof here!");
+        oracleCallbacker = msg.sender;
         require(msg.sender == oraclize_cbAddress());
         receivedRate = true;
         newPriceTicker(result);
@@ -90,14 +98,12 @@ contract OracleBase is Ownable, usingOraclize {
         bank.oraclesCallback(bankContractAddress, rate, now);
     }
 
-
-
     /**
      * @dev Updates oraclize costs.
      * Shall run after datasource setting.
      */
     function updateCosts() internal {
-        updateCost = 2*oraclize_getPrice(oracleConfig.datasource);
+        updateCost = 2 * oraclize_getPrice(oracleConfig.datasource);
     }
 
     function getName() constant public returns(bytes32) {
