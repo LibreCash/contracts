@@ -131,7 +131,7 @@ contract LibreBank is Ownable, Pausable {
         
     }
 
-    function getFee(feeType _type) returns(uint256) internal {
+    function getFee(feeType _type) internal returns(uint256) {
         return fees[_type];
     }
 
@@ -476,7 +476,7 @@ contract LibreBank is Ownable, Pausable {
             return false;
         }
         uint256 cryptoAmount = orders[_orderID].orderAmount;
-        uint256 tokensAmount = ethersAmount.mul(buyPrice).div(100);
+        uint256 tokensAmount = cryptoAmount.mul(buyPrice).div(100);
         address benificiar = orders[_orderID].clientAddress;  
         libreToken.mint(benificiar, tokensAmount);
         LogBuy(benificiar, tokensAmount, cryptoAmount, buyPrice);
