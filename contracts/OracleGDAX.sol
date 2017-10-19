@@ -15,7 +15,6 @@ contract OracleGDAX is OracleBase {
         oracleConfig = OracleConfig({datasource: ORACLE_DATASOURCE, arguments: ORACLE_ARGUMENTS});
         bankContractAddress = _bankContract;
         updateCosts();
-        //update();
     }
      
     function donate() payable { }

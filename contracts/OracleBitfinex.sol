@@ -16,21 +16,8 @@ contract OracleBitfinex is OracleBase {
         oracleConfig = OracleConfig({datasource: ORACLE_DATASOURCE, arguments: ORACLE_ARGUMENTS});
         bankContractAddress = _bankContract;
         updateCosts();
-        //update();
     }
-    
-
-    // for tests
-    function getRate() public returns(uint256) {
-        return rate;
-    }
-    function setRate(uint256 _rate) public {
-        rate = _rate;
-    }
-
-    
+        
     function donate() payable { }
     // Sending ether directly to the contract invokes buy() and assigns tokens to the sender 
-
-
 }
