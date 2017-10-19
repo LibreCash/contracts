@@ -10,10 +10,11 @@ contract OracleBitfinex is OracleBase {
     // https://bitfinex.readme.io/v1/reference#rest-public-ticker
     string constant ORACLE_ARGUMENTS = "json(https://api.bitfinex.com/v1/pubticker/ethusd).mid";
     
-    function OracleBitfinex() public {
+    function OracleBitfinex(address _bankContract) public {
         oracleName = ORACLE_NAME;
         oracleType = ORACLE_TYPE;
         oracleConfig = OracleConfig({datasource: ORACLE_DATASOURCE, arguments: ORACLE_ARGUMENTS});
+        bankContractAddress = _bankContract;
         updateCosts();
         //update();
     }
@@ -22,6 +23,9 @@ contract OracleBitfinex is OracleBase {
     // for tests
     function getRate() public returns(uint256) {
         return rate;
+    }
+    function setRate(uint256 _rate) public {
+        rate = _rate;
     }
 
     

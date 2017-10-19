@@ -4,7 +4,7 @@ import "./oraclizeAPI_0.4.sol";
 import "./zeppelin/ownership/Ownable.sol";
 
 interface bankInterface {
-    function oraclesCallback(address _address, uint256 value, uint256 timestamp);
+    function oraclesCallback(address _address, uint256 value, uint256 timestamp) public;
 }
 
 contract OracleBase is Ownable, usingOraclize {
@@ -27,6 +27,7 @@ contract OracleBase is Ownable, usingOraclize {
     bankInterface bank;
     // пока не знаю, надо ли. добавил как флаг для тестов
     bool public receivedRate = false;
+    uint256 MIN_UPDATE_TIME = 5 minutes;
 
     struct OracleConfig {
         string datasource;
@@ -58,8 +59,10 @@ contract OracleBase is Ownable, usingOraclize {
         //bank = bankInterface(_bankContract);//0x14D00996c764aAce61b4DFB209Cc85de3555b44b Rinkeby bank address
     }
 
-    function update() payable public {
-        require (msg.sender == bankContractAddress);
+    function updateRate() payable public {
+        // для тестов отдельно оракула закомментировал след. строку
+        //require (msg.sender == bankContractAddress);
+        require (now > lastResultTimestamp + MIN_UPDATE_TIME);
         receivedRate = false;
         if (oraclize_getPrice("URL") > this.balance) {
             newOraclizeQuery("Oraclize query was NOT sent, please add some ETH to cover for the query fee");
@@ -78,6 +81,7 @@ contract OracleBase is Ownable, usingOraclize {
         rate = parseInt(result, 2); // save it in storage as $ cents
         // do something with rate
         delete(validIds[myid]);
+        lastResultTimestamp = now;
         bank.oraclesCallback(bankContractAddress, rate, now);
     }
 
@@ -90,24 +94,6 @@ contract OracleBase is Ownable, usingOraclize {
     function updateCosts() internal {
         updateCost = 2*oraclize_getPrice(oracleConfig.datasource);
     }
-
-
- /*   function update() payable {
-        require(this.balance > updateCost);
-        bytes32 queryId = oraclize_query(0, config.datasource, config.arguments);
-        validIds[queryId] = true;
-        NewOraclizeQuery("Oraclize query was sent, standing by for the answer...");
-    }
-
-    function __callback(bytes32 myid, string result, bytes proof) {
-        require (msg.sender == oraclize_cbAddress());
-        uint256 currentTime = now;
-        uint ETHUSD = parseInt(result, 2); // in $ cents
-        lastResult = ETHUSD;
-        lastResultTimestamp = currentTime;
-        delete(validIds[myid]);
-        NewPriceTicker(oracleName, ETHUSD, currentTime);
-    }*/
 
     function getName() constant public returns(bytes32) {
         return oracleName;
