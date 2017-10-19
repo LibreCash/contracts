@@ -132,11 +132,11 @@ contract LibreBank is Ownable, Pausable {
     }
 
     function getFee(feeType _type) internal returns(uint256) {
-        return fees[_type];
+        return fees[uint(_type)];
     }
 
     function setFee(feeType _type,uint256 value) internal {
-        fees[_type] = value;
+        fees[uint(_type)] = value;
     }
  
     /**
@@ -163,7 +163,7 @@ contract LibreBank is Ownable, Pausable {
 
     /**
      * @dev Sets custom rate value
-     * @param type Type of rate.
+     * @param _type Type of rate.
      * @param value Value to set.
      */    
     function setRate(rateType _type,uint256 value) internal {
@@ -173,7 +173,7 @@ contract LibreBank is Ownable, Pausable {
 
      /**
      * @dev Gets custom rate value
-     * @param type Type of rate.
+     * @param _type Type of rate.
      */ 
     function getRate(rateType _type) constant returns(uint256) {
         return rates[uint(_type)];
@@ -257,7 +257,7 @@ contract LibreBank is Ownable, Pausable {
      /**
      * @dev Calculate percents using fixed-float arithmetic.
      * @param numerator - Calculation numerator (first number)
-     * @param denomirator - Calculation denomirator (first number)
+     * @param denominator - Calculation denomirator (first number)
      * @param precision - calc precision
      */
     function percent(uint numerator, uint denominator, uint precision) public constant returns(uint quotient) {
