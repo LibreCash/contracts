@@ -83,9 +83,4 @@ contract LibreCoin is MintableToken, PausableToken {
     function tokenFallback(address from_, uint256 value_, bytes data_) external {
         revert();
     }
-
-    function return7() public pure returns (uint256) {
-        return 7;
-    }
-
 }

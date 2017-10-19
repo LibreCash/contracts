@@ -16,11 +16,15 @@ module.exports = function(deployer) {
       let oracles = {};
       deployer.deploy(OracleBitfinex, bankAddress).then(function() {
         oracles['bitfinex'] = OracleBitfinex.address;
-        let bank; LibreBank.deployed().then(function(instance) {
-          console.log('++++++++++++ librebank.deployed.then ++++++++');
+        let bank;
+        LibreBank.deployed().then(function(instance) {
           bank = instance;
           bank.addOracle(oracles['bitfinex']);
-          console.log('==========='+bank.getOracleName(oracles['bitfinex']);
+          console.log('>>> oracles["bitfinex"] >>> '+oracles['bitfinex']);
+          let oracleRating = bank.getOracleRating.call(oracles['bitfinex']);
+          return oracleRating;
+        }).then(function(oracleRating) {
+          console.log('>>> must be 5000 >>> '+oracleRating);
         });
       });
 /*      deployer.deploy(OracleBitstamp, bankAddress).then(function() {

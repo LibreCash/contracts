@@ -226,6 +226,14 @@ contract LibreBank is Ownable, Pausable {
         return oracles[_address].name;
     }
     
+    /**
+     * @dev Gets oracle rating.
+     * @param _address The oracle address.
+     */
+    function getOracleRating(address _address) public constant returns(uint256) {
+        return oracles[_address].rating;
+    }
+    
     // Ограничение на периодичность обновления курса - не чаще чем раз в 5 минут
     modifier needUpdate() {
         require(!isRateActual());
