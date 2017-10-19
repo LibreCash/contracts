@@ -20,15 +20,13 @@ contract('LibreBank', function() {
 // DUMMY TEST
 var SimplexBank = artifacts.require("./SimplexBank.sol");
 contract('SimplexBank', function() {
-    it("sets-gets dummy", function() {
-        //var bank = SimplexBank.deployed();
-        SimplexBank.deployed().then(function(bank){
-            bank.setDummy(2128506);
-            let res = bank.getDummy.call();
-            
+    it("sets-gets dummy", async function() {
+        var bank = await SimplexBank.deployed();
+        await bank.setDummy(2128506);
+        let res = (await bank.getDummy.call()).valueOf();
+        console.log(res);    
             // этот тест как бы вообще не должен проходить, а он проходит
             // скорее всего этот then() просто не работает
             assert.equal(res, 100, "dummy not set or wrong");
-      });
     });
 });
