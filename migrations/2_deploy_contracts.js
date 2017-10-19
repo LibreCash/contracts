@@ -1,5 +1,26 @@
 var LibreCoin = artifacts.require("./LibreCoin.sol");
-var LibreBank = artifacts.require("./LibreBank.sol");
+var SimplexBank = artifacts.require("./SimplexBank.sol");
+
+module.exports = function(deployer) {
+  deployer.deploy(LibreCoin).then(function() {
+    var tokenAddress = LibreCoin.address;
+    deployer.deploy(SimplexBank, tokenAddress).then(function() {
+      var simplexBank;
+      SimplexBank.deployed().then(function(instance){
+        simplexBank = instance;
+        return simplexBank.getDummy.call();
+      }).then(function(dummy) {
+        console.log('dummy: ' + dummy);
+        simplexBank.setDummy(900);
+        return simplexBank.getDummy.call();
+      }).then(function(dummy) {
+        console.log('dummy2: ' + dummy);
+       
+      });
+    });
+  });
+}
+/*var LibreBank = artifacts.require("./LibreBank.sol");
 var OracleBitfinex = artifacts.require("./OracleBitfinex.sol");
 var OracleBitstamp = artifacts.require("./OracleBitstamp.sol");
 var OracleGDAX = artifacts.require("./OracleGDAX.sol");
@@ -27,14 +48,14 @@ module.exports = function(deployer) {
           console.log('>>> must be 5000 >>> '+oracleRating);
         });
       });
-/*      deployer.deploy(OracleBitstamp, bankAddress).then(function() {
-        oracles['bitstamp'] = OracleBitstamp.address;
-        console.log(oracles);
-      });    
-      deployer.deploy(OracleGDAX, bankAddress).then(function() {
-        oracles['gdax'] = OracleGDAX.address;
-        console.log(oracles);
-      });*/
+//      deployer.deploy(OracleBitstamp, bankAddress).then(function() {
+//        oracles['bitstamp'] = OracleBitstamp.address;
+//        console.log(oracles);
+//      });    
+//      deployer.deploy(OracleGDAX, bankAddress).then(function() {
+//        oracles['gdax'] = OracleGDAX.address;
+//        console.log(oracles);
+//      });
     });
   });
-};
+};*/

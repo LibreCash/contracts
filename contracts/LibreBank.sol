@@ -282,7 +282,7 @@ contract LibreBank is Ownable, Pausable {
         return (now <= currencyUpdateTime + RELEVANCE_PERIOD);
     }
 
-    function libreBank(address _tokenContract) public {
+    function LibreBank(address _tokenContract) public {
         libreToken = token(_tokenContract);
     }
     
