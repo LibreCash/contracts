@@ -1,25 +1,27 @@
 var LibreCoin = artifacts.require("./LibreCoin.sol");
 var SimplexBank = artifacts.require("./SimplexBank.sol");
+var OracleBitfinex = artifacts.require("./OracleBitfinex.sol");
 
-module.exports = function(deployer) {
-  deployer.deploy(LibreCoin).then(function() {
-    var tokenAddress = LibreCoin.address;
-    deployer.deploy(SimplexBank, tokenAddress).then(function() {
-      var simplexBank;
-      SimplexBank.deployed().then(function(instance){
-        simplexBank = instance;
-        return simplexBank.getDummy.call();
-      }).then(function(dummy) {
-        console.log('dummy: ' + dummy);
-        simplexBank.setDummy(900);
-        return simplexBank.getDummy.call();
-      }).then(function(dummy) {
-        console.log('dummy2: ' + dummy);
-       
-      });
-    });
-  });
+module.exports = async function(deployer) {
+  await deployer.deploy(LibreCoin);
+  var token = await LibreCoin.deployed();
+  var tokenAddress = token.address;
+  await deployer.deploy(SimplexBank, tokenAddress);
+  var bank = await SimplexBank.deployed();
+  var bankAddress = bank.address;
+  await deployer.deploy(OracleBitfinex, bankAddress);
+  var oracle = await OracleBitfinex.deployed();
+  var oracleAddress = oracle.address;
+  console.log('oracle: ' + oracleAddress);
+  await bank.setOracle(oracleAddress);
+  console.log('--- setten oracle');
+  var oracleRating = await bank.getOracleRating.call();
+  console.log('--- oracle rating: ' + oracleRating);
+  console.log('token: ' + tokenAddress);
+  console.log('bank: ' + bankAddress);
+
 }
+
 /*var LibreBank = artifacts.require("./LibreBank.sol");
 var OracleBitfinex = artifacts.require("./OracleBitfinex.sol");
 var OracleBitstamp = artifacts.require("./OracleBitstamp.sol");
