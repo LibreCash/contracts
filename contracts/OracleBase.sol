@@ -65,11 +65,11 @@ contract OracleBase is Ownable, usingOraclize {
 
     function setBank(address _bankContract) public {
         bankContractAddress = _bankContract;
-        //bank = bankInterface(_bankContract);//0x14D00996c764aAce61b4DFB209Cc85de3555b44b Rinkeby bank address
+        bank = bankInterface(_bankContract);//0x14D00996c764aAce61b4DFB209Cc85de3555b44b Rinkeby bank address
     }
 
     // for test
-    function getBank() public returns (address) {
+    function getBank() public view returns (address) {
         return bankContractAddress;
         //bank = bankInterface(_bankContract);//0x14D00996c764aAce61b4DFB209Cc85de3555b44b Rinkeby bank address
     }
@@ -101,7 +101,7 @@ contract OracleBase is Ownable, usingOraclize {
         newPriceTicker(result);
         rate = parseInt(result, 2); // save it in storage as $ cents
         // do something with rate
-        delete(validIds[myid]);
+        //delete(validIds[myid]);
         lastResultTimestamp = now;
         bank.oraclesCallback(bankContractAddress, rate, now);
     }

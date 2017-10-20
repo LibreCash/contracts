@@ -59,16 +59,16 @@ contract('OracleBitfinex', function() {
         var rate = 0;
         //oracleDeployed = await OracleBitfinex.deployed();
         Log('await OracleBitfinex.new() after');
-        Log('await updateRate before');
-        var updateRate = await oracle.updateRate();
-        Log('await updateRate after');
-        updateRate.logs.forEach(function(element) {
-            console.log(element.args);
-        }, this);
-        // todo: почему в конструкторе не ставится
         await oracle.setBank(bankDeployed.address);
         var oracleBank = (await oracle.getBank.call()).valueOf();
         Log("oracle bank: " + oracleBank);
+        Log('await updateRate before');
+        var updateRate = await oracle.updateRate();
+        Log('await updateRate after');
+        // todo: почему в конструкторе не ставится
+        updateRate.logs.forEach(function(element) {
+            console.log(element.args);
+        }, this);
         var hasReceivedRate = false;
         var timestampTimeout = (new Date()).timeNow();
         Log('waiting for callback...');
