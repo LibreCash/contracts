@@ -12,7 +12,8 @@ contract OracleBase is Ownable, usingOraclize {
     // надеюсь, нет ограничений на использование bytes32 в событии. Надо посмотреть, как web3.js это воспримет
     event NewPriceTicker(bytes32 oracleName, uint256 price, uint256 timestamp);
     event newOraclizeQuery(string description);
-    event newPriceTicker(string price); 
+    event newPriceTicker(string price);
+    event Log(string anything);
 
     bytes32 public oracleName = "Base Oracle";
     bytes16 public oracleType = "Undefined"; // Human-readable oracle type e.g ETHUSD
@@ -45,7 +46,7 @@ contract OracleBase is Ownable, usingOraclize {
 
     OracleConfig public oracleConfig;
 
-    function hasReceivedRate() public returns (bool) {
+    function hasReceivedRate() public view returns (bool) {
         return receivedRate;
     }
 
@@ -64,12 +65,19 @@ contract OracleBase is Ownable, usingOraclize {
 
     function setBank(address _bankContract) public {
         bankContractAddress = _bankContract;
+        bank = bankInterface(_bankContract);//0x14D00996c764aAce61b4DFB209Cc85de3555b44b Rinkeby bank address
+    }
+
+    // for test
+    function getBank() public view returns (address) {
+        return bankContractAddress;
         //bank = bankInterface(_bankContract);//0x14D00996c764aAce61b4DFB209Cc85de3555b44b Rinkeby bank address
     }
 
     function updateRate() payable public /*onlyBank*/ {
         // для тестов отдельно оракула закомментировал след. строку
         //require (msg.sender == bankContractAddress);
+        Log("updateRate initiated");
         require (now > lastResultTimestamp + MIN_UPDATE_TIME);
         receivedRate = false;
         if (oraclize_getPrice("URL") > this.balance) {
@@ -79,21 +87,21 @@ contract OracleBase is Ownable, usingOraclize {
             newOraclizeQuery("Oraclize query was sent, standing by for the answer...");
             validIds[queryId] = true;
         }
-    }  
-    
+    }
+
     /**
     * @dev Oraclize default callback with set proof
     */
    function __callback(bytes32 myid, string result, bytes proof) public {
-        require(validIds[myid]);
+        //require(validIds[myid]);
         newOraclizeQuery("__callback proof here!");
         oracleCallbacker = msg.sender;
-        require(msg.sender == oraclize_cbAddress());
+        //require(msg.sender == oraclize_cbAddress());
         receivedRate = true;
         newPriceTicker(result);
         rate = parseInt(result, 2); // save it in storage as $ cents
         // do something with rate
-        delete(validIds[myid]);
+        //delete(validIds[myid]);
         lastResultTimestamp = now;
         bank.oraclesCallback(bankContractAddress, rate, now);
     }

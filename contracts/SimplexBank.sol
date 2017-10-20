@@ -29,21 +29,41 @@ contract SimplexBank {
 
     token libreToken;
 
-    uint256 dummy = 666;
-
     uint256 rate = 1000;
 
-    function setDummy(uint256 _value) public {
-        dummy = _value;
+    struct OracleData {
+        bytes32 name;
+        uint256 rating;
+        bool enabled;
+        bool waiting;
+        uint256 updateTime; // time of callback
+        uint256 cryptoFiatRate; // exchange rate
     }
+    OracleData oracle;
+    address oracleAddress;
 
-    function getDummy() public view returns (uint256) {
-        return dummy;
-    }
-
+    uint constant MAX_ORACLE_RATING = 10000;
 
     function SimplexBank(address _tokenContract) public {
         libreToken = token(_tokenContract);
+    }
+
+    function setOracle(address _address) public {
+        require(_address != 0x0);
+        oracleAddress = _address;
+        oracleInterface currentOracleInterface = oracleInterface(_address);
+
+        OracleData memory thisOracle = OracleData({name: currentOracleInterface.getName(), rating: MAX_ORACLE_RATING.div(2), 
+                                                    enabled: true, waiting: false, updateTime: 0, cryptoFiatRate: 0});
+        oracle = thisOracle;
+    }
+
+    function getOracleRating() public view returns (uint256) {
+        return oracle.rating;
+    }
+
+    function getRate() public view returns (uint256) {
+        return rate;
     }
 
     /**
@@ -98,6 +118,13 @@ contract SimplexBank {
         msg.sender.transfer(cryptoAmount);
         libreToken.burn(msg.sender, tokensAmount); 
         Log(msg.sender, tokensAmount, cryptoAmount);
+    }
+
+    function oraclesCallback(address _address, uint256 _rate, uint256 _time) public {
+        oracle.cryptoFiatRate = _rate;
+        oracle.updateTime = _time;
+        oracle.waiting = false;
+        rate = _rate;
     }
 
 
