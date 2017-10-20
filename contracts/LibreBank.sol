@@ -29,10 +29,10 @@ contract LibreBank is Ownable, Pausable {
     
     // сравнить с тем, что в oraclebase - dima
     event NewPriceTicker(address oracleAddress, string price);
-    event LogBuy(address clientAddress, uint256 tokenAmount, uint256 etherAmount, uint256 buyPrice);
-    event LogSell(address clientAddress, uint256 tokenAmount, uint256 etherAmount, uint256 sellPrice);
+    event LogBuy(address clientAddress, uint256 tokenAmount, uint256 cryptoAmount, uint256 buyPrice);
+    event LogSell(address clientAddress, uint256 tokenAmount, uint256 cryptoAmount, uint256 sellPrice);
     event InsufficientOracleData(string description, uint256 oracleCount);
-    /* event LogWithdrawal (uint256 EtherAmount, address addressTo, uint invertPercentage); */
+    /* event LogWithdrawal (uint256 cryptoAmount, address addressTo, uint invertPercentage); */
 
     enum limitType { minUsdRate, maxUsdRate, minTransactionAmount, minTokensAmount, minSellSpread, maxSellSpread, minBuySpread, maxBuySpread, variance }
     enum rateType { target, issuance,burn, avg }

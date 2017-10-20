@@ -1,24 +1,34 @@
 var LibreCoin = artifacts.require("./LibreCoin.sol");
 var SimplexBank = artifacts.require("./SimplexBank.sol");
 var OracleBitfinex = artifacts.require("./OracleBitfinex.sol");
+//var OraclizeAPI = artifacts.require("./oraclizeAPI_0.4.sol");
+
+Date.prototype.timeNow = function () {
+  return ((this.getHours() < 10)?"0":"") + this.getHours() +":"+ ((this.getMinutes() < 10)?"0":"") + this.getMinutes() +":"+ ((this.getSeconds() < 10)?"0":"") + this.getSeconds();
+}
 
 module.exports = async function(deployer) {
+//  await deployer.deploy(OraclizeAPI);
+//  var oraclizeAPI = await OraclizeAPI.deployed();
+  console.log((new Date()).timeNow() + ' [deploy] LibreCoin deploy before');
   await deployer.deploy(LibreCoin);
   var token = await LibreCoin.deployed();
+  console.log((new Date()).timeNow() + ' [deploy] LibreCoin deploy after / SimplexBank deploy before');
   var tokenAddress = token.address;
   await deployer.deploy(SimplexBank, tokenAddress);
   var bank = await SimplexBank.deployed();
+  console.log((new Date()).timeNow() + ' [deploy] SimplexBank deploy after / OracleBitfinex deploy before');
   var bankAddress = bank.address;
   await deployer.deploy(OracleBitfinex, bankAddress);
   var oracle = await OracleBitfinex.deployed();
+  console.log((new Date()).timeNow() + ' [deploy] OracleBitfinex deploy after');
   var oracleAddress = oracle.address;
-  console.log('oracle: ' + oracleAddress);
   await bank.setOracle(oracleAddress);
-  console.log('--- setten oracle');
   var oracleRating = await bank.getOracleRating.call();
-  console.log('--- oracle rating: ' + oracleRating);
-  console.log('token: ' + tokenAddress);
-  console.log('bank: ' + bankAddress);
+  console.log((new Date()).timeNow() + ' [deploy] oracle rating (5000): ' + oracleRating);
+  console.log((new Date()).timeNow() + ' [deploy] OracleBitfinex: ' + oracleAddress);
+  console.log((new Date()).timeNow() + ' [deploy] LibreCoin: ' + tokenAddress);
+  console.log((new Date()).timeNow() + ' [deploy] SimplexBank: ' + bankAddress);
 
 }
 

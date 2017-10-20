@@ -62,6 +62,10 @@ contract SimplexBank {
         return oracle.rating;
     }
 
+    function getRate() public view returns (uint256) {
+        return rate;
+    }
+
     /**
      * @dev Receives donations.
      */
@@ -114,6 +118,13 @@ contract SimplexBank {
         msg.sender.transfer(cryptoAmount);
         libreToken.burn(msg.sender, tokensAmount); 
         Log(msg.sender, tokensAmount, cryptoAmount);
+    }
+
+    function oraclesCallback(address _address, uint256 _rate, uint256 _time) public {
+        oracle.cryptoFiatRate = _rate;
+        oracle.updateTime = _time;
+        oracle.waiting = false;
+        rate = _rate;
     }
 
 
