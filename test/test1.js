@@ -16,8 +16,6 @@ contract('LibreBank', function() {
     });
 });
 */
-var simplexBankABI = "[{\"constant\":true,\"inputs\":[],\"name\":\"getRate\",\"outputs\":[{\"name\":\"\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_amount\",\"type\":\"uint256\"}],\"name\":\"sellTokens\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[],\"name\":\"totalTokenCount\",\"outputs\":[{\"name\":\"\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_address\",\"type\":\"address\"}],\"name\":\"setOracle\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_beneficiar\",\"type\":\"address\"}],\"name\":\"withdrawCrypto\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[],\"name\":\"getOracleRating\",\"outputs\":[{\"name\":\"\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_beneficiar\",\"type\":\"address\"}],\"name\":\"buyTokens\",\"outputs\":[],\"payable\":true,\"stateMutability\":\"payable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[],\"name\":\"donate\",\"outputs\":[],\"payable\":true,\"stateMutability\":\"payable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_address\",\"type\":\"address\"},{\"name\":\"_rate\",\"type\":\"uint256\"},{\"name\":\"_time\",\"type\":\"uint256\"}],\"name\":\"oraclesCallback\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"name\":\"_tokenContract\",\"type\":\"address\"}],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"constructor\"},{\"payable\":true,\"stateMutability\":\"payable\",\"type\":\"fallback\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"anything\",\"type\":\"string\"}],\"name\":\"Log\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"addr\",\"type\":\"address\"},{\"indexed\":false,\"name\":\"anything\",\"type\":\"string\"}],\"name\":\"Log\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"addr\",\"type\":\"address\"},{\"indexed\":false,\"name\":\"value1\",\"type\":\"uint256\"},{\"indexed\":false,\"name\":\"value2\",\"type\":\"uint256\"}],\"name\":\"Log\",\"type\":\"event\"}]";
-
 Date.prototype.timeNow = function () {
     return ((this.getHours() < 10)?"0":"") + this.getHours() +":"+ ((this.getMinutes() < 10)?"0":"") + this.getMinutes() +":"+ ((this.getSeconds() < 10)?"0":"") + this.getSeconds();
 }
@@ -26,16 +24,41 @@ function Log(anything) {
     console.log((new Date()).timeNow() + ' [test] ' + anything);
 }
 
+function showTransactionEvents(txName, logs) {
+    if (logs != null) {
+        Log(txName + ' events:');
+        logs.forEach(function(element) {
+            console.log(element.args);
+        }, this);
+    }
+}
 
+function getBalance() {
+    return web3.eth.getBalance(web3.eth.accounts[0]).toNumber()*10**-18;
+}
+
+
+var LibreCoin = artifacts.require("./LibreCoin.sol");
 var SimplexBank = artifacts.require("./SimplexBank.sol");
 var OracleBitfinex = artifacts.require("./OracleBitfinex.sol");
+
 var oracle;
 var oracleDeployed;
+var tokenDeployed;
+var bankDeployed;
+
+var bankAddress = SimplexBank.address;
+var bankABI = SimplexBank._json.abi;
+//var bank = await web3.eth.contract(simplexBankABI, '0x0e1a39c2c19a81a33b784fa1d74a7e4b31a502dc');
+contract('LibreCoin', function() {
+    it("LibreCoin", async function() {
+        tokenDeployed = await LibreCoin.deployed();
+    });
+});
 contract('OracleBitfinex', function() {
-    it('creates oracle', async function() {
-        Log('await OracleBitfinex.new() before');
+    it("OracleBitfinex", async function() {
         oracle = await OracleBitfinex.new();
-        Log('await OracleBitfinex.new() after');
+        //oracleDeployed = await OracleBitfinex.deployed();
     });
 });
 var bankDeployed;
@@ -43,43 +66,57 @@ contract('SimplexBank', function() {
     it("gets oracleRating as 5000", async function() {
         Log('await SimplexBank.new() before');
         var bank = await SimplexBank.new();
-        //var bank = await web3.eth.contract(simplexBankABI, '0x0e1a39c2c19a81a33b784fa1d74a7e4b31a502dc');
         bankDeployed = await SimplexBank.deployed();
-        Log('await SimplexBank.deployed() after');
-        
-        Log('addr: ' + bankDeployed.address); 
+//        oracleDeployed = await OracleBitfinex.deployed();
+        var oracleAddress = oracle.address;
+        var tokenAddress = tokenDeployed.address;
+        await bankDeployed.setToken(tokenAddress);
+        await bankDeployed.setOracle(oracleAddress);
+        Log('oracle addr: ' + (await bankDeployed.getOracle.call()).valueOf());
+        Log('token addr: ' + (await bankDeployed.getToken.call()).valueOf());
+        Log('oracle bank addr: ' + (await bankDeployed.getOracleBankAddress.call()).valueOf());
+        Log('token bank addr: ' + (await bankDeployed.getTokenBankAddress.call()).valueOf());
+//        Log('bankDeployed=... after');
+        var testAllowed = false;
+        var timestampTimeout = (new Date()).timeNow();
+        Log('waiting for beginning...');
+        do {
+            testAllowed = (await bankDeployed.areTestsAllowed()).valueOf();
+            timestampInner = (new Date()).getTime();
+            while ((new Date()).getTime() - timestampInner < 500) {}
+            process.stdout.write('|');
+        } while ((!testAllowed) || ((new Date()).getTime() - timestampTimeout < 60000));
+        console.log();
+    //    await bankDeployed.setToken(tokenDeployed.address);
 
+//    Log('cmp to token addr: ' + tokenDeployed.address);
+    //    await bankDeployed.setOracle(oracle.address);
+        var oracleAddress = (await bankDeployed.getOracle.call()).valueOf();
+        
         let res = (await bankDeployed.getOracleRating.call()).valueOf();
         Log('oracleRating: ' + res);    
         assert.equal(res, 5000, "rating not set or wrong");
-    });
-});
-contract('OracleBitfinex', function() {
-    it("calls updateRate", async function() {
+    }); // it
+    it('updates rate and gets it', async function() {
         var rate = 0;
-        //oracleDeployed = await OracleBitfinex.deployed();
-        Log('await OracleBitfinex.new() after');
-        await oracle.setBank(bankDeployed.address);
-        var oracleBank = (await oracle.getBank.call()).valueOf();
-        Log("oracle bank: " + oracleBank);
         Log('await updateRate before');
-        var updateRate = await oracle.updateRate();
+        var ethBalance = getBalance();
+        var updateRateTX = await bankDeployed.updateRate();
         Log('await updateRate after');
-        // todo: почему в конструкторе не ставится
-        updateRate.logs.forEach(function(element) {
-            console.log(element.args);
-        }, this);
+        showTransactionEvents('updateRate', updateRateTX.logs);
         var hasReceivedRate = false;
-        var timestampTimeout = (new Date()).timeNow();
+        var timestampTimeout = (new Date()).getTime();
         Log('waiting for callback...');
-        while ((!hasReceivedRate) || ((new Date()).getTime() - timestampTimeout < 120000)) {
-            Log('still waiting');
-            hasReceivedRate = (await oracle.hasReceivedRate.call()).valueOf();
+        do {
+            hasReceivedRate = (await bankDeployed.hasReceivedRate.call()).valueOf();
             timestampInner = (new Date()).getTime();
-            while ((new Date()).getTime() - timestampInner < 5000) {}
+            while ((new Date()).getTime() - timestampInner < 500) {}
             rate = (await bankDeployed.getRate.call()).valueOf();
-            console.log(rate);
-        }
-        
-    });
+            process.stdout.write('|');
+            //console.log(rate);
+        } while ((!hasReceivedRate) || ((new Date()).getTime() - timestampTimeout < 120000));
+        console.log(); Log('rate = ' + rate);
+        Log('callback time: ' + ((new Date()).getTime() - timestampTimeout).toString());
+        Log('callback+updateRate eth consumption: ' + (getBalance() - ethBalance).toString());
+    }); // it
 });

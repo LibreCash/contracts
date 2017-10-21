@@ -28,22 +28,24 @@ contract LibreCoin is MintableToken, PausableToken {
     /**
      * @dev Sets new bank address.
      * @param _bankContractAddress The bank address.
+     * no onlyOwner for tests
      */
-    function setBankAddress(address _bankContractAddress) onlyOwner public /*private*/ {
+    function setBankAddress(address _bankContractAddress) /*onlyOwner*/ public /*private*/ {
         require(_bankContractAddress != 0x0);
         bankContract = _bankContractAddress;
     }
 
     // только для тестов
-    function toString(address x) returns (string) {
+    function toString(address x) pure private returns (string) {
         bytes memory b = new bytes(20);
         for (uint i = 0; i < 20; i++)
             b[i] = byte(uint8(uint(x) / (2**(8*(19 - i)))));
         return string(b);
     }
-    function getBankAddress() constant public returns (string) {
-        string memory returnValue = toString(bankContract);
-        return returnValue;
+    function getBankAddress() public view returns (address) {
+        //string memory returnValue = toString(bankContract);
+        //return returnValue;
+        return bankContract;
     }
     // конец временного фрагмента для тестов
 
@@ -59,7 +61,7 @@ contract LibreCoin is MintableToken, PausableToken {
     /**
      * @dev Returns total coin supply.
      */
-    function getTokensAmount() public constant returns(uint256) {
+    function getTokensAmount() public view returns(uint256) {
         return totalSupply;
     }
 
@@ -80,7 +82,7 @@ contract LibreCoin is MintableToken, PausableToken {
     * @param value_ uint256 the amount of the specified token
     * @param data_ Bytes The data passed from the caller.
     */
-    function tokenFallback(address from_, uint256 value_, bytes data_) external {
+    function tokenFallback(address from_, uint256 value_, bytes data_) pure external {
         revert();
     }
 }

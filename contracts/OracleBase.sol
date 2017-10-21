@@ -71,7 +71,6 @@ contract OracleBase is Ownable, usingOraclize {
     // for test
     function getBank() public view returns (address) {
         return bankContractAddress;
-        //bank = bankInterface(_bankContract);//0x14D00996c764aAce61b4DFB209Cc85de3555b44b Rinkeby bank address
     }
 
     function updateRate() payable public /*onlyBank*/ {

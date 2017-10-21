@@ -8,12 +8,16 @@ interface token {
     function mint(address _to,uint256 _amount) public;
     function getTokensAmount() public returns(uint256);
     function burn(address burner, uint256 _value) public;
+    function setBankAddress(address _bankContractAddress) public;
+    function getBankAddress() constant public returns (address);
 }
 
-
 interface oracleInterface {
-    function update() public;
+    function updateRate() public;
     function getName() constant public returns(bytes32);
+    function setBank(address _bankContract) public;
+    function getBank() public view returns (address);
+    function hasReceivedRate() public view returns (bool);
 }
 
 /**
@@ -27,8 +31,12 @@ contract SimplexBank {
     event Log(address addr, string anything);
     event Log(address addr, uint256 value1, uint256 value2);
 
+    address tokenAddress;
     token libreToken;
 
+    bool bankAllowTests = false; // для тестов тоже
+
+    //todo: вынести сюда oracleInterface
     uint256 rate = 1000;
 
     struct OracleData {
@@ -44,8 +52,37 @@ contract SimplexBank {
 
     uint constant MAX_ORACLE_RATING = 10000;
 
-    function SimplexBank(address _tokenContract) public {
-        libreToken = token(_tokenContract);
+    function SimplexBank() public {
+        //libreToken = token(_tokenContract);
+    }
+
+    function setToken(address _tokenContract) public {
+        tokenAddress = _tokenContract;
+        libreToken = token(tokenAddress);
+        libreToken.setBankAddress(address(this));
+    }
+
+    function allowTests() public {
+        bankAllowTests = true;
+    }
+
+    function areTestsAllowed() public returns (bool) {
+        return bankAllowTests;
+    }
+
+    function updateRate() {
+        oracleInterface(oracleAddress).updateRate();
+    }
+    
+    function hasReceivedRate() public view returns (bool) {
+        return oracleInterface(oracleAddress).hasReceivedRate();
+    }
+
+    function getToken() view public returns (address) {
+        return tokenAddress;
+    }
+    function getTokenBankAddress() view public returns (address) {
+        return libreToken.getBankAddress();
     }
 
     function setOracle(address _address) public {
@@ -56,6 +93,16 @@ contract SimplexBank {
         OracleData memory thisOracle = OracleData({name: currentOracleInterface.getName(), rating: MAX_ORACLE_RATING.div(2), 
                                                     enabled: true, waiting: false, updateTime: 0, cryptoFiatRate: 0});
         oracle = thisOracle;
+        currentOracleInterface.setBank(address(this));
+    }
+
+    function getOracle() public view returns (address) {
+        return oracleAddress;
+    }
+
+    function getOracleBankAddress() public view returns (address) {
+        oracleInterface currentOracleInterface = oracleInterface(oracleAddress);
+        return currentOracleInterface.getBank();
     }
 
     function getOracleRating() public view returns (uint256) {
