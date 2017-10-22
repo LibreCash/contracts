@@ -177,7 +177,7 @@ contract LibreBank is Ownable, Pausable {
     /**
      * @dev Sets custom rate value.
      * @param _type Rate type.
-     * @param value Value to set.
+     * @param _value Value to set.
      */    
     function setRate(rateType _type, uint256 _value) internal {
         require(_value > 0);
