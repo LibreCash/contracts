@@ -49,7 +49,7 @@ contract SimplexBank {
 
     uint constant MAX_ORACLE_RATING = 10000;
 
-    function SimplexBank() public { }
+    //function SimplexBank() public { }
 
     function setToken(address _tokenAddress) public {
         tokenAddress = _tokenAddress;
