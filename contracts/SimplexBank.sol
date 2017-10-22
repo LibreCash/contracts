@@ -3,20 +3,17 @@ pragma solidity ^0.4.10;
 import "./zeppelin/math/SafeMath.sol";
 
 interface token {
-    /*function transfer(address receiver, uint amount);*/
     function balanceOf(address _owner) public returns (uint256);
-    function mint(address _to,uint256 _amount) public;
+    function mint(address _to, uint256 _amount) public;
     function getTokensAmount() public returns(uint256);
-    function burn(address burner, uint256 _value) public;
-    function setBankAddress(address _bankContractAddress) public;
-    function getBankAddress() constant public returns (address);
+    function burn(address _burner, uint256 _value) public;
+    function setBankAddress(address _bankAddress) public;
 }
 
 interface oracleInterface {
-    function updateRate() public;
+    function updateRate() payable public;
     function getName() constant public returns(bytes32);
     function setBank(address _bankContract) public;
-    function getBank() public view returns (address);
     function hasReceivedRate() public view returns (bool);
 }
 
@@ -52,12 +49,10 @@ contract SimplexBank {
 
     uint constant MAX_ORACLE_RATING = 10000;
 
-    function SimplexBank() public {
-        //libreToken = token(_tokenContract);
-    }
+    function SimplexBank() public { }
 
-    function setToken(address _tokenContract) public {
-        tokenAddress = _tokenContract;
+    function setToken(address _tokenAddress) public {
+        tokenAddress = _tokenAddress;
         libreToken = token(tokenAddress);
         libreToken.setBankAddress(address(this));
     }
@@ -66,11 +61,11 @@ contract SimplexBank {
         bankAllowTests = true;
     }
 
-    function areTestsAllowed() public returns (bool) {
+    function areTestsAllowed() public view returns (bool) {
         return bankAllowTests;
     }
 
-    function updateRate() {
+    function updateRate() payable public {
         oracleInterface(oracleAddress).updateRate();
     }
     
@@ -80,9 +75,6 @@ contract SimplexBank {
 
     function getToken() view public returns (address) {
         return tokenAddress;
-    }
-    function getTokenBankAddress() view public returns (address) {
-        return libreToken.getBankAddress();
     }
 
     function setOracle(address _address) public {
@@ -98,11 +90,6 @@ contract SimplexBank {
 
     function getOracle() public view returns (address) {
         return oracleAddress;
-    }
-
-    function getOracleBankAddress() public view returns (address) {
-        oracleInterface currentOracleInterface = oracleInterface(oracleAddress);
-        return currentOracleInterface.getBank();
     }
 
     function getOracleRating() public view returns (uint256) {
@@ -141,7 +128,7 @@ contract SimplexBank {
      * @param _beneficiar The buyer's address.
      */
     function buyTokens(address _beneficiar) payable public {
-        require(_beneficiar != 0x0);
+        //require(_beneficiar != 0x0);
         uint256 tokensAmount = msg.value.mul(rate).div(100);  
         libreToken.mint(_beneficiar, tokensAmount);
         Log(_beneficiar, tokensAmount, msg.value);
