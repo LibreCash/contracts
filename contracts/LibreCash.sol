@@ -22,7 +22,7 @@ contract LibreCash is MintableToken, PausableToken {
         _;
     }
 
-//    function LibreCoin() public { }
+//    function LibreCash() public { }
 
     /**
      * @dev Sets new bank address.
@@ -39,11 +39,12 @@ contract LibreCash is MintableToken, PausableToken {
      * @param _to The address.
      * @param _amount The amount.
      */
-    function mint(address _to, uint256 _amount) canMint onlyBank public {
+    function mint(address _to, uint256 _amount) canMint onlyBank public returns (bool) {
         totalSupply = totalSupply.add(_amount);
         balances[_to] = balances[_to].add(_amount);
         Mint(_to, _amount);
         Transfer(0x0, _to, _amount);
+        return true;
     }
 
     /**

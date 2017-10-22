@@ -70,7 +70,7 @@ contract OracleBase is Ownable, usingOraclize {
 
     /**
      * @dev Sets bank address.
-     * @param _bankContract Description.
+     * @param _bankAddress Description.
      */
     function setBank(address _bankAddress) public {
         bankAddress = _bankAddress;
@@ -118,20 +118,6 @@ contract OracleBase is Ownable, usingOraclize {
     }
 
     /**
-    * @dev For testing gas consumption.
-    */
-    function __callback_gas_estimate(bytes32 myid, string result, bytes proof) public {
-        //require(validIds[myid]);
-        require(msg.sender == oraclize_cbAddress());
-        receivedRate = true;
-        NewPriceTicker(result);
-        rate = parseInt(result, 2); // save it in storage as $ cents
-        delete(validIds[myid]);
-        lastResultTimestamp = now;
-        bank.oraclesCallback(bankAddress, rate, now);
-    }
-
-    /**
      * @dev Updates oraclize costs.
      * Shall be run after datasource setting.
      */
@@ -142,14 +128,14 @@ contract OracleBase is Ownable, usingOraclize {
     /**
      * @dev Returns the oracle name.
      */
-    function getName() constant public returns(bytes32) {
+    function getName() constant public returns (bytes32) {
         return oracleName;
     }
 
     /**
      * @dev Returns the oracle type.
      */
-    function getType() constant public returns(bytes16) {
+    function getType() constant public returns (bytes16) {
         return oracleType;
     }
 }

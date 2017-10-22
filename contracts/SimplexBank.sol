@@ -12,9 +12,9 @@ interface token {
 
 interface oracleInterface {
     function updateRate() payable public;
-    function getName() constant public returns(bytes32);
-    function setBank(address _bankContract) public;
-    function hasReceivedRate() public view returns (bool);
+    function getName() constant public returns (bytes32);
+    function setBank(address _bankAddress) public;
+    function hasReceivedRate() public returns (bool);
 }
 
 /**
@@ -69,7 +69,7 @@ contract SimplexBank {
         oracleInterface(oracleAddress).updateRate();
     }
     
-    function hasReceivedRate() public view returns (bool) {
+    function hasReceivedRate() public returns (bool) {
         return oracleInterface(oracleAddress).hasReceivedRate();
     }
 
@@ -160,8 +160,4 @@ contract SimplexBank {
         oracle.waiting = false;
         rate = _rate;
     }
-
-
-
-
 }
