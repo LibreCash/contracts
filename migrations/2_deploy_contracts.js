@@ -1,4 +1,4 @@
-var LibreCoin = artifacts.require("./LibreCoin.sol");
+var LibreCoin = artifacts.require("./LibreCash.sol");
 var SimplexBank = artifacts.require("./SimplexBank.sol");
 var OracleBitfinex = artifacts.require("./OracleBitfinex.sol");
 
@@ -26,26 +26,20 @@ if (SIMPLE_DEPLOY) {
     await bank.setOracle(ORACLE_ADDR);
     Log('oracle addr: ' + (await bank.getOracle.call()).valueOf());
     Log('token addr: ' + (await bank.getToken.call()).valueOf());
-    Log('oracle bank addr: ' + (await bank.getOracleBankAddress.call()).valueOf());
-    Log('token bank addr: ' + (await bank.getTokenBankAddress.call()).valueOf());
   }
 } else {
   // 
   module.exports = async function(deployer) {
-    Log('LibreCoin deploy before');
-    await deployer.deploy(LibreCoin);
-    var token = await LibreCoin.deployed();
-//    var tokenAddress = LibreCoin.address;
-//    Log('tokenAddress ' + tokenAddress);
-    Log('LibreCoin deploy after / SimplexBank deploy before');
+    Log('LibreCash deploy before');
+    await deployer.deploy(LibreCash);
+    var token = await LibreCash.deployed();
+    //Log('LibreCash deploy after / SimplexBank deploy before');
     await deployer.deploy(SimplexBank);
     var bank = await SimplexBank.deployed();
-    Log('SimplexBank deploy after / OracleBitfinex deploy before');
+    //Log('SimplexBank deploy after / OracleBitfinex deploy before');
     await deployer.deploy(OracleBitfinex);
     var oracle = await OracleBitfinex.deployed();
-//    var oracleAddress = OracleBitfinex.address;
-//    Log('oracleAddress ' + oracleAddress);    
-    Log('OracleBitfinex deploy after');
+/*    Log('OracleBitfinex deploy after');
     var bankTokenAddress = (await bank.getToken.call()).valueOf();
     Log('bankTokenAddress: ' + bankTokenAddress);
     var bankOracleAddress = (await bank.getOracle.call()).valueOf();
@@ -56,6 +50,6 @@ if (SIMPLE_DEPLOY) {
 //    Log('token addr: ' + (await bank.getToken.call()).valueOf());
 //    Log('oracle bank addr: ' + (await bank.getOracleBankAddress.call()).valueOf());
 //    Log('token bank addr: ' + (await bank.getTokenBankAddress.call()).valueOf());
-    await bank.allowTests();
+    await bank.allowTests();*/
   }
 }

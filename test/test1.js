@@ -2,20 +2,7 @@
 //var OracleBitfinex = artifacts.require("./OracleBitfinex.sol");
 //var OracleBitstamp = artifacts.require("./OracleBitstamp.sol");
 //var OracleGDAX = artifacts.require("./OracleGDAX.sol");
-/*var LibreBank = artifacts.require("./LibreBank.sol");
 
-contract('LibreBank', function() {
-    it("sets-gets MinTransactionAmount", function() {
-        //var bank = LibreBank.deployed();
-        LibreBank.deployed().then(function(bank){
-            bank.setMinTransactionAmount(100);
-            let res = bank.getMinTransactionAmount();
-            
-            assert.equal(res, 105, "MinTransactionAmount not set or wrong");
-      });
-    });
-});
-*/
 Date.prototype.timeNow = function () {
     return ((this.getHours() < 10)?"0":"") + this.getHours() +":"+ ((this.getMinutes() < 10)?"0":"") + this.getMinutes() +":"+ ((this.getSeconds() < 10)?"0":"") + this.getSeconds();
 }
@@ -37,8 +24,7 @@ function getBalance() {
     return web3.eth.getBalance(web3.eth.accounts[0]).toNumber()*10**-18;
 }
 
-
-var LibreCoin = artifacts.require("./LibreCoin.sol");
+var LibreCash = artifacts.require("./LibreCash.sol");
 var SimplexBank = artifacts.require("./SimplexBank.sol");
 var OracleBitfinex = artifacts.require("./OracleBitfinex.sol");
 
@@ -47,12 +33,9 @@ var oracleDeployed;
 var tokenDeployed;
 var bankDeployed;
 
-var bankAddress = SimplexBank.address;
-var bankABI = SimplexBank._json.abi;
-//var bank = await web3.eth.contract(simplexBankABI, '0x0e1a39c2c19a81a33b784fa1d74a7e4b31a502dc');
-contract('LibreCoin', function() {
-    it("LibreCoin", async function() {
-        tokenDeployed = await LibreCoin.deployed();
+contract('LibreCash', function() {
+    it("LibreCash", async function() {
+        tokenDeployed = await LibreCash.deployed();
     });
 });
 contract('OracleBitfinex', function() {
@@ -74,9 +57,6 @@ contract('SimplexBank', function() {
         await bankDeployed.setOracle(oracleAddress);
         Log('oracle addr: ' + (await bankDeployed.getOracle.call()).valueOf());
         Log('token addr: ' + (await bankDeployed.getToken.call()).valueOf());
-        Log('oracle bank addr: ' + (await bankDeployed.getOracleBankAddress.call()).valueOf());
-        Log('token bank addr: ' + (await bankDeployed.getTokenBankAddress.call()).valueOf());
-//        Log('bankDeployed=... after');
         var testAllowed = false;
         var timestampTimeout = (new Date()).timeNow();
         Log('waiting for beginning...');
@@ -87,10 +67,7 @@ contract('SimplexBank', function() {
             process.stdout.write('|');
         } while ((!testAllowed) || ((new Date()).getTime() - timestampTimeout < 60000));
         console.log();
-    //    await bankDeployed.setToken(tokenDeployed.address);
 
-//    Log('cmp to token addr: ' + tokenDeployed.address);
-    //    await bankDeployed.setOracle(oracle.address);
         var oracleAddress = (await bankDeployed.getOracle.call()).valueOf();
         
         let res = (await bankDeployed.getOracleRating.call()).valueOf();
@@ -102,6 +79,7 @@ contract('SimplexBank', function() {
         Log('await updateRate before');
         var ethBalance = getBalance();
         var updateRateTX = await bankDeployed.updateRate();
+        console.log(updateRateTX.receipt.gasUsed);
         Log('await updateRate after');
         showTransactionEvents('updateRate', updateRateTX.logs);
         var hasReceivedRate = false;
@@ -113,7 +91,6 @@ contract('SimplexBank', function() {
             while ((new Date()).getTime() - timestampInner < 500) {}
             rate = (await bankDeployed.getRate.call()).valueOf();
             process.stdout.write('|');
-            //console.log(rate);
         } while ((!hasReceivedRate) || ((new Date()).getTime() - timestampTimeout < 120000));
         console.log(); Log('rate = ' + rate);
         Log('callback time: ' + ((new Date()).getTime() - timestampTimeout).toString());
