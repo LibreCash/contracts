@@ -7,9 +7,13 @@ interface bankInterface {
     function oraclesCallback(address _address, uint256 value, uint256 timestamp) public;
 }
 
+/**
+ * @title Base contract for oracles.
+ *
+ * @dev Base contract for oracles. Not abstract.
+ */
 contract OracleBase is Ownable, usingOraclize {
     event NewOraclizeQuery(string description);
-    // надеюсь, нет ограничений на использование bytes32 в событии. Надо посмотреть, как web3.js это воспримет
     event NewPriceTicker(bytes32 oracleName, uint256 price, uint256 timestamp);
     event NewPriceTicker(string price);
     event Log(string description);

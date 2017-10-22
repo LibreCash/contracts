@@ -1,21 +1,27 @@
 pragma solidity ^0.4.11;
 
-import "./zeppelin/ownership/Ownable.sol";
 import "./OracleBase.sol";
 
+/**
+ * @title WEX.NZ oracle.
+ *
+ * @dev https://wex.nz/.
+ */
 contract OracleWEX is OracleBase {
-    bytes32 constant ORACLE_NAME = "Kraken Oraclize Async";
+    // the comment is reserved for API documentation :)
+    bytes32 constant ORACLE_NAME = "WEX Oraclize Async";
     bytes16 constant ORACLE_TYPE = "ETHUSD";
     string constant ORACLE_DATASOURCE = "URL";
     string constant ORACLE_ARGUMENTS = "json(https://wex.nz/api/3/ticker/eth_usd).buy";
-    
-    function OracleWEX(address _bankContract) public {
+
+    /**
+     * @dev Constructor.
+     */
+    function OracleWEX(address _bankAddress) public {
         oracleName = ORACLE_NAME;
         oracleType = ORACLE_TYPE;
         oracleConfig = OracleConfig({datasource: ORACLE_DATASOURCE, arguments: ORACLE_ARGUMENTS});
-        bankContractAddress = _bankContract;
+        bankAddress = _bankAddress;
         updateCosts();
     }
-     
-    function donate() payable { }
 }
