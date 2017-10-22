@@ -1,4 +1,4 @@
-var LibreCoin = artifacts.require("./LibreCash.sol");
+var LibreCash = artifacts.require("./LibreCash.sol");
 var SimplexBank = artifacts.require("./SimplexBank.sol");
 var OracleBitfinex = artifacts.require("./OracleBitfinex.sol");
 
