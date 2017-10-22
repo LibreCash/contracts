@@ -3,17 +3,18 @@ pragma solidity ^0.4.10;
 import "./zeppelin/math/SafeMath.sol";
 
 interface token {
-    /*function transfer(address receiver, uint amount);*/
     function balanceOf(address _owner) public returns (uint256);
-    function mint(address _to,uint256 _amount) public;
+    function mint(address _to, uint256 _amount) public;
     function getTokensAmount() public returns(uint256);
-    function burn(address burner, uint256 _value) public;
+    function burn(address _burner, uint256 _value) public;
+    function setBankAddress(address _bankAddress) public;
 }
 
-
 interface oracleInterface {
-    function update() public;
-    function getName() constant public returns(bytes32);
+    function updateRate() payable public;
+    function getName() constant public returns (bytes32);
+    function setBank(address _bankAddress) public;
+    function hasReceivedRate() public returns (bool);
 }
 
 /**
@@ -27,8 +28,12 @@ contract SimplexBank {
     event Log(address addr, string anything);
     event Log(address addr, uint256 value1, uint256 value2);
 
+    address tokenAddress;
     token libreToken;
 
+    bool bankAllowTests = false; // для тестов тоже
+
+    //todo: вынести сюда oracleInterface
     uint256 rate = 1000;
 
     struct OracleData {
@@ -44,8 +49,32 @@ contract SimplexBank {
 
     uint constant MAX_ORACLE_RATING = 10000;
 
-    function SimplexBank(address _tokenContract) public {
-        libreToken = token(_tokenContract);
+    //function SimplexBank() public { }
+
+    function setToken(address _tokenAddress) public {
+        tokenAddress = _tokenAddress;
+        libreToken = token(tokenAddress);
+        libreToken.setBankAddress(address(this));
+    }
+
+    function allowTests() public {
+        bankAllowTests = true;
+    }
+
+    function areTestsAllowed() public view returns (bool) {
+        return bankAllowTests;
+    }
+
+    function updateRate() payable public {
+        oracleInterface(oracleAddress).updateRate();
+    }
+    
+    function hasReceivedRate() public returns (bool) {
+        return oracleInterface(oracleAddress).hasReceivedRate();
+    }
+
+    function getToken() view public returns (address) {
+        return tokenAddress;
     }
 
     function setOracle(address _address) public {
@@ -56,6 +85,11 @@ contract SimplexBank {
         OracleData memory thisOracle = OracleData({name: currentOracleInterface.getName(), rating: MAX_ORACLE_RATING.div(2), 
                                                     enabled: true, waiting: false, updateTime: 0, cryptoFiatRate: 0});
         oracle = thisOracle;
+        currentOracleInterface.setBank(address(this));
+    }
+
+    function getOracle() public view returns (address) {
+        return oracleAddress;
     }
 
     function getOracleRating() public view returns (uint256) {
@@ -94,7 +128,7 @@ contract SimplexBank {
      * @param _beneficiar The buyer's address.
      */
     function buyTokens(address _beneficiar) payable public {
-        require(_beneficiar != 0x0);
+        //require(_beneficiar != 0x0);
         uint256 tokensAmount = msg.value.mul(rate).div(100);  
         libreToken.mint(_beneficiar, tokensAmount);
         Log(_beneficiar, tokensAmount, msg.value);
@@ -126,8 +160,4 @@ contract SimplexBank {
         oracle.waiting = false;
         rate = _rate;
     }
-
-
-
-
 }

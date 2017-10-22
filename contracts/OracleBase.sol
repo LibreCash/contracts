@@ -7,118 +7,135 @@ interface bankInterface {
     function oraclesCallback(address _address, uint256 value, uint256 timestamp) public;
 }
 
+/**
+ * @title Base contract for oracles.
+ *
+ * @dev Base contract for oracles. Not abstract.
+ */
 contract OracleBase is Ownable, usingOraclize {
     event NewOraclizeQuery(string description);
-    // надеюсь, нет ограничений на использование bytes32 в событии. Надо посмотреть, как web3.js это воспримет
     event NewPriceTicker(bytes32 oracleName, uint256 price, uint256 timestamp);
-    event newOraclizeQuery(string description);
-    event newPriceTicker(string price);
-    event Log(string anything);
-
-    bytes32 public oracleName = "Base Oracle";
-    bytes16 public oracleType = "Undefined"; // Human-readable oracle type e.g ETHUSD
-    string public description;
-    uint256 lastResult;
-    uint256 lastResultTimestamp;
-    uint256 public updateCost;
-    address public owner;
-    mapping(bytes32=>bool) validIds; // ensure that each query response is processed only once
-    address public bankContractAddress;
-    uint public rate;
-    bankInterface bank;
-    // пока не знаю, надо ли. добавил как флаг для тестов
-    bool public receivedRate = false;
-    uint256 MIN_UPDATE_TIME = 5 minutes;
-
-    // --debug section--
-        address public oracleCallbacker;
-    // --/debug section--
-
-    modifier onlyBank() {
-        require(msg.sender == bankContractAddress);
-        _;
-    }
+    event NewPriceTicker(string price);
+    event Log(string description);
 
     struct OracleConfig {
         string datasource;
         string arguments;
     }
 
-    OracleConfig public oracleConfig;
+    bytes32 public oracleName = "Base Oracle";
+    bytes16 public oracleType = "Undefined";
+    string public description; // либо избавиться, либо в байты переделать
+    //uint256 public lastResult; // по сути это rate
+    uint256 public lastResultTimestamp;
+    uint256 public updateCost;
+    //address public owner; // убрать со след. коммитом, по идее это не нужно
+    mapping(bytes32=>bool) validIds; // ensure that each query response is processed only once
+    address public bankAddress;
+    uint public rate;
+    bankInterface bank;
+    bool public receivedRate = false; // флаг, нужен для автоматизированных тестов
+    uint256 MIN_UPDATE_TIME = 5 minutes;
+    OracleConfig internal oracleConfig; // заполняется конструктором потомка константами из него же
 
-    function hasReceivedRate() public view returns (bool) {
-        return receivedRate;
+    modifier onlyBank() {
+        require(msg.sender == bankAddress);
+        _;
     }
 
+    /**
+     * @dev Constructor.
+     */
     function OracleBase() public {
-        owner = msg.sender;
+        //owner = msg.sender; // убрать со след. коммитом, по идее это не нужно
         oraclize_setProof(proofType_TLSNotary | proofStorage_IPFS);
     }
 
     /**
+     * @dev Returns if oraclize callback is received. Is needed for automated tests only.
+     */
+    function hasReceivedRate() public view returns (bool) {
+        return receivedRate;
+    }
+
+    // TODO: onlyOwner, onlyBank - подумать ещё раз, что когда нужно, и мб сделать общий модификатор onlyOwnerOrBank
+    /**
      * @dev Sets oracle description.
      * @param _description Description.
+     * TODO: нужно ли вообще оракулу описание?
      */
     function setDescription(string _description) onlyOwner public {
         description = _description;
     }
 
-    function setBank(address _bankContract) public {
-        bankContractAddress = _bankContract;
-        bank = bankInterface(_bankContract);//0x14D00996c764aAce61b4DFB209Cc85de3555b44b Rinkeby bank address
+    /**
+     * @dev Sets bank address.
+     * @param _bankAddress Description.
+     */
+    function setBank(address _bankAddress) public {
+        bankAddress = _bankAddress;
+        bank = bankInterface(_bankAddress);
     }
 
     // for test
+    /**
+     * @dev Gets bank address.
+     */
     function getBank() public view returns (address) {
-        return bankContractAddress;
-        //bank = bankInterface(_bankContract);//0x14D00996c764aAce61b4DFB209Cc85de3555b44b Rinkeby bank address
+        return bankAddress;
     }
 
+    /**
+     * @dev Sends query to oraclize.
+     */
     function updateRate() payable public /*onlyBank*/ {
-        // для тестов отдельно оракула закомментировал след. строку
-        //require (msg.sender == bankContractAddress);
-        Log("updateRate initiated");
+        // для тестов отдельно оракула закомментировать след. строку
+        require (msg.sender == bankAddress);
+        // для тестов отдельно оракула закомментировать след. строку
         require (now > lastResultTimestamp + MIN_UPDATE_TIME);
         receivedRate = false;
         if (oraclize_getPrice("URL") > this.balance) {
-            newOraclizeQuery("Oraclize query was NOT sent, please add some ETH to cover for the query fee");
+            NewOraclizeQuery("Oraclize query was NOT sent, please add some ETH to cover for the query fee");
         } else {
             bytes32 queryId = oraclize_query(0, oracleConfig.datasource, oracleConfig.arguments);
-            newOraclizeQuery("Oraclize query was sent, standing by for the answer...");
+            NewOraclizeQuery("Oraclize query was sent, standing by for the answer...");
             validIds[queryId] = true;
         }
     }
 
     /**
-    * @dev Oraclize default callback with set proof
+    * @dev Oraclize default callback with the proof set.
     */
    function __callback(bytes32 myid, string result, bytes proof) public {
-        //require(validIds[myid]);
-        newOraclizeQuery("__callback proof here!");
-        oracleCallbacker = msg.sender;
-        //require(msg.sender == oraclize_cbAddress());
+        require(validIds[myid]);
+        require(msg.sender == oraclize_cbAddress());
         receivedRate = true;
-        newPriceTicker(result);
+        NewPriceTicker(result);
         rate = parseInt(result, 2); // save it in storage as $ cents
-        // do something with rate
-        //delete(validIds[myid]);
+        delete(validIds[myid]);
         lastResultTimestamp = now;
-        bank.oraclesCallback(bankContractAddress, rate, now);
+        bank.oraclesCallback(bankAddress, rate, now);
     }
 
     /**
      * @dev Updates oraclize costs.
-     * Shall run after datasource setting.
+     * Shall be run after datasource setting.
      */
     function updateCosts() internal {
         updateCost = 2 * oraclize_getPrice(oracleConfig.datasource);
     }
 
-    function getName() constant public returns(bytes32) {
+    /**
+     * @dev Returns the oracle name.
+     */
+    function getName() constant public returns (bytes32) {
         return oracleName;
     }
 
-    function getType() constant public returns(bytes16) {
+    /**
+     * @dev Returns the oracle type.
+     */
+    function getType() constant public returns (bytes16) {
         return oracleType;
     }
 }

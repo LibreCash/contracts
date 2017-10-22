@@ -4,19 +4,19 @@ import "./zeppelin/lifecycle/Pausable.sol";
 import "./zeppelin/math/SafeMath.sol";
 import "./zeppelin/math/Math.sol";
 
-
 interface token {
-    /*function transfer(address receiver, uint amount);*/
     function balanceOf(address _owner) public returns (uint256);
-    function mint(address _to,uint256 _amount) public;
+    function mint(address _to, uint256 _amount) public;
     function getTokensAmount() public returns(uint256);
-    function burn(address burner, uint256 _value) public;
+    function burn(address _burner, uint256 _value) public;
+    function setBankAddress(address _bankAddress) public;
 }
 
-
 interface oracleInterface {
-    function update() public;
-    function getName() constant public returns(bytes32);
+    function updateRate() payable public;
+    function getName() constant public returns (bytes32);
+    function setBank(address _bankAddress) public;
+    function hasReceivedRate() public returns (bool);
 }
 
 /**
@@ -27,20 +27,12 @@ interface oracleInterface {
 contract LibreBank is Ownable, Pausable {
     using SafeMath for uint256;
     
-    // сравнить с тем, что в oraclebase - dima
     event NewPriceTicker(address oracleAddress, string price);
     event LogBuy(address clientAddress, uint256 tokenAmount, uint256 cryptoAmount, uint256 buyPrice);
     event LogSell(address clientAddress, uint256 tokenAmount, uint256 cryptoAmount, uint256 sellPrice);
     event InsufficientOracleData(string description, uint256 oracleCount);
     /* event LogWithdrawal (uint256 cryptoAmount, address addressTo, uint invertPercentage); */
 
-    enum limitType { minUsdRate, maxUsdRate, minTransactionAmount, minTokensAmount, minSellSpread, maxSellSpread, minBuySpread, maxBuySpread, variance }
-    enum rateType { target, issuance,burn, avg }
-    enum feeType { first, second } ///TODO: Rename it later
-
- 
-    uint256 updateDataRequest;
-    
     struct OracleData {
         bytes32 name;
         uint256 rating;
@@ -48,10 +40,17 @@ contract LibreBank is Ownable, Pausable {
         bool waiting;
         uint256 updateTime; // time of callback
         uint256 cryptoFiatRate; // exchange rate
+        uint listPointer; // чтобы знать по какому индексу удалять из массива oracleAddresses
     }
+    enum limitType { minUsdRate, maxUsdRate, minTransactionAmount, minTokensAmount, minSellSpread, maxSellSpread, minBuySpread, maxBuySpread, variance }
+    enum rateType { target, issuance, burn, avg }
+    enum feeType { first, second } ///TODO: Rename it later
+
+    uint256 updateDataRequest;
 
     uint constant MAX_ORACLE_RATING = 10000;
-    uint256 RELEVANCE_PERIOD = 5 minutes;
+    uint256 relevancePeriod = 5 minutes;
+
     mapping (address=>OracleData) oracles;
     address[] oracleAddresses;
     uint256[] rates;
@@ -67,7 +66,7 @@ contract LibreBank is Ownable, Pausable {
     uint256 public cryptoFiatRate = 30000; // In $ cents
 
     uint256[] limits;
-//    oracleInterface currentOracle;
+    address tokenAddress;
     token libreToken;
     uint256 minTokenAmount = 1; // used in sellTokens(...)
     uint256 buyPrice; // in cents
@@ -78,6 +77,12 @@ contract LibreBank is Ownable, Pausable {
     uint256 avgRate; // Average rate
     // переменных пока избыточно, при создании алгоритма расчёта определимся
     // TODO: массив по enum
+        
+    // Ограничение на периодичность обновления курса
+    modifier needUpdate() {
+        require(!isRateActual());
+        _;
+    }
 
     /**
      * @dev Sets one of the limits.
@@ -100,9 +105,9 @@ contract LibreBank is Ownable, Pausable {
      * @dev Set value of relevance period.
      * @param _relevancePeriod Relevance period.
      */
-    function setRelevancePeriod(uint256 _relevancePeriod) onlyOwner {
+    function setRelevancePeriod(uint256 _relevancePeriod) onlyOwner public {
         require(_relevancePeriod > 0);
-        RELEVANCE_PERIOD = _relevancePeriod;
+        relevancePeriod = _relevancePeriod;
     }
 
     /**
@@ -128,15 +133,23 @@ contract LibreBank is Ownable, Pausable {
     function setBuySpreadLimits(uint256 _minBuySpread, uint256 _maxBuySpread) onlyOwner public {
         setLimitValue(limitType.minBuySpread, _minBuySpread);
         setLimitValue(limitType.maxBuySpread, _maxBuySpread);
-        
     }
 
+    /**
+     * @dev Gets fee.
+     * @param _type Fee type.
+     */
     function getFee(feeType _type) internal returns(uint256) {
         return fees[uint(_type)];
     }
 
-    function setFee(feeType _type,uint256 value) internal {
-        fees[uint(_type)] = value;
+    /**
+     * @dev Sets fee.
+     * @param _type Fee type.
+     * @param _value Fee value.
+     */
+    function setFee(feeType _type, uint256 _value) internal {
+        fees[uint(_type)] = _value;
     }
  
     /**
@@ -162,20 +175,20 @@ contract LibreBank is Ownable, Pausable {
     }
 
     /**
-     * @dev Sets custom rate value
-     * @param _type Type of rate.
-     * @param value Value to set.
+     * @dev Sets custom rate value.
+     * @param _type Rate type.
+     * @param _value Value to set.
      */    
-    function setRate(rateType _type,uint256 value) internal {
-        require(value > 0);
-        rates[uint(_type)] = value;
+    function setRate(rateType _type, uint256 _value) internal {
+        require(_value > 0);
+        rates[uint(_type)] = _value;
     }
 
      /**
-     * @dev Gets custom rate value
-     * @param _type Type of rate.
+     * @dev Gets custom rate value.
+     * @param _type Rate type.
      */ 
-    function getRate(rateType _type) constant returns(uint256) {
+    function getRate(rateType _type) public view returns (uint256) {
         return rates[uint(_type)];
     }
 
@@ -186,12 +199,14 @@ contract LibreBank is Ownable, Pausable {
     function addOracle(address _address) onlyOwner public {
         require(_address != 0x0);
         oracleInterface currentOracleInterface = oracleInterface(_address);
-
+        // TODO: возможно нам не нужно обращаться к оракулу лишний раз
+        // только чтобы имя получить?
+        // возможно, стоит добавить параметр name в функцию, тем самым упростив всё
         OracleData memory thisOracle = OracleData({name: currentOracleInterface.getName(), rating: MAX_ORACLE_RATING.div(2), 
-                                                    enabled: true, waiting: false, updateTime: 0, cryptoFiatRate: 0});
-        // insert the oracle into addr array & mapping
-        oracleAddresses.push(_address);
+                                                    enabled: true, waiting: false, updateTime: 0, cryptoFiatRate: 0, listPointer: 0});
         oracles[_address] = thisOracle;
+        // listPointer - индекс массива oracleAddresses с адресом оракула. Надо для удаления
+        oracles[_address].listPointer = oracleAddresses.push(_address) - 1;
     }
 
     /**
@@ -215,14 +230,25 @@ contract LibreBank is Ownable, Pausable {
      * @param _address The oracle address.
      */
     function deleteOracle(address _address) public onlyOwner {
+        // так. из мэппинга оракулов по адресу получаем индекс в массиве оракулов с адресом оракула
+        uint indexToDelete = oracles[_address].listPointer;
+        // теперь получаем адрес последнего оракула из массива адресов
+        address keyToMove = oracleAddresses[oracleAddresses.length - 1];
+        // перезаписываем удаляемый оракул последним (в массиве адресов)
+        oracleAddresses[indexToDelete] = keyToMove;
+        // а в мэппинге удалим
         delete oracles[_address];
+        // у бывшего последнего оракула из массива адресов теперь новый индекс в массиве
+        oracles[keyToMove].listPointer = indexToDelete;
+        // уменьшаем длину массива адресов, адрес в конце уже на месте удалённого стоит и нам не нужен
+        oracleAddresses.length--;
     }
 
     /**
      * @dev Gets oracle name.
      * @param _address The oracle address.
      */
-    function getOracleName(address _address) public constant returns(bytes32) {
+    function getOracleName(address _address) public view returns(bytes32) {
         return oracles[_address].name;
     }
     
@@ -230,20 +256,14 @@ contract LibreBank is Ownable, Pausable {
      * @dev Gets oracle rating.
      * @param _address The oracle address.
      */
-    function getOracleRating(address _address) public constant returns(uint256) {
+    function getOracleRating(address _address) public view returns(uint256) {
         return oracles[_address].rating;
-    }
-    
-    // Ограничение на периодичность обновления курса - не чаще чем раз в 5 минут
-    modifier needUpdate() {
-        require(!isRateActual());
-        _;
     }
 
     /**
      * @dev Calculate current fund capitalization.
      */
-    function getCapitalize() constant returns(uint256) {
+    function getCapitalize() public view returns(uint256) {
         uint256 currentRate = getRate(rateType.target);
         return address(this).balance.mul(currentRate);
     }
@@ -251,10 +271,12 @@ contract LibreBank is Ownable, Pausable {
     /**
      * @dev Calculate daily Volatility.
      */
-    function getDailyVolatility() constant returns(uint256) {
+    function getDailyVolatility() public view returns(uint256) {
         return dailyHigh.sub(dailyLow);
     }
+
     // WIP (Work in progress)
+    // непонятно, какая задумка, - Дима
     function calculateRate() internal {
         uint256 targetRate = getRate(rateType.target);
         uint256 issuranceRate = targetRate.sub( getDailyVolatility().div(2) ).sub(getFee(feeType.first));
@@ -262,35 +284,35 @@ contract LibreBank is Ownable, Pausable {
         //TODO: Append limit and min\max checking
     }
 
-     /**
+    /**
      * @dev Calculate percents using fixed-float arithmetic.
      * @param numerator - Calculation numerator (first number)
      * @param denominator - Calculation denomirator (first number)
      * @param precision - calc precision
      */
-    function percent(uint numerator, uint denominator, uint precision) public constant returns(uint quotient) {
+    function percent(uint numerator, uint denominator, uint precision) public pure returns(uint quotient) {
         uint _numerator  = numerator.mul(10 ** (precision+1));
         uint _quotient = _numerator.div(denominator).add(5).div(10);
         return _quotient;
     }
 
-
     /**
      * @dev Checks if the rate is up to date
      */
-    function isRateActual() public constant returns(bool) {
-        return (now <= currencyUpdateTime + RELEVANCE_PERIOD);
+    function isRateActual() public view returns(bool) {
+        return (now <= currencyUpdateTime + relevancePeriod);
     }
 
-    function LibreBank(address _tokenContract) public {
-        libreToken = token(_tokenContract);
-    }
+    //function LibreBank() public { }
     
     /**
-     * @dev Changes token contract address.
+     * @dev Sets token.
+     * @param _tokenAddress The address of the token.
      */
-    function changeTokenContract(address _tokenContract) onlyOwner public {
-        libreToken = token(_tokenContract);
+    function setToken(address _tokenAddress) public {
+        tokenAddress = _tokenAddress;
+        libreToken = token(_tokenAddress);
+        libreToken.setBankAddress(address(this));
     }
 
     /**
@@ -299,7 +321,7 @@ contract LibreBank is Ownable, Pausable {
     function donate() payable public {}
 
     /**
-     * @dev cryptoFiatRate getter.
+     * @dev Gets current exchange rate.
      */
     function getTokenPrice() needUpdate public constant returns(uint256) {
         return cryptoFiatRate;
@@ -329,9 +351,8 @@ contract LibreBank is Ownable, Pausable {
         currencyUpdateTime = now;
     }
 
-//    function updateRate() public needUpdate {
-//        requestUpdateRates();
-//    }
+
+// коммент для себя - дошёл до этого момента - потом бегло просмотреть дальше - Дима
 
     // пока на все случаи возможные
     uint256 constant MIN_ENABLED_ORACLES = 2;
@@ -352,7 +373,7 @@ contract LibreBank is Ownable, Pausable {
         numWaitingOracles = 0;
         for (uint256 i = 0; i < oracleAddresses.length; i++) {
             if (oracles[oracleAddresses[i]].enabled) {
-                oracleInterface(oracleAddresses[i]).update();
+                oracleInterface(oracleAddresses[i]).updateRate();
                 oracles[oracleAddresses[i]].waiting = true;
                 numWaitingOracles++;
             }
