@@ -29,6 +29,7 @@ contract BasicBank is Ownable, Pausable {
     event Log(address addr, string anything);
     event Log(address addr, uint256 value1, uint256 value2);
     event InsufficientOracleData(string description, uint256 oracleCount);
+    event OraclizeStatus(address indexed _address, bytes32 oraclesName, string description);
 
     // пока на все случаи возможные
     uint256 constant MIN_ENABLED_ORACLES = 0; //2;
@@ -53,10 +54,9 @@ contract BasicBank is Ownable, Pausable {
     // maybe we should add weightWaitingOracles - sum of rating of waiting oracles
     uint256 timeUpdateRequested;
 
-    enum limitType { minUsdRate, maxUsdRate, minTransactionAmount, minTokensAmount, minSellSpread, maxSellSpread, minBuySpread, maxBuySpread, variance }
+    enum limitType { minUsdRate, maxUsdRate }
 
-    //todo: вынести сюда oracleInterface
-    uint256 rate = 1000;
+    uint256 rate = 0;
 
     struct OracleData {
         bytes32 name;
@@ -104,6 +104,20 @@ contract BasicBank is Ownable, Pausable {
         // только чтобы имя получить?
         // возможно, стоит добавить параметр name в функцию, тем самым упростив всё
         OracleData memory thisOracle = OracleData({name: currentOracleInterface.getName(), rating: MAX_ORACLE_RATING.div(2), 
+                                                    enabled: true, waiting: false, updateTime: 0, cryptoFiatRate: 0, listPointer: 0});
+        oracles[_address] = thisOracle;
+        // listPointer - индекс массива oracleAddresses с адресом оракула. Надо для удаления
+        oracles[_address].listPointer = oracleAddresses.push(_address) - 1;
+    }
+
+    // второй вариант с именем. тут не запрашиваем имя у оракула лишний раз. сравнить потребление газа
+    /**
+     * @dev Adds an oracle.
+     * @param _address The oracle address.
+     */
+    function addOracle(address _address, bytes32 _name) public {
+        require(_address != 0x0);
+        OracleData memory thisOracle = OracleData({name: _name, rating: MAX_ORACLE_RATING.div(2), 
                                                     enabled: true, waiting: false, updateTime: 0, cryptoFiatRate: 0, listPointer: 0});
         oracles[_address] = thisOracle;
         // listPointer - индекс массива oracleAddresses с адресом оракула. Надо для удаления
