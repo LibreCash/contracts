@@ -146,5 +146,5 @@ contract OracleBase is Ownable, usingOraclize {
     /**
      * @dev Shall receive ETH for oraclize queries.
      */
-    function cryptoReceiver() internal payable { }
+    function () payable external { }
 }

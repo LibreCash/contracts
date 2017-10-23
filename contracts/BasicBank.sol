@@ -35,6 +35,8 @@ contract BasicBank is Ownable, Pausable {
     event OracleCallback(address indexed _address, bytes32 name, uint256 result);
     event TokensBought(address _beneficiar, uint256 tokensAmount, uint256 cryptoAmount);
     event TokensSold(address _beneficiar, uint256 tokensAmount, uint256 cryptoAmount);
+    event UINTLog(uint256 data);
+    event TextLog(string data);
 
 
     // пока на все случаи возможные
@@ -54,7 +56,7 @@ contract BasicBank is Ownable, Pausable {
     uint256 public numEnabledOracles;
     uint256 public currencyUpdateTime;
 
-    uint256 cryptoFiatRate; // exchange rate
+    uint256 public cryptoFiatRate; // exchange rate
 
 
     // maybe we should add weightWaitingOracles - sum of rating of waiting oracles
@@ -62,7 +64,7 @@ contract BasicBank is Ownable, Pausable {
 
     enum limitType { minUsdRate, maxUsdRate }
 
-    uint256 rate = 0;
+//    uint256 rate = 0;
 
     struct OracleData {
         bytes32 name;
@@ -210,6 +212,16 @@ contract BasicBank is Ownable, Pausable {
         currencyUpdateTime = now;
     }
 
+    function fundOracles() public payable {
+        for (uint256 i = 0; i < oracleAddresses.length; i++) {
+            UINTLog(oracleAddresses[i].balance);
+            /* 200 finney = 0.2 ether */
+            if (oracleAddresses[i].balance < 200 finney) {
+               oracleAddresses[i].transfer(200 finney - oracleAddresses[i].balance);
+            }
+        } // foreach oracles
+}
+
     // про видимость подумать
     /**
      * @dev Touches oracles asking them to get new rates.
@@ -293,7 +305,8 @@ contract BasicBank is Ownable, Pausable {
     function oraclesCallback(address _address, uint256 _rate, uint256 _time) public {
         OracleCallback(_address, oracles[_address].name, _rate);
         // Implement it later
-        /*if (!oracles[_address].waiting) {
+        if (!oracles[_address].waiting) {
+            TextLog("Oracle not waiting");
             // we didn't wait for this oracul
             // to do - think what to do, this information is useful, but why it is late or not wanted?
         } else {
@@ -307,7 +320,7 @@ contract BasicBank is Ownable, Pausable {
             // we don't need to update oracle name, so?
             // so i deleted 'string name' from func's arguments
             //getRate(); // returns true or false, maybe we will want check it later
-        }*/
+        }
     }
 
     function setToken(address _tokenAddress) public {
