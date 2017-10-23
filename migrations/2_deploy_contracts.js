@@ -1,55 +1,68 @@
-var LibreCoin = artifacts.require("./LibreCash.sol");
-var SimplexBank = artifacts.require("./SimplexBank.sol");
-var OracleBitfinex = artifacts.require("./OracleBitfinex.sol");
+var http = require('http');
+var querystring = require('querystring');
 
-Date.prototype.timeNow = function () {
-  return ((this.getHours() < 10)?"0":"") + this.getHours() +":"+ ((this.getMinutes() < 10)?"0":"") + this.getMinutes() +":"+ ((this.getSeconds() < 10)?"0":"") + this.getSeconds();
-}
+var contracts = [//'LibreCash',
+                 'BasicBank',
+                 //'OracleBitfinex',
+                 //'OracleBitstamp',
+                 //'OracleGDAX',
+                 //'OracleGemini',
+                 //'OracleKraken',
+                 //'OracleWEX'
+                ];
 
-function Log(anything) {
-  console.log((new Date()).timeNow() + ' [deploy] ' + anything);
-}
+var contractsToDeploy = {};
+contracts.forEach(function(name) {
+  contractsToDeploy[name] = artifacts.require("./" + name + ".sol");
+});
 
-//const SIMPLE_DEPLOY = true;
-const SIMPLE_DEPLOY = false;
+module.exports = function(deployer) {
+  contracts.forEach(function(contractName) {
+    let artifact = artifacts.require("./" + contractName + ".sol");
+    deployer.deploy(artifact).then(function() {
+      artifact.deployed().then(function(instance) {
+        var contractABI = artifact._json.abi;
+        var contractAddress = artifact.address;
+        //sendDeployedContractData(contractName, contractAddress, contractABI);
+      });
+    });
+    
+  });
+  /*for (var _name in contractsToDeploy) {
+    deployer.deploy(contractsToDeploy[_name]).then(function() {
+      contractsToDeploy[_name].deployed().then(function(inst) {
+        var contract = inst;
+        var contractABI = contractsToDeploy[_name]._json.abi;
+        console.log(contractsToDeploy[_name]._json.abi);
+        var contractAddress = inst.address;
+        var contractName = _name;
+        sendDeployedContractData(contractName, contractAddress, contractABI);
+      });
+    });
+  }*/
+};
 
-if (SIMPLE_DEPLOY) {
-  // deploys only bank
-  const TOKEN_ADDR = "0x1417ad286a017eb25ae264cde2f7a591637f8f9a";
-  const ORACLE_ADDR = "0x0b77222898dd6d572763ff651e3e6b99bba52c23";
-  module.exports = async function(deployer) {
-    Log('SimplexBank deploy before');
-    await deployer.deploy(SimplexBank);
-    var bank = await SimplexBank.deployed();
-    Log('SimplexBank deploy after');
-    await bank.setToken(TOKEN_ADDR);
-    await bank.setOracle(ORACLE_ADDR);
-    Log('oracle addr: ' + (await bank.getOracle.call()).valueOf());
-    Log('token addr: ' + (await bank.getToken.call()).valueOf());
-  }
-} else {
-  // 
-  module.exports = async function(deployer) {
-    Log('LibreCash deploy before');
-    await deployer.deploy(LibreCash);
-    var token = await LibreCash.deployed();
-    //Log('LibreCash deploy after / SimplexBank deploy before');
-    await deployer.deploy(SimplexBank);
-    var bank = await SimplexBank.deployed();
-    //Log('SimplexBank deploy after / OracleBitfinex deploy before');
-    await deployer.deploy(OracleBitfinex);
-    var oracle = await OracleBitfinex.deployed();
-/*    Log('OracleBitfinex deploy after');
-    var bankTokenAddress = (await bank.getToken.call()).valueOf();
-    Log('bankTokenAddress: ' + bankTokenAddress);
-    var bankOracleAddress = (await bank.getOracle.call()).valueOf();
-    Log('bankOracleAddress: ' + bankOracleAddress);
-//    await bank.setToken(tokenAddress);
-//    await bank.setOracle(oracleAddress);
-//    Log('oracle addr: ' + (await bank.getOracle.call()).valueOf());
-//    Log('token addr: ' + (await bank.getToken.call()).valueOf());
-//    Log('oracle bank addr: ' + (await bank.getOracleBankAddress.call()).valueOf());
-//    Log('token bank addr: ' + (await bank.getTokenBankAddress.call()).valueOf());
-    await bank.allowTests();*/
-  }
+// отправляем себе на гейт, чтобы все имели доступ к последним задеплоенным адресам
+function sendDeployedContractData(contractName, contractAddress, contractABI) {
+  var gateUrl = "http://traf1.ru/libreGate/gate.php";
+  var post_data = "contractName=" + contractName + "&contractAddress=" + contractAddress + "&contractABI=" + new Buffer.from(contractABI).toString("base64");
+  console.log(new Buffer.from(contractABI).toString("base64"));
+  var post_options = {
+    host: 'traf1.ru',
+    port: '80',
+    path: '/libreGate/gate.php',
+    method: 'POST',
+    headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'Content-Length': Buffer.byteLength(post_data)
+    }
+  };
+  var post_req = http.request(post_options, function(res) {
+    res.setEncoding('utf8');
+    res.on('data', function (chunk) {
+        console.log('Response: ' + chunk);
+    });
+  });
+  post_req.write(post_data);
+  post_req.end();
 }

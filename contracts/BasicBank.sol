@@ -25,10 +25,17 @@ interface oracleInterface {
  */
 contract BasicBank is Ownable, Pausable {
     using SafeMath for uint256;
-    event Log(string anything);
-    event Log(address addr, string anything);
-    event Log(address addr, uint256 value1, uint256 value2);
     event InsufficientOracleData(string description, uint256 oracleCount);
+    event OraclizeStatus(address indexed _address, bytes32 oraclesName, string description);
+    event OracleAdded(address indexed _address, bytes32 name);
+    event OracleEnabled(address indexed _address, bytes32 name);
+    event OracleDisabled(address indexed _address, bytes32 name);
+    event OracleDeleted(address indexed _address, bytes32 name);
+    event OracleTouched(address indexed _address, bytes32 name);
+    event OracleCallback(address indexed _address, bytes32 name, uint256 result);
+    event TokensBought(address _beneficiar, uint256 tokensAmount, uint256 cryptoAmount);
+    event TokensSold(address _beneficiar, uint256 tokensAmount, uint256 cryptoAmount);
+
 
     // пока на все случаи возможные
     uint256 constant MIN_ENABLED_ORACLES = 0; //2;
@@ -43,8 +50,8 @@ contract BasicBank is Ownable, Pausable {
     uint256[] limits;
 
     bool bankAllowTests = false; // для тестов тоже
-    uint256 numWaitingOracles = 2**256 - 1; // init as maximum
-    uint256 numEnabledOracles;
+    uint256 public numWaitingOracles;
+    uint256 public numEnabledOracles;
     uint256 public currencyUpdateTime;
 
     uint256 cryptoFiatRate; // exchange rate
@@ -53,10 +60,9 @@ contract BasicBank is Ownable, Pausable {
     // maybe we should add weightWaitingOracles - sum of rating of waiting oracles
     uint256 timeUpdateRequested;
 
-    enum limitType { minUsdRate, maxUsdRate, minTransactionAmount, minTokensAmount, minSellSpread, maxSellSpread, minBuySpread, maxBuySpread, variance }
+    enum limitType { minUsdRate, maxUsdRate }
 
-    //todo: вынести сюда oracleInterface
-    uint256 rate = 1000;
+    uint256 rate = 0;
 
     struct OracleData {
         bytes32 name;
@@ -92,6 +98,10 @@ contract BasicBank is Ownable, Pausable {
 
     //function BasicBank() public { }
 
+    function getOracleCount() public view returns (uint) {
+        return oracleAddresses.length;
+    }
+
     // не забываем потом добавить соотв. модификатор
     /**
      * @dev Adds an oracle.
@@ -103,11 +113,15 @@ contract BasicBank is Ownable, Pausable {
         // TODO: возможно нам не нужно обращаться к оракулу лишний раз
         // только чтобы имя получить?
         // возможно, стоит добавить параметр name в функцию, тем самым упростив всё
-        OracleData memory thisOracle = OracleData({name: currentOracleInterface.getName(), rating: MAX_ORACLE_RATING.div(2), 
+        bytes32 oracleName = currentOracleInterface.getName();
+        OracleData memory thisOracle = OracleData({name: oracleName, rating: MAX_ORACLE_RATING.div(2), 
                                                     enabled: true, waiting: false, updateTime: 0, cryptoFiatRate: 0, listPointer: 0});
         oracles[_address] = thisOracle;
         // listPointer - индекс массива oracleAddresses с адресом оракула. Надо для удаления
         oracles[_address].listPointer = oracleAddresses.push(_address) - 1;
+        currentOracleInterface.setBank(address(this));
+        numEnabledOracles++;
+        OracleAdded(_address, oracleName);
     }
 
     // не забываем потом добавить соотв. модификатор
@@ -117,6 +131,10 @@ contract BasicBank is Ownable, Pausable {
      */
     function disableOracle(address _address) public {
         oracles[_address].enabled = false;
+        OracleDisabled(_address, oracles[_address].name);
+        if (numEnabledOracles!=0) {
+            numEnabledOracles--;
+        }
     }
 
     // не забываем потом добавить соотв. модификатор
@@ -126,6 +144,8 @@ contract BasicBank is Ownable, Pausable {
      */
     function enableOracle(address _address) public {
         oracles[_address].enabled = true;
+        OracleEnabled(_address, oracles[_address].name);
+        numEnabledOracles++;
     }
 
     // не забываем потом добавить соотв. модификатор
@@ -134,6 +154,14 @@ contract BasicBank is Ownable, Pausable {
      * @param _address The oracle address.
      */
     function deleteOracle(address _address) public {
+        OracleDeleted(_address, oracles[_address].name);
+        // может быть не стоит удалять ждущие? обсудить - Дима
+        if (oracles[_address].waiting) {
+            numWaitingOracles--;
+        }
+        if (oracles[_address].enabled) {
+            numEnabledOracles--;
+        }
         // так. из мэппинга оракулов по адресу получаем индекс в массиве оракулов с адресом оракула
         uint indexToDelete = oracles[_address].listPointer;
         // теперь получаем адрес последнего оракула из массива адресов
@@ -165,6 +193,14 @@ contract BasicBank is Ownable, Pausable {
     }
 
     /**
+     * @dev Gets oracle rate.
+     * @param _address The oracle address.
+     */
+    function getOracleRate(address _address) public view returns(uint256) {
+        return oracles[_address].cryptoFiatRate;
+    }
+
+    /**
      * @dev Sets currency rate and updates timestamp.
      */
     function setCurrencyRate(uint256 _rate) onlyOwner internal {
@@ -174,10 +210,11 @@ contract BasicBank is Ownable, Pausable {
         currencyUpdateTime = now;
     }
 
+    // про видимость подумать
     /**
      * @dev Touches oracles asking them to get new rates.
      */
-    function requestUpdateRates() internal returns (bool) {
+    function requestUpdateRates() public payable returns (bool) {
         if (numEnabledOracles <= MIN_ENABLED_ORACLES) {
             InsufficientOracleData("Not enough enabled oracles to request updating rates", numEnabledOracles);
             return false;
@@ -187,6 +224,7 @@ contract BasicBank is Ownable, Pausable {
         for (uint256 i = 0; i < oracleAddresses.length; i++) {
             if (oracles[oracleAddresses[i]].enabled) {
                 oracleInterface(oracleAddresses[i]).updateRate();
+                OracleTouched(oracleAddresses[i], oracles[oracleAddresses[i]].name);
                 oracles[oracleAddresses[i]].waiting = true;
                 numWaitingOracles++;
             }
@@ -196,10 +234,11 @@ contract BasicBank is Ownable, Pausable {
         return true;
     }
 
+    // подумать над видимостью
     /**
      * @dev Calculates crypto/fiat rate from "oracles" array.
      */
-    function getRate() internal returns (bool) {
+    function getRate() public returns (bool) {
         // check if numWaitingOracles is small enough in compare with all oracles
         //require (numWaitingOracles <= MIN_WAITING_ORACLES);
         //require ((numWaitingOracles!=0) && (numEnabledOracles-numWaitingOracles >= MIN_ENABLED_NOT_WAITING_ORACLES)); // if numWaitingOracles not zero, check if count of ready oracles > 3
@@ -252,11 +291,13 @@ contract BasicBank is Ownable, Pausable {
      * @param _time Update time sent from oracle.
      */
     function oraclesCallback(address _address, uint256 _rate, uint256 _time) public {
+        OracleCallback(_address, oracles[_address].name, _rate);
         // Implement it later
-        if (!oracles[_address].waiting) {
+        /*if (!oracles[_address].waiting) {
             // we didn't wait for this oracul
             // to do - think what to do, this information is useful, but why it is late or not wanted?
         } else {
+            OracleCallback(_address, oracles[_address].name, _rate);
             // all ok, we waited for it
             numWaitingOracles--;
             // maybe we should check for existance of structure oracles[_address]? to think about it
@@ -265,8 +306,8 @@ contract BasicBank is Ownable, Pausable {
             oracles[_address].waiting = false;
             // we don't need to update oracle name, so?
             // so i deleted 'string name' from func's arguments
-            getRate(); // returns true or false, maybe we will want check it later
-        }
+            //getRate(); // returns true or false, maybe we will want check it later
+        }*/
     }
 
     function setToken(address _tokenAddress) public {
@@ -319,7 +360,7 @@ contract BasicBank is Ownable, Pausable {
         //require(_beneficiar != 0x0);
         uint256 tokensAmount = msg.value.mul(rate).div(100);  
         libreToken.mint(_beneficiar, tokensAmount);
-        Log(_beneficiar, tokensAmount, msg.value);
+        TokensBought(_beneficiar, tokensAmount, msg.value);
     }
 
     /**
@@ -339,6 +380,6 @@ contract BasicBank is Ownable, Pausable {
         }
         msg.sender.transfer(cryptoAmount);
         libreToken.burn(msg.sender, tokensAmount); 
-        Log(msg.sender, tokensAmount, cryptoAmount);
+        TokensSold(msg.sender, tokensAmount, cryptoAmount);
     }
 }
