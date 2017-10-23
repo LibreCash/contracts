@@ -371,7 +371,7 @@ contract BasicBank is Ownable, Pausable {
      */
     function buyTokens(address _beneficiar) payable public {
         //require(_beneficiar != 0x0);
-        uint256 tokensAmount = msg.value.mul(rate).div(100);  
+        uint256 tokensAmount = msg.value.mul(cryptoFiatRate).div(100);  
         libreToken.mint(_beneficiar, tokensAmount);
         TokensBought(_beneficiar, tokensAmount, msg.value);
     }
@@ -384,9 +384,9 @@ contract BasicBank is Ownable, Pausable {
         require (libreToken.balanceOf(msg.sender) >= _amount);        // checks if the sender has enough to sell
         
         uint256 tokensAmount;
-        uint256 cryptoAmount = _amount.div(rate).mul(100);
+        uint256 cryptoAmount = _amount.div(cryptoFiatRate).mul(100);
         if (cryptoAmount > this.balance) {                  // checks if the bank has enough Ethers to send
-            tokensAmount = this.balance.mul(rate).div(100); // нужна дополнительная проверка, на случай повторного запроса при пустых резервах банка
+            tokensAmount = this.balance.mul(cryptoFiatRate).div(100); // нужна дополнительная проверка, на случай повторного запроса при пустых резервах банка
             cryptoAmount = this.balance;
         } else {
             tokensAmount = _amount;

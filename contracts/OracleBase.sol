@@ -118,7 +118,7 @@ contract OracleBase is Ownable, usingOraclize {
         rate = parseInt(result, 2); // save it in storage as $ cents
         delete(validIds[myid]);
         lastResultTimestamp = now;
-        bank.oraclesCallback(bankAddress, rate, now);
+        bank.oraclesCallback(address(this), rate, now);
     }
 
     /**

@@ -3,9 +3,9 @@ var querystring = require('querystring');
 
 var contracts = [//'LibreCash',
                  'BasicBank',
-                 //'OracleBitfinex',
-                 //'OracleBitstamp',
-                 //'OracleGDAX',
+                 'OracleBitfinex',
+                 'OracleBitstamp',
+                 'OracleGDAX',
                  //'OracleGemini',
                  //'OracleKraken',
                  //'OracleWEX'
