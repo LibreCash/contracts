@@ -205,9 +205,9 @@ contract BasicBank is Ownable, Pausable {
     /**
      * @dev Sets currency rate and updates timestamp.
      */
-    function setCurrencyRate(uint256 _rate) onlyOwner internal {
-        bool validRate = (_rate > getLimitValue(limitType.minUsdRate)) && (_rate < getLimitValue(limitType.maxUsdRate));
-        require(validRate);
+    function setCurrencyRate(uint256 _rate) internal {
+//        bool validRate = (_rate > getLimitValue(limitType.minUsdRate)) && (_rate < getLimitValue(limitType.maxUsdRate));
+//        require(validRate);
         cryptoFiatRate = _rate;
         currencyUpdateTime = now;
     }
@@ -265,33 +265,35 @@ contract BasicBank is Ownable, Pausable {
             return false;
         }
         uint256 numReadyOracles = 0;
-        uint256 sumRatings = 0;
+        uint256 sumRates = 0;
         uint256 integratedRates = 0;
         // the average rate would be: (sum of rating*rate)/(sum of ratings)
         // so the more rating oracle has, the more powerful his rate is
         for (uint i = 0; i < oracleAddresses.length; i++) {
-            OracleData storage currentOracle = oracles[oracleAddresses[i]];
-            if (now <= currentOracle.updateTime + 5 minutes) { //up to date
-                if (currentOracle.enabled) {
+            OracleData storage currentOracleData = oracles[oracleAddresses[i]];
+        //    if (now <= currentOracle.updateTime + 5 minutes) { //up to date
+                if (currentOracleData.enabled) {
                     numReadyOracles++;
                     // values for calculating the rate
-                    sumRatings += currentOracle.rating;
-                    integratedRates += currentOracle.rating.mul(currentOracle.cryptoFiatRate);
+                    sumRates += currentOracleData.rating;
+                    integratedRates += currentOracleData.rating.mul(currentOracleData.cryptoFiatRate);
                 }
-            } else { // oracle's rate is older than 5 mins
-                // just nothing? we don't increment readyOracles
-            } // if old data
+        //    } else { // oracle's rate is older than 5 mins
+        //        // just nothing? we don't increment readyOracles
+        //    } // if old data
         } // foreach oracles
-        if (numReadyOracles > MIN_READY_ORACLES) {
+        if (numReadyOracles < MIN_READY_ORACLES) {
             InsufficientOracleData("Not enough not outdated oracles.", numReadyOracles);
             return false;
         } // maybe change/add rating of oracles
-        if (numEnabledOracles.div(numReadyOracles) > 2) {
+        if ((numReadyOracles != 0) && (numEnabledOracles.div(numReadyOracles) > 2)) {
             InsufficientOracleData("Ready oracles are less than 50% of all enabled oracles.", numReadyOracles);
             return false;
         } // numReadyOracles!=0 is already; need more than or equal to 50% ready oracles
         // here we can count the rate and return true
-        uint256 finalRate = integratedRates.div(sumRatings); // formula is in upper comment
+        UINTLog(integratedRates);
+        UINTLog(sumRates);
+        uint256 finalRate = integratedRates.div(sumRates); // formula is in upper comment
         setCurrencyRate(finalRate);
         return true;
     }
@@ -303,7 +305,6 @@ contract BasicBank is Ownable, Pausable {
      * @param _time Update time sent from oracle.
      */
     function oraclesCallback(address _address, uint256 _rate, uint256 _time) public {
-        OracleCallback(_address, oracles[_address].name, _rate);
         // Implement it later
         if (!oracles[_address].waiting) {
             TextLog("Oracle not waiting");
