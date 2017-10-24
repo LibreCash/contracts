@@ -1,13 +1,13 @@
 var fs = require('fs');
 
-var contracts = [//'LibreCash',
-                 'BasicBank',
-                 //'OracleBitfinex',
-                 //'OracleBitstamp',
-                 //'OracleGDAX',
-                 //'OracleGemini',
-                 //'OracleKraken',
-                 //'OracleWEX'
+var contracts = ['LibreCash',
+                 'OracleBitfinex',
+                 'OracleBitstamp',
+                 'OracleGDAX',
+                 'OracleGemini',
+                 'OracleKraken',
+                 'OracleWEX',
+                 'BasicBank'
                 ];
 
 var contractsToDeploy = {};
@@ -31,22 +31,30 @@ module.exports = function(deployer) {
   });
 };
 
+var oracleAddresses = [];
+var tokenAddress;
 function temporarySetDependencies(contractName, instance) {
+  if (contractName.substring(0, 6) == "Oracle") {
+    oracleAddresses.push(instance.address);
+  }
+  if (contractName == "LibreCash") {
+    tokenAddress = instance.address;
+  }
   if (contractName == "BasicBank") {
-    instance.addOracle('0x5b2e8ab98dcc4cb8ed7c485ed05ae81c7e727279');
-    instance.addOracle('0xcf4fe4f0bbc839ad2d5d8be00989fdf827f931e0');
-    instance.addOracle('0x00c0ddec392e7c29dd24b7aa71bf0f1b2ac7f4b6');
-    instance.attachToken('0x8BeAeee5A14469FAF17316DF6419936014daC870');
+    oracleAddresses.forEach(function(oracleAddress) {
+      instance.addOracle(oracleAddress);
+    });
+    instance.attachToken(tokenAddress);
+    //instance.addOracle('0x5b2e8ab98dcc4cb8ed7c485ed05ae81c7e727279');
+    //instance.addOracle('0xcf4fe4f0bbc839ad2d5d8be00989fdf827f931e0');
+    //instance.addOracle('0x00c0ddec392e7c29dd24b7aa71bf0f1b2ac7f4b6');
+    //instance.attachToken('0x8BeAeee5A14469FAF17316DF6419936014daC870');
     instance.setRateLimits(10000, 40000); // 100$ to 400$ eth/usd
   }
 }
 
 function writeDeployedContractData(contractName, contractAddress, contractABI) {
-  fs.unlink("build/contracts/" + contractName + ".json", function(err) {
-    if(err) {
-      console.log(err);
-    }
-  });
+  fs.unlinkSync("build/contracts/" + contractName + ".json");
   var directory = "build/data/";
   var fileName = contractName + ".txt";
   var stream = fs.createWriteStream(directory + fileName);

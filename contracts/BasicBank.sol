@@ -38,6 +38,7 @@ contract BasicBank is Ownable, Pausable {
     event TokensSold(address _beneficiar, uint256 tokensAmount, uint256 cryptoAmount);
     event UINTLog(uint256 data);
     event TextLog(string data);
+    event OrderCreated(string _type, uint256 tokens, uint256 crypto, uint256 rate);
 
 
     // пока на все случаи возможные
@@ -467,9 +468,10 @@ contract BasicBank is Ownable, Pausable {
      * @param _address Beneficiar.
      */
     function createBuyOrder(address _address) payable public {
-        uint256 cryptoCount = msg.value.mul(cryptoFiatRateBuy);
-        require((cryptoCount > getMinimumBuyTokens()) && (cryptoCount < getMaximumBuyTokens()));
+        uint256 tokenCount = msg.value.mul(cryptoFiatRateBuy);
+        require((tokenCount > getMinimumBuyTokens()) && (tokenCount < getMaximumBuyTokens()));
         orders.push(OrderData(OrderType.ORDER_BUY, _address, msg.value, now));
+        OrderCreated("Buy", tokenCount, msg.value, cryptoFiatRateBuy);
     }
 
     /**
@@ -480,6 +482,7 @@ contract BasicBank is Ownable, Pausable {
     function createSellOrder(address _address, uint256 _tokensCount) public {
         require((_tokensCount > getMinimumBuyTokens()) && (_tokensCount < getMaximumSellTokens()));
         orders.push(OrderData(OrderType.ORDER_BUY, _address, _tokensCount, now));
+        OrderCreated("Sell", _tokensCount, 0, cryptoFiatRateSell); // пока заранее не считаем эфиры на вывод
     }
 
     // удалю потом две нижние функции, будет общее разгребание очереди
