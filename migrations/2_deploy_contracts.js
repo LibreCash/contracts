@@ -1,13 +1,13 @@
 var fs = require('fs');
 
-var contracts = ['LibreCash',
+var contracts = [//'LibreCash',
                  'BasicBank',
-                 'OracleBitfinex',
-                 'OracleBitstamp',
-                 'OracleGDAX',
-                 'OracleGemini',
-                 'OracleKraken',
-                 'OracleWEX'
+                 //'OracleBitfinex',
+                 //'OracleBitstamp',
+                 //'OracleGDAX',
+                 //'OracleGemini',
+                 //'OracleKraken',
+                 //'OracleWEX'
                 ];
 
 var contractsToDeploy = {};
@@ -22,7 +22,7 @@ module.exports = function(deployer) {
     deployer.deploy(artifact).then(function() {
       artifact.deployed().then(function(instance) {
         // в функции ниже ставим зависимости, она не для финального деплоя
-        temporarySetDependencies(contractName);
+        temporarySetDependencies(contractName, instance);
         var contractABI = JSON.stringify(artifact._json.abi);
         var contractAddress = artifact.address;
         writeDeployedContractData(contractName, contractAddress, contractABI);
@@ -31,12 +31,13 @@ module.exports = function(deployer) {
   });
 };
 
-function temporarySetDependencies(contractName) {
+function temporarySetDependencies(contractName, instance) {
   if (contractName == "BasicBank") {
     instance.addOracle('0x5b2e8ab98dcc4cb8ed7c485ed05ae81c7e727279');
     instance.addOracle('0xcf4fe4f0bbc839ad2d5d8be00989fdf827f931e0');
     instance.addOracle('0x00c0ddec392e7c29dd24b7aa71bf0f1b2ac7f4b6');
     instance.attachToken('0x8BeAeee5A14469FAF17316DF6419936014daC870');
+    instance.setRateLimits(10000, 40000); // 100$ to 400$ eth/usd
   }
 }
 

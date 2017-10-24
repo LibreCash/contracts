@@ -27,6 +27,7 @@ contract BasicBank is Ownable, Pausable {
     using SafeMath for uint256;
     event InsufficientOracleData(string description, uint256 oracleCount);
     event OraclizeStatus(address indexed _address, bytes32 oraclesName, string description);
+    event OraclesTouched(string description);
     event OracleAdded(address indexed _address, bytes32 name);
     event OracleEnabled(address indexed _address, bytes32 name);
     event OracleDisabled(address indexed _address, bytes32 name);
@@ -41,7 +42,7 @@ contract BasicBank is Ownable, Pausable {
 
     // пока на все случаи возможные
     uint256 constant MIN_ENABLED_ORACLES = 0; //2;
-    uint256 constant MIN_WAITING_ORACLES = 0; //2;
+    uint256 constant MIN_WAITING_ORACLES = 2; //количество оракулов, которое допустимо омтавлять в ожидании
     uint256 constant MIN_READY_ORACLES = 1; //2;
     uint256 constant MIN_ENABLED_NOT_WAITING_ORACLES = 1; //2;
     uint constant MAX_ORACLE_RATING = 10000;
@@ -62,13 +63,13 @@ contract BasicBank is Ownable, Pausable {
     // maybe we should add weightWaitingOracles - sum of rating of waiting oracles
     uint256 timeUpdateRequested;
 
-    enum limitType { minFiatRate, maxFiatRate, minTokensBuy, minTokensSell, maxTokensBuy, maxTokensSell }
+    enum limitType { minCryptoFiatRate, maxCryptoFiatRate, minTokensBuy, minTokensSell, maxTokensBuy, maxTokensSell }
     mapping (uint => uint256) limits;
 
     uint256 public sellFee = 10000;
     uint256 public buyFee = 10000;
-    uint256 public sellSpread = 500 finney;
-    uint256 public buySpread = 500 finney;
+    uint256 public sellSpread = 500; // 5 dollars
+    uint256 public buySpread = 500; // 5 dollars
 
 //    uint256 rate = 0;
 
@@ -138,8 +139,8 @@ contract BasicBank is Ownable, Pausable {
      * @param _max Max rate.
      */
     function setRateLimits(uint256 _min, uint256 _max) public /*onlyOwner*/ {
-        setLimitValue(limitType.minFiatRate, _min);
-        setLimitValue(limitType.maxFiatRate, _max);
+        setLimitValue(limitType.minCryptoFiatRate, _min);
+        setLimitValue(limitType.maxCryptoFiatRate, _max);
     }
 
     /**
@@ -174,27 +175,45 @@ contract BasicBank is Ownable, Pausable {
         setLimitValue(limitType.maxTokensSell, _max);
     }
 
-    function getMinimumFiatRate() public view returns (uint256) {
-        return getLimitValue(limitType.minFiatRate);
+     /**
+     * @dev Gets min crypto fiat rate.
+     */
+    function getMinimumCryptoFiatRate() public view returns (uint256) {
+        return getLimitValue(limitType.minCryptoFiatRate);
     }
 
-    function getMaximumFiatRate() public view returns (uint256) {
-        return getLimitValue(limitType.maxFiatRate);
+     /**
+     * @dev Gets max crypto fiat rate.
+     */
+    function getMaximumCryptoFiatRate() public view returns (uint256) {
+        return getLimitValue(limitType.maxCryptoFiatRate);
     }
 
+     /**
+     * @dev Gets min buy limit in tokens.
+     */
     function getMinimumBuyTokens() public view returns (uint256) {
         return getLimitValue(limitType.minTokensBuy);
     }
 
+     /**
+     * @dev Gets max buy limit in tokens.
+     */
     function getMaximumBuyTokens() public view returns (uint256) {
         return getLimitValue(limitType.maxTokensBuy);
     }
 
+     /**
+     * @dev Gets min sell limit in tokens.
+     */
     function getMinimumSellTokens() public view returns (uint256) {
         return getLimitValue(limitType.minTokensSell);
     }
 
-    function getMaximumSellTokens() public view returns (uint256) {
+     /**
+     * @dev Gets max sell limit in tokens.
+     */
+   function getMaximumSellTokens() public view returns (uint256) {
         return getLimitValue(limitType.maxTokensSell);
     }
 
@@ -314,8 +333,8 @@ contract BasicBank is Ownable, Pausable {
 //        require(validRate);
         cryptoFiatRate = _rate;
         currencyUpdateTime = now;
-        cryptoFiatRateSell = _rate + sellSpread.mul(sellFee).div(10000);
-        cryptoFiatRateBuy = _rate - buySpread.mul(buyFee).div(10000);
+        cryptoFiatRateSell = _rate.add(sellSpread.mul(sellFee).div(10000));
+        cryptoFiatRateBuy = _rate.sub(buySpread.mul(buyFee).div(10000));
     }
 
     /**
@@ -335,12 +354,8 @@ contract BasicBank is Ownable, Pausable {
     /**
      * @dev Touches oracles asking them to get new rates.
      */
-    function requestUpdateRates() public payable returns (bool) {
-        if (numEnabledOracles <= MIN_ENABLED_ORACLES) {
-            InsufficientOracleData("Not enough enabled oracles to request updating rates", numEnabledOracles);
-            return false;
-        } // 1-2 enabled oracles - false result. we need more oracles. But anyway requests sent
-        // numWaitingOracles goes -1 after each callback
+    function requestUpdateRates() public {
+        require (numEnabledOracles >= MIN_ENABLED_ORACLES);
         numWaitingOracles = 0;
         for (uint256 i = 0; i < oracleAddresses.length; i++) {
             if (oracles[oracleAddresses[i]].enabled) {
@@ -350,29 +365,18 @@ contract BasicBank is Ownable, Pausable {
                 numWaitingOracles++;
             }
             timeUpdateRequested = now;
-            // but we can not refer to return (i don't do throw here because update() already sent) - think about number of needed oracles
         } // foreach oracles
-        return true;
+        OraclesTouched("Запущено обновление курсов");
     }
 
     // подумать над видимостью
     /**
      * @dev Calculates crypto/fiat rate from "oracles" array.
      */
-    function getRate() public returns (bool) {
-        // check if numWaitingOracles is small enough in compare with all oracles
-        //require (numWaitingOracles <= MIN_WAITING_ORACLES);
-        //require ((numWaitingOracles!=0) && (numEnabledOracles-numWaitingOracles >= MIN_ENABLED_NOT_WAITING_ORACLES)); // if numWaitingOracles not zero, check if count of ready oracles > 3
-                                                                                  // TODO: think about oracle weight and maybe use weights instead of count (num...) 
-        if (numWaitingOracles > MIN_WAITING_ORACLES) {
-            InsufficientOracleData("Too many oracles are waiting for rates now.", numWaitingOracles);
-            return false;
-        }
-        uint256 numReceivedOracles = numEnabledOracles - numWaitingOracles;
-        if (numReceivedOracles < MIN_ENABLED_NOT_WAITING_ORACLES) {
-            InsufficientOracleData("Not enough enabled oracles with received rate.", numReceivedOracles);
-            return false;
-        }
+    function calculateRate() public {
+        require (numWaitingOracles <= MIN_WAITING_ORACLES);
+        require (numEnabledOracles-numWaitingOracles >= MIN_ENABLED_NOT_WAITING_ORACLES);
+
         uint256 numReadyOracles = 0;
         uint256 sumRating = 0;
         uint256 integratedRates = 0;
@@ -380,31 +384,18 @@ contract BasicBank is Ownable, Pausable {
         // so the more rating oracle has, the more powerful his rate is
         for (uint i = 0; i < oracleAddresses.length; i++) {
             OracleData storage currentOracleData = oracles[oracleAddresses[i]];
-        //    if (now <= currentOracle.updateTime + 5 minutes) { //up to date
+            if (now <= currentOracleData.updateTime + 3 minutes) { // защита от флуда обновлениями, потом мб уберём
                 if (currentOracleData.enabled) {
                     numReadyOracles++;
-                    // values for calculating the rate
                     sumRating += currentOracleData.rating;
                     integratedRates += currentOracleData.rating.mul(currentOracleData.cryptoFiatRate);
                 }
-        //    } else { // oracle's rate is older than 5 mins
-        //        // just nothing? we don't increment readyOracles
-        //    } // if old data
-        } // foreach oracles
-        if (numReadyOracles < MIN_READY_ORACLES) {
-            InsufficientOracleData("Not enough not outdated oracles.", numReadyOracles);
-            return false;
-        } // maybe change/add rating of oracles
-        if ((numReadyOracles != 0) && (numEnabledOracles.div(numReadyOracles) > 2)) {
-            InsufficientOracleData("Ready oracles are less than 50% of all enabled oracles.", numReadyOracles);
-            return false;
-        } // numReadyOracles!=0 is already; need more than or equal to 50% ready oracles
-        // here we can count the rate and return true
-        //UINTLog(integratedRates);
-        //UINTLog(sumRating);
-        uint256 finalRate = integratedRates.div(sumRating); // formula is in upper comment
+            }
+        }
+        require (numReadyOracles >= MIN_READY_ORACLES);
+
+        uint256 finalRate = integratedRates.div(sumRating); // the formula is in upper comment
         setCurrencyRate(finalRate);
-        return true;
     }
 
     /**
@@ -414,11 +405,8 @@ contract BasicBank is Ownable, Pausable {
      * @param _time Update time sent from oracle.
      */
     function oraclesCallback(address _address, uint256 _rate, uint256 _time) public {
-        // Implement it later
         if (!oracles[_address].waiting) {
             TextLog("Oracle not waiting");
-            // we didn't wait for this oracul
-            // to do - think what to do, this information is useful, but why it is late or not wanted?
         } else {
             OracleCallback(_address, oracles[_address].name, _rate);
             // all ok, we waited for it
@@ -427,9 +415,6 @@ contract BasicBank is Ownable, Pausable {
             oracles[_address].cryptoFiatRate = _rate;
             oracles[_address].updateTime = _time;
             oracles[_address].waiting = false;
-            // we don't need to update oracle name, so?
-            // so i deleted 'string name' from func's arguments
-            //getRate(); // returns true or false, maybe we will want check it later
         }
     }
 
@@ -482,7 +467,8 @@ contract BasicBank is Ownable, Pausable {
      * @param _address Beneficiar.
      */
     function createBuyOrder(address _address) payable public {
-        require((msg.value > getMinimumBuyTokens()) && (msg.value < getMaximumBuyTokens()));
+        uint256 cryptoCount = msg.value.mul(cryptoFiatRateBuy);
+        require((cryptoCount > getMinimumBuyTokens()) && (cryptoCount < getMaximumBuyTokens()));
         orders.push(OrderData(OrderType.ORDER_BUY, _address, msg.value, now));
     }
 
@@ -492,6 +478,7 @@ contract BasicBank is Ownable, Pausable {
      * @param _tokensCount Amount of tokens to sell.
      */
     function createSellOrder(address _address, uint256 _tokensCount) public {
+        require((_tokensCount > getMinimumBuyTokens()) && (_tokensCount < getMaximumSellTokens()));
         orders.push(OrderData(OrderType.ORDER_BUY, _address, _tokensCount, now));
     }
 
@@ -524,6 +511,6 @@ contract BasicBank is Ownable, Pausable {
         }
         msg.sender.transfer(cryptoAmount);
         libreToken.burn(msg.sender, tokensAmount); 
-        TokensSold(msg.sender, tokensAmount, cryptoAmount);
-    }*/
+        TokensSold(msg.sender, tokensAmount, cryptoAmount);*/
+    }
 }
