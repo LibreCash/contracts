@@ -49,20 +49,26 @@ contract BasicBank is Ownable, Pausable {
     address tokenAddress;
     token libreToken;
 
-    uint256[] limits;
 
-    bool bankAllowTests = false; // для тестов тоже
+    //bool bankAllowTests = false; // для тестов тоже
     uint256 public numWaitingOracles;
     uint256 public numEnabledOracles;
     uint256 public currencyUpdateTime;
 
-    uint256 public cryptoFiatRate; // exchange rate
-
+    uint256 public cryptoFiatRate;
+    uint256 public cryptoFiatRateSell;
+    uint256 public cryptoFiatRateBuy;
 
     // maybe we should add weightWaitingOracles - sum of rating of waiting oracles
     uint256 timeUpdateRequested;
 
-    enum limitType { minUsdRate, maxUsdRate }
+    enum limitType { minFiatRate, maxFiatRate, minTokensBuy, minTokensSell, maxTokensBuy, maxTokensSell }
+    mapping (uint => uint256) limits;
+
+    uint256 public sellFee = 10000;
+    uint256 public buyFee = 10000;
+    uint256 public sellSpread = 500 finney;
+    uint256 public buySpread = 500 finney;
 
 //    uint256 rate = 0;
 
@@ -75,10 +81,39 @@ contract BasicBank is Ownable, Pausable {
         uint256 cryptoFiatRate; // exchange rate
         uint listPointer; // чтобы знать по какому индексу удалять из массива oracleAddresses
     }
+    enum OrderType { ORDER_BUY, ORDER_SELL }
+    struct OrderData {
+        OrderType orderType;
+        address clientAddress;
+        uint256 orderAmount;
+        uint256 orderTimestamp;
+        //uint ClientLimit;
+    }
+
+    OrderData[] orders; // очередь ордеров
+    uint256 orderCount = 0;
 
     mapping (address=>OracleData) oracles;
     address[] oracleAddresses;
 
+
+    /**
+     * @dev Sets buying eee.
+     * @param _fee The fee in percent (100% = 10000).
+     */
+    function setBuyFee(uint256 _fee) public {
+        require (_fee < 300000); // fee less than 300%
+        buyFee = _fee;
+    }
+
+    /**
+     * @dev Sets selling eee.
+     * @param _fee The fee in percent (100% = 10000).
+     */
+    function setSellFee(uint256 _fee) public {
+        require (_fee < 300000); // fee less than 300%
+        sellFee = _fee;
+    }
 
     /**
      * @dev Sets one of the limits.
@@ -97,9 +132,78 @@ contract BasicBank is Ownable, Pausable {
         return limits[uint(_limitName)];
     }
 
+    /**
+     * @dev Sets fiat rate limits.
+     * @param _min Min rate.
+     * @param _max Max rate.
+     */
+    function setRateLimits(uint256 _min, uint256 _max) public /*onlyOwner*/ {
+        setLimitValue(limitType.minFiatRate, _min);
+        setLimitValue(limitType.maxFiatRate, _max);
+    }
 
-    //function BasicBank() public { }
+    /**
+     * @dev Sets fiat rate limits via range.
+     * @param _percent Value in percent in both directions (100% = 10000).
+     */
+    function setRateRange(uint256 _percent) public {
+        require (cryptoFiatRate > 0);
+        require ((_percent < 10000) && (_percent > 0));
+        uint256 _min = cryptoFiatRate.mul(10000 - _percent).div(10000);
+        uint256 _max = cryptoFiatRate.mul(10000 + _percent).div(10000);
+        setRateLimits(_min, _max);
+    }
 
+    /**
+     * @dev Sets min/max buy limits.
+     * @param _min Min limit.
+     * @param _max Max limit.
+     */
+    function setBuyTokenLimits(uint256 _min, uint256 _max) public /*onlyOwner*/ {
+        setLimitValue(limitType.minTokensBuy, _min);
+        setLimitValue(limitType.maxTokensBuy, _max);
+    }
+
+    /**
+     * @dev Sets min/max sell limits.
+     * @param _min Min limit.
+     * @param _max Max limit.
+     */
+    function setSellTokenLimits(uint256 _min, uint256 _max) public /*onlyOwner*/ {
+        setLimitValue(limitType.minTokensSell, _min);
+        setLimitValue(limitType.maxTokensSell, _max);
+    }
+
+    function getMinimumFiatRate() public view returns (uint256) {
+        return getLimitValue(limitType.minFiatRate);
+    }
+
+    function getMaximumFiatRate() public view returns (uint256) {
+        return getLimitValue(limitType.maxFiatRate);
+    }
+
+    function getMinimumBuyTokens() public view returns (uint256) {
+        return getLimitValue(limitType.minTokensBuy);
+    }
+
+    function getMaximumBuyTokens() public view returns (uint256) {
+        return getLimitValue(limitType.maxTokensBuy);
+    }
+
+    function getMinimumSellTokens() public view returns (uint256) {
+        return getLimitValue(limitType.minTokensSell);
+    }
+
+    function getMaximumSellTokens() public view returns (uint256) {
+        return getLimitValue(limitType.maxTokensSell);
+    }
+
+    function BasicBank() public {
+    }
+
+    /**
+     * @dev Gets oracle count.
+     */
     function getOracleCount() public view returns (uint) {
         return oracleAddresses.length;
     }
@@ -210,8 +314,13 @@ contract BasicBank is Ownable, Pausable {
 //        require(validRate);
         cryptoFiatRate = _rate;
         currencyUpdateTime = now;
+        cryptoFiatRateSell = _rate + sellSpread.mul(sellFee).div(10000);
+        cryptoFiatRateBuy = _rate - buySpread.mul(buyFee).div(10000);
     }
 
+    /**
+     * @dev Funds each oracle till its balance is 0.2 eth (TODO: make a var for 0.2 eth).
+     */
     function fundOracles() public payable {
         for (uint256 i = 0; i < oracleAddresses.length; i++) {
             UINTLog(oracleAddresses[i].balance);
@@ -220,7 +329,7 @@ contract BasicBank is Ownable, Pausable {
                oracleAddresses[i].transfer(200 finney - oracleAddresses[i].balance);
             }
         } // foreach oracles
-}
+    }
 
     // про видимость подумать
     /**
@@ -265,7 +374,7 @@ contract BasicBank is Ownable, Pausable {
             return false;
         }
         uint256 numReadyOracles = 0;
-        uint256 sumRates = 0;
+        uint256 sumRating = 0;
         uint256 integratedRates = 0;
         // the average rate would be: (sum of rating*rate)/(sum of ratings)
         // so the more rating oracle has, the more powerful his rate is
@@ -275,7 +384,7 @@ contract BasicBank is Ownable, Pausable {
                 if (currentOracleData.enabled) {
                     numReadyOracles++;
                     // values for calculating the rate
-                    sumRates += currentOracleData.rating;
+                    sumRating += currentOracleData.rating;
                     integratedRates += currentOracleData.rating.mul(currentOracleData.cryptoFiatRate);
                 }
         //    } else { // oracle's rate is older than 5 mins
@@ -291,9 +400,9 @@ contract BasicBank is Ownable, Pausable {
             return false;
         } // numReadyOracles!=0 is already; need more than or equal to 50% ready oracles
         // here we can count the rate and return true
-        UINTLog(integratedRates);
-        UINTLog(sumRates);
-        uint256 finalRate = integratedRates.div(sumRates); // formula is in upper comment
+        //UINTLog(integratedRates);
+        //UINTLog(sumRating);
+        uint256 finalRate = integratedRates.div(sumRating); // formula is in upper comment
         setCurrencyRate(finalRate);
         return true;
     }
@@ -324,21 +433,23 @@ contract BasicBank is Ownable, Pausable {
         }
     }
 
-    function setToken(address _tokenAddress) public {
+    /**
+     * @dev Attaches token contract.
+     * @param _tokenAddress The token address.
+     */
+    function attachToken(address _tokenAddress) public {
         tokenAddress = _tokenAddress;
         libreToken = token(tokenAddress);
         libreToken.setBankAddress(address(this));
     }
 
-    function allowTests() public {
-        bankAllowTests = true;
-    }
+    // для автотестов
+    //function allowTests() public { bankAllowTests = true; }
+    //function areTestsAllowed() public view returns (bool) { return bankAllowTests; }
 
-    function areTestsAllowed() public view returns (bool) {
-        return bankAllowTests;
-    }
-
-
+    /**
+     * @dev Gets current token address.
+     */
     function getToken() view public returns (address) {
         return tokenAddress;
     }
@@ -349,7 +460,7 @@ contract BasicBank is Ownable, Pausable {
     function donate() payable public {}
 
     /**
-     * @dev Gets total tokens count.
+     * @dev Returns total tokens count.
      */
     function totalTokenCount() public returns (uint256) {
         return libreToken.getTokensAmount();
@@ -367,14 +478,33 @@ contract BasicBank is Ownable, Pausable {
     }
 
     /**
+     * @dev Creates buy order.
+     * @param _address Beneficiar.
+     */
+    function createBuyOrder(address _address) payable public {
+        require((msg.value > getMinimumBuyTokens()) && (msg.value < getMaximumBuyTokens()));
+        orders.push(OrderData(OrderType.ORDER_BUY, _address, msg.value, now));
+    }
+
+    /**
+     * @dev Creates sell order.
+     * @param _address Beneficiar.
+     * @param _tokensCount Amount of tokens to sell.
+     */
+    function createSellOrder(address _address, uint256 _tokensCount) public {
+        orders.push(OrderData(OrderType.ORDER_BUY, _address, _tokensCount, now));
+    }
+
+    // удалю потом две нижние функции, будет общее разгребание очереди
+    /**
      * @dev Lets user buy tokens.
      * @param _beneficiar The buyer's address.
      */
     function buyTokens(address _beneficiar) payable public {
-        //require(_beneficiar != 0x0);
+/*        require(_beneficiar != 0x0);
         uint256 tokensAmount = msg.value.mul(cryptoFiatRate).div(100);  
         libreToken.mint(_beneficiar, tokensAmount);
-        TokensBought(_beneficiar, tokensAmount, msg.value);
+        TokensBought(_beneficiar, tokensAmount, msg.value);*/
     }
 
     /**
@@ -382,7 +512,7 @@ contract BasicBank is Ownable, Pausable {
      * @param _amount The amount of tokens.
      */
     function sellTokens(uint256 _amount) public {
-        require (libreToken.balanceOf(msg.sender) >= _amount);        // checks if the sender has enough to sell
+/*        require (libreToken.balanceOf(msg.sender) >= _amount);        // checks if the sender has enough to sell
         
         uint256 tokensAmount;
         uint256 cryptoAmount = _amount.div(cryptoFiatRate).mul(100);
@@ -395,5 +525,5 @@ contract BasicBank is Ownable, Pausable {
         msg.sender.transfer(cryptoAmount);
         libreToken.burn(msg.sender, tokensAmount); 
         TokensSold(msg.sender, tokensAmount, cryptoAmount);
-    }
+    }*/
 }
