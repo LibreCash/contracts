@@ -147,6 +147,9 @@ contract BasicBank is UsingMultiOracles, Pausable {
         require((tokenCount > getMinimumBuyTokens()) && (tokenCount < getMaximumBuyTokens()));
         orders.push(OrderData(OrderType.ORDER_BUY, _address, msg.value, now));
         OrderCreated("Buy", tokenCount, msg.value, cryptoFiatRateBuy);
+        if (orders.length == 0) {
+            requestUpdateRates();
+        }
     }
 
     /**
@@ -158,6 +161,9 @@ contract BasicBank is UsingMultiOracles, Pausable {
         require((_tokensCount > getMinimumBuyTokens()) && (_tokensCount < getMaximumSellTokens()));
         orders.push(OrderData(OrderType.ORDER_BUY, _address, _tokensCount, now));
         OrderCreated("Sell", _tokensCount, 0, cryptoFiatRateSell); // пока заранее не считаем эфиры на вывод
+        if (orders.length == 0) {
+            requestUpdateRates();
+        }
     }
 
     /**
