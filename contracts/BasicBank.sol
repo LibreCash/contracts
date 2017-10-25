@@ -49,7 +49,7 @@ contract BasicBank is UsingMultiOracles, Pausable {
      * @param _min Min limit.
      * @param _max Max limit.
      */
-    function setBuyTokenLimits(uint256 _min, uint256 _max) public /*onlyOwner*/ {
+    function setBuyTokenLimits(uint256 _min, uint256 _max) public onlyOwner {
         setLimitValue(limitType.minTokensBuy, _min);
         setLimitValue(limitType.maxTokensBuy, _max);
     }
@@ -59,7 +59,7 @@ contract BasicBank is UsingMultiOracles, Pausable {
      * @param _min Min limit.
      * @param _max Max limit.
      */
-    function setSellTokenLimits(uint256 _min, uint256 _max) public /*onlyOwner*/ {
+    function setSellTokenLimits(uint256 _min, uint256 _max) public onlyOwner {
         setLimitValue(limitType.minTokensSell, _min);
         setLimitValue(limitType.maxTokensSell, _max);
     }
@@ -98,7 +98,7 @@ contract BasicBank is UsingMultiOracles, Pausable {
      * @dev Attaches token contract.
      * @param _tokenAddress The token address.
      */
-    function attachToken(address _tokenAddress) public {
+    function attachToken(address _tokenAddress) public onlyOwner {
         tokenAddress = _tokenAddress;
         libreToken = token(tokenAddress);
         libreToken.setBankAddress(address(this));
@@ -123,19 +123,19 @@ contract BasicBank is UsingMultiOracles, Pausable {
     /**
      * @dev Returns total tokens count.
      */
-    function totalTokenCount() public returns (uint256) {
+    function totalTokenCount() internal returns (uint256) {
         return libreToken.getTokensAmount();
     }
 
     /**
      * @dev Transfers crypto.
      */
-   function withdrawCrypto(address _beneficiar) public {
+   function withdrawCrypto(address _beneficiar) public onlyOwner {
         _beneficiar.transfer(this.balance);
     }
 
     function () payable external {
-        //buyTokens(msg.sender);
+        //createBuyOrder(msg.sender);
     }
 
     /**
@@ -205,7 +205,7 @@ contract BasicBank is UsingMultiOracles, Pausable {
     /**
      * @dev Fills order queue.
      */
-    function fillOrders() public returns (bool) {
+    function fillOrders() internal returns (bool) {
         require (bottomOrderIndex < orders.length);
         uint ordersLength = orders.length;
         for (uint i = bottomOrderIndex; i < ordersLength; i++) {

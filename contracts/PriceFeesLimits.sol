@@ -30,7 +30,7 @@ contract PriceFeesLimits is Ownable {
      * @param _min Min rate.
      * @param _max Max rate.
      */
-    function setRateLimits(uint256 _min, uint256 _max) public /*onlyOwner*/ {
+    function setRateLimits(uint256 _min, uint256 _max) public onlyOwner {
         setLimitValue(limitType.minCryptoFiatRate, _min);
         setLimitValue(limitType.maxCryptoFiatRate, _max);
     }
@@ -51,7 +51,7 @@ contract PriceFeesLimits is Ownable {
      * @dev Sets buying fee.
      * @param _fee The fee in percent (100% = 10000).
      */
-    function setBuyFee(uint256 _fee) public {
+    function setBuyFee(uint256 _fee) public onlyOwner {
         require (_fee < 300000); // fee less than 300%
         buyFee = _fee;
     }
@@ -60,7 +60,7 @@ contract PriceFeesLimits is Ownable {
      * @dev Sets selling eee.
      * @param _fee The fee in percent (100% = 10000).
      */
-    function setSellFee(uint256 _fee) public {
+    function setSellFee(uint256 _fee) public onlyOwner {
         require (_fee < 300000); // fee less than 300%
         sellFee = _fee;
     }

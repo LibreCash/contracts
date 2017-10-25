@@ -84,7 +84,7 @@ contract UsingMultiOracles is PriceFeesLimits {
      * @dev Adds an oracle.
      * @param _address The oracle address.
      */
-    function addOracle(address _address) public {
+    function addOracle(address _address) public onlyOwner {
         require(_address != 0x0);
         oracleInterface currentOracleInterface = oracleInterface(_address);
         // TODO: возможно нам не нужно обращаться к оракулу лишний раз
@@ -106,7 +106,7 @@ contract UsingMultiOracles is PriceFeesLimits {
      * @dev Disable oracle.
      * @param _address The oracle address.
      */
-    function disableOracle(address _address) public {
+    function disableOracle(address _address) public onlyOwner {
         oracles[_address].enabled = false;
         OracleDisabled(_address, oracles[_address].name);
         if (numEnabledOracles!=0) {
@@ -119,7 +119,7 @@ contract UsingMultiOracles is PriceFeesLimits {
      * @dev Enable oracle.
      * @param _address The oracle address.
      */
-    function enableOracle(address _address) public {
+    function enableOracle(address _address) public onlyOwner {
         oracles[_address].enabled = true;
         OracleEnabled(_address, oracles[_address].name);
         numEnabledOracles++;
@@ -130,7 +130,7 @@ contract UsingMultiOracles is PriceFeesLimits {
      * @dev Delete oracle.
      * @param _address The oracle address.
      */
-    function deleteOracle(address _address) public {
+    function deleteOracle(address _address) public onlyOwner {
         OracleDeleted(_address, oracles[_address].name);
         // может быть не стоит удалять ждущие? обсудить - Дима
         if (oracles[_address].waiting) {
@@ -193,7 +193,7 @@ contract UsingMultiOracles is PriceFeesLimits {
     /**
      * @dev Touches oracles asking them to get new rates.
      */
-    function requestUpdateRates() public {
+    function requestUpdateRates() internal {
         require (numEnabledOracles >= MIN_ENABLED_ORACLES);
         numWaitingOracles = 0;
         for (uint256 i = 0; i < oracleAddresses.length; i++) {
@@ -212,7 +212,7 @@ contract UsingMultiOracles is PriceFeesLimits {
     /**
      * @dev Calculates crypto/fiat rate from "oracles" array.
      */
-    function calculateRate() public {
+    function calculateRate() internal {
         require (numWaitingOracles <= MIN_WAITING_ORACLES);
         require (numEnabledOracles-numWaitingOracles >= MIN_ENABLED_NOT_WAITING_ORACLES);
 
