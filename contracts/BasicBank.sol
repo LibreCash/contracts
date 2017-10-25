@@ -230,7 +230,7 @@ contract BasicBank is Ownable, Pausable {
         return getLimitValue(limitType.maxTokensSell);
     }
 
-    function BasicBank() public {
+    function BasicBank() public {  
     }
 
     /**
