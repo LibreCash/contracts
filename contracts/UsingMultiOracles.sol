@@ -29,6 +29,18 @@ contract UsingMultiOracles is PriceFeesLimits {
     event OracleTouched(address indexed _address, bytes32 name);
     event OracleCallback(address indexed _address, bytes32 name, uint256 result);
     event TextLog(string data);
+    // Извещения о критических ситуациях
+    /*
+а) Резкое падение обеспечение
+б) Значительный рост волатильности
+в) Значительные различия между оракулами
+г) Несколько неудачных попыток достучаться до оракулов
+д) Снижение числа доступных оракулов меньше чем до №
+    */
+    event ReservesAlert (string description, uint bankBalance, uint tokensSupply);
+    event VolatilityAlert (string description);
+    event OraculusDivergenceAlert (string description);
+    event LowOraclesNumberAlert (string description);
 
     struct OracleData {
         bytes32 name;

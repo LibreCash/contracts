@@ -3,7 +3,7 @@ var fs = require('fs');
 var contracts = ['LibreCash',
                  'OracleBitfinex',
                  'OracleBitstamp',
-                 //'OracleGDAX',
+                 'OracleGDAX',
                  'OracleGemini',
                  'OracleKraken',
                  'OracleWEX',

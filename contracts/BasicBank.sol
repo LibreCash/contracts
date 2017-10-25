@@ -26,27 +26,10 @@ contract BasicBank is UsingMultiOracles, Pausable {
     event LogBuy(address clientAddress, uint256 tokenAmount, uint256 cryptoAmount, uint256 buyPrice);
     event LogSell(address clientAddress, uint256 tokenAmount, uint256 cryptoAmount, uint256 sellPrice);
 
-    // Извещения о критических ситуациях
-    /*
-а) Резкое падение обеспечение
-б) Значительный рост волатильности
-в) Значительные различия между оракулами
-г) Несколько неудачных попыток достучаться до оракулов
-д) Снижение числа доступных оракулов меньше чем до №
-    */
-    event ReservesAlert (string description, uint BankBalance, uint TokensSupply);
-    event VolatilityAlert (string description);
-    event OraculusDivergenceAlert (string description);
-    event LowOraclesNumberAlert (string description);
-
-
-
     address tokenAddress;
     token libreToken;
 
-
-    //bool bankAllowTests = false; // для тестов тоже
-
+    //bool bankAllowTests = false; // для тестов
 
 
     enum OrderType { ORDER_BUY, ORDER_SELL }
@@ -60,11 +43,6 @@ contract BasicBank is UsingMultiOracles, Pausable {
 
     OrderData[] orders; // очередь ордеров
     uint256 orderCount = 0;
-
-
-
-
-
 
     /**
      * @dev Sets min/max buy limits.
@@ -86,39 +64,35 @@ contract BasicBank is UsingMultiOracles, Pausable {
         setLimitValue(limitType.maxTokensSell, _max);
     }
 
-
-     /**
+    /**
      * @dev Gets min buy limit in tokens.
      */
     function getMinimumBuyTokens() public view returns (uint256) {
         return getLimitValue(limitType.minTokensBuy);
     }
 
-     /**
+    /**
      * @dev Gets max buy limit in tokens.
      */
     function getMaximumBuyTokens() public view returns (uint256) {
         return getLimitValue(limitType.maxTokensBuy);
     }
 
-     /**
+    /**
      * @dev Gets min sell limit in tokens.
      */
     function getMinimumSellTokens() public view returns (uint256) {
         return getLimitValue(limitType.minTokensSell);
     }
 
-     /**
+    /**
      * @dev Gets max sell limit in tokens.
      */
    function getMaximumSellTokens() public view returns (uint256) {
         return getLimitValue(limitType.maxTokensSell);
     }
 
-    function BasicBank() public {
-    }
-
-
+    function BasicBank() public { }
 
     /**
      * @dev Attaches token contract.
@@ -186,7 +160,6 @@ contract BasicBank is UsingMultiOracles, Pausable {
         OrderCreated("Sell", _tokensCount, 0, cryptoFiatRateSell); // пока заранее не считаем эфиры на вывод
     }
 
-
     /**
      * @dev Fills buy order from queue.
      * @param _orderID The order ID.
@@ -226,8 +199,6 @@ contract BasicBank is UsingMultiOracles, Pausable {
         LogSell(beneficiar, tokensAmount, cryptoAmount, cryptoFiatRateBuy);
         return true;
     }
-
-
 
     uint256 bottomOrderIndex = 0; // поднять потом наверх
 
