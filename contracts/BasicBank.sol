@@ -289,19 +289,18 @@ contract BasicBank is UsingMultiOracles, Pausable {
      * @param _rate The oracle ETH/USD rate.
      * @param _time Update time sent from oracle.
      */
-    function oraclesCallback(address _address, uint256 _rate, uint256 _time) public {
-        
+    function oraclesCallback(address _address, uint256 _rate, uint256 _time) public /*onlyOracles*/ {
         OracleCallback(_address, oracles[_address].name, _rate);
-            // all ok, we waited for it
-            numWaitingOracles--;
-            // maybe we should check for existance of structure oracles[_address]? to think about it
-            oracles[_address].cryptoFiatRate = _rate;
-            oracles[_address].updateTime = _time;
-            oracles[_address].waiting = false;
-            if (numWaitingOracles == 0) {
+        // all ok, we waited for it
+        numWaitingOracles--;
+        // maybe we should check for existance of structure oracles[_address]? to think about it
+        oracles[_address].cryptoFiatRate = _rate;
+        oracles[_address].updateTime = _time;
+        oracles[_address].waiting = false;
+        if (numWaitingOracles == 0) {
                 calculateRate();
                 fillOrders();
-            }
+        }
     }
 
 }
