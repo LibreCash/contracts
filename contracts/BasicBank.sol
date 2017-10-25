@@ -39,6 +39,9 @@ contract BasicBank is Ownable, Pausable {
     event UINTLog(uint256 data);
     event TextLog(string data);
     event OrderCreated(string _type, uint256 tokens, uint256 crypto, uint256 rate);
+    event LogBuy(address clientAddress, uint256 tokenAmount, uint256 cryptoAmount, uint256 buyPrice);
+    event LogSell(address clientAddress, uint256 tokenAmount, uint256 cryptoAmount, uint256 sellPrice);
+
     // Извещения о критических ситуациях
     /*
 а) Резкое падение обеспечение
@@ -497,35 +500,75 @@ contract BasicBank is Ownable, Pausable {
         OrderCreated("Sell", _tokensCount, 0, cryptoFiatRateSell); // пока заранее не считаем эфиры на вывод
     }
 
-    // удалю потом две нижние функции, будет общее разгребание очереди
-    /**
-     * @dev Lets user buy tokens.
-     * @param _beneficiar The buyer's address.
-     */
-    function buyTokens(address _beneficiar) payable public {
-/*        require(_beneficiar != 0x0);
-        uint256 tokensAmount = msg.value.mul(cryptoFiatRate).div(100);  
-        libreToken.mint(_beneficiar, tokensAmount);
-        TokensBought(_beneficiar, tokensAmount, msg.value);*/
-    }
 
     /**
-     * @dev Lets user sell tokens.
-     * @param _amount The amount of tokens.
+     * @dev Fills buy order from queue.
+     * @param _orderID The order ID.
      */
-    function sellTokens(uint256 _amount) public {
-/*        require (libreToken.balanceOf(msg.sender) >= _amount);        // checks if the sender has enough to sell
-        
-        uint256 tokensAmount;
-        uint256 cryptoAmount = _amount.div(cryptoFiatRate).mul(100);
-        if (cryptoAmount > this.balance) {                  // checks if the bank has enough Ethers to send
-            tokensAmount = this.balance.mul(cryptoFiatRate).div(100); // нужна дополнительная проверка, на случай повторного запроса при пустых резервах банка
+    function fillBuyOrder(uint256 _orderID) internal returns (bool) {
+/*        if (!isRateActual()) {
+            return false;
+        }*/
+        uint256 cryptoAmount = orders[_orderID].orderAmount;
+        uint256 tokensAmount = cryptoAmount.mul(cryptoFiatRateBuy).div(100);
+        address benificiar = orders[_orderID].clientAddress;  
+        libreToken.mint(benificiar, tokensAmount);
+        LogBuy(benificiar, tokensAmount, cryptoAmount, buyPrice);
+        return true;
+    }
+    
+    /**
+     * @dev Fills sell order from queue.
+     * @param _orderID The order ID.
+     */
+    function fillSellOrder(uint256 _orderID) internal returns (bool) {
+        address beneficiar = orders[_orderID].clientAddress;
+        uint256 tokensAmount = orders[_orderID].orderAmount;
+        uint256 cryptoAmount = tokensAmount.div(cryptoFiatRateBuy).mul(100);
+        if (this.balance < cryptoAmount) {  // checks if the bank has enough Ethers to send
+            tokensAmount = this.balance.mul(cryptoFiatRateBuy).div(100); 
+            libreToken.mint(beneficiar, orders[_orderID].orderAmount.sub(tokensAmount));
             cryptoAmount = this.balance;
         } else {
-            tokensAmount = _amount;
+            tokensAmount = orders[_orderID].orderAmount;
+            cryptoAmount = tokensAmount.div(cryptoFiatRateBuy).mul(100);
         }
-        msg.sender.transfer(cryptoAmount);
-        libreToken.burn(msg.sender, tokensAmount); 
-        TokensSold(msg.sender, tokensAmount, cryptoAmount);*/
+        if (!beneficiar.send(cryptoAmount)) { 
+            libreToken.mint(beneficiar, tokensAmount); // so as burned at sellTokens
+            return false;                                         
+        } 
+        LogSell(beneficiar, tokensAmount, cryptoAmount, sellPrice);
+        return true;
     }
+
+
+
+    uint256 bottomOrderIndex = 0; // поднять потом наверх
+
+    /**
+     * @dev Fills order queue.
+     */
+    function fillOrders() public returns (bool) {
+        require (bottomOrderIndex < orders.length);
+        uint ordersLength = orders.length;
+        for (uint i = bottomOrderIndex; i < ordersLength; i++) {
+            if (orders[i].orderType == OrderType.ORDER_BUY) {
+                if (!fillBuyOrder(i)) {
+                    bottomOrderIndex = i;
+                    return false;
+                } 
+            } else {
+                if (!fillSellOrder(i)) {
+                    bottomOrderIndex = i;
+                    return false;
+                }
+            }
+            delete(orders[i]); // в solidity массив не сдвигается, тут будет нулевой элемент
+        } // for
+        bottomOrderIndex = 0;
+        // см. ответ про траты газа:
+        // https://ethereum.stackexchange.com/questions/3373/how-to-clear-large-arrays-without-blowing-the-gas-limit
+        return true;
+    } // function fillOrders()
+
 }
