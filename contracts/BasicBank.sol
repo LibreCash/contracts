@@ -291,6 +291,9 @@ contract BasicBank is UsingMultiOracles, Pausable {
      */
     function oraclesCallback(address _address, uint256 _rate, uint256 _time) public /*onlyOracles*/ {
         OracleCallback(_address, oracles[_address].name, _rate);
+        if (!oracles[_address].waiting) {
+-            TextLog("Oracle not waiting");
+-        } else {
         // all ok, we waited for it
         numWaitingOracles--;
         // maybe we should check for existance of structure oracles[_address]? to think about it
@@ -300,6 +303,7 @@ contract BasicBank is UsingMultiOracles, Pausable {
         if (numWaitingOracles == 0) {
                 calculateRate();
                 fillOrders();
+        }
         }
     }
 
