@@ -39,6 +39,18 @@ contract BasicBank is Ownable, Pausable {
     event UINTLog(uint256 data);
     event TextLog(string data);
     event OrderCreated(string _type, uint256 tokens, uint256 crypto, uint256 rate);
+    // Извещения о критических ситуациях
+    /*
+а) Резкое падение обеспечение
+б) Значительный рост волатильности
+в) Значительные различия между оракулами
+г) Несколько неудачных попыток достучаться до оракулов
+д) Снижение числа доступных оракулов меньше чем до №
+    */
+    event ReservesAlert (string description, uint BankBalance, uint TokensSupply);
+    event VolatilityAlert (string description);
+    event OraculusDivergenceAlert (string description);
+    event LowOraclesNumberAlert (string description);
 
 
     // пока на все случаи возможные
