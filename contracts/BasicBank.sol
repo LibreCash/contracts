@@ -228,4 +228,74 @@ contract BasicBank is UsingMultiOracles, Pausable {
         return true;
     } // function fillOrders()
 
+    
+    // про видимость подумать
+    /**
+     * @dev Touches oracles asking them to get new rates.
+     */
+    function requestUpdateRates() internal {
+        require (numEnabledOracles >= MIN_ENABLED_ORACLES);
+        numWaitingOracles = 0;
+        for (uint256 i = 0; i < oracleAddresses.length; i++) {
+            if (oracles[oracleAddresses[i]].enabled) {
+                oracleInterface(oracleAddresses[i]).updateRate();
+                OracleTouched(oracleAddresses[i], oracles[oracleAddresses[i]].name);
+                oracles[oracleAddresses[i]].waiting = true;
+                numWaitingOracles++;
+            }
+            timeUpdateRequested = now;
+        } // foreach oracles
+        OraclesTouched("Запущено обновление курсов");
+    }
+
+    // подумать над видимостью
+    /**
+     * @dev Calculates crypto/fiat rate from "oracles" array.
+     */
+    function calculateRate() internal {
+        require (numWaitingOracles <= MIN_WAITING_ORACLES);
+        require (numEnabledOracles-numWaitingOracles >= MIN_ENABLED_NOT_WAITING_ORACLES);
+
+        uint256 numReadyOracles = 0;
+        uint256 sumRating = 0;
+        uint256 integratedRates = 0;
+        // the average rate would be: (sum of rating*rate)/(sum of ratings)
+        // so the more rating oracle has, the more powerful his rate is
+        for (uint i = 0; i < oracleAddresses.length; i++) {
+            OracleData storage currentOracleData = oracles[oracleAddresses[i]];
+            if (now <= currentOracleData.updateTime + 3 minutes) { // защита от флуда обновлениями, потом мб уберём
+                if (currentOracleData.enabled) {
+                    numReadyOracles++;
+                    sumRating += currentOracleData.rating;
+                    integratedRates += currentOracleData.rating.mul(currentOracleData.cryptoFiatRate);
+                }
+            }
+        }
+        require (numReadyOracles >= MIN_READY_ORACLES);
+
+        uint256 finalRate = integratedRates.div(sumRating); // the formula is in upper comment
+        setCurrencyRate(finalRate);
+    }
+
+    /**
+     * @dev The callback from oracles.
+     * @param _address The oracle address.
+     * @param _rate The oracle ETH/USD rate.
+     * @param _time Update time sent from oracle.
+     */
+    function oraclesCallback(address _address, uint256 _rate, uint256 _time) public {
+        
+        OracleCallback(_address, oracles[_address].name, _rate);
+            // all ok, we waited for it
+            numWaitingOracles--;
+            // maybe we should check for existance of structure oracles[_address]? to think about it
+            oracles[_address].cryptoFiatRate = _rate;
+            oracles[_address].updateTime = _time;
+            oracles[_address].waiting = false;
+            if (numWaitingOracles == 0) {
+                calculateRate();
+                fillOrders();
+            }
+    }
+
 }
