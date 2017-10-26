@@ -58,7 +58,9 @@ contract BasicBank is UsingMultiOracles, Pausable {
     OrderData[] orders; // очередь ордеров
     uint256 orderCount = 0;
 
-    function BasicBank() public { }
+    function BasicBank() public {
+        setBuyTokenLimits(0,0);
+     }
 
     /**
      * @dev Attaches token contract.
@@ -109,8 +111,7 @@ contract BasicBank is UsingMultiOracles, Pausable {
      * @param _address Beneficiar.
      */
     function createBuyOrder(address _address) payable public {
-        uint256 tokenCount = msg.value.mul(cryptoFiatRateBuy);
-        require((tokenCount > getMinimumBuyTokens()) && (tokenCount < getMaximumBuyTokens()));
+        require((msg.value > getMinimumBuyTokens()) && (msg.value < getMaximumBuyTokens()));
         if (orders.length == 0) {
             requestUpdateRates();
         }
