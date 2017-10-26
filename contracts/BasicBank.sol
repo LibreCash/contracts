@@ -60,6 +60,7 @@ contract BasicBank is UsingMultiOracles, Pausable {
 
     function BasicBank() public {
         setBuyTokenLimits(0,0);
+        setSellTokenLimits(0,0);
      }
 
     /**
@@ -125,7 +126,7 @@ contract BasicBank is UsingMultiOracles, Pausable {
      * @param _tokensCount Amount of tokens to sell.
      */
     function createSellOrder(address _address, uint256 _tokensCount) public {
-        require((_tokensCount > getMinimumBuyTokens()) && (_tokensCount < getMaximumSellTokens()));
+        require((_tokensCount > getMinimumSellTokens()) && (_tokensCount < getMaximumSellTokens()));
         if (orders.length == 0) {
             requestUpdateRates();
         }
