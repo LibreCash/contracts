@@ -39,7 +39,7 @@ contract PriceFeesLimits is Ownable {
      * @dev Sets fiat rate limits via range.
      * @param _percent Value in percent in both directions (100% = 10000).
      */
-    function setRateRange(uint256 _percent) public {
+    function setRateRange(uint256 _percent) public /*onlyOwner*/{
         require (cryptoFiatRate > 0);
         require ((_percent < 10000) && (_percent > 0));
         uint256 _min = cryptoFiatRate.mul(10000 - _percent).div(10000);
