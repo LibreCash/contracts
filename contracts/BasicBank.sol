@@ -22,7 +22,7 @@ contract BasicBank is UsingMultiOracles, Pausable {
     event TokensBought(address _beneficiar, uint256 tokensAmount, uint256 cryptoAmount);
     event TokensSold(address _beneficiar, uint256 tokensAmount, uint256 cryptoAmount);
     event UINTLog(uint256 data);
-    event OrderCreated(string _type, uint256 tokens, uint256 crypto, uint256 rate);
+    event OrderCreated(string _type, uint256 amount);
     event LogBuy(address clientAddress, uint256 tokenAmount, uint256 cryptoAmount, uint256 buyPrice);
     event LogSell(address clientAddress, uint256 tokenAmount, uint256 cryptoAmount, uint256 sellPrice);
 
@@ -45,18 +45,16 @@ contract BasicBank is UsingMultiOracles, Pausable {
   }
 
     
-    
-
-    enum OrderType { ORDER_BUY, ORDER_SELL }
     struct OrderData {
-        OrderType orderType;
         address clientAddress;
         uint256 orderAmount;
         uint256 orderTimestamp;
         //uint ClientLimit;
     }
 
-    OrderData[] orders; // очередь ордеров
+    OrderData[] BuyOrders; // очередь ордеров на покупку
+    OrderData[] SellOrders; // очередь ордеров на покупку
+
     uint256 orderCount = 0;
 
     function BasicBank() public {
@@ -114,11 +112,11 @@ contract BasicBank is UsingMultiOracles, Pausable {
      */
     function createBuyOrder(address _address) payable public {
         require((msg.value > getMinimumBuyTokens()) && (msg.value < getMaximumBuyTokens()));
-        if (orders.length == 0) {
+        if (BuyOrders.length == 0) && (SellOrders.length == 0){
             requestUpdateRates();
         }
-        orders.push(OrderData(OrderType.ORDER_BUY, _address, msg.value, now));
-        OrderCreated("Buy", tokenCount, msg.value, cryptoFiatRateBuy);
+        BuyOrders.push(OrderData( _address, msg.value, now));
+        OrderCreated("Buy", msg.value);
     }
 
     /**
@@ -128,11 +126,11 @@ contract BasicBank is UsingMultiOracles, Pausable {
      */
     function createSellOrder(address _address, uint256 _tokensCount) public {
         require((_tokensCount > getMinimumSellTokens()) && (_tokensCount < getMaximumSellTokens()));
-        if (orders.length == 0) {
+        if (BuyOrders.length == 0) && (SellOrders.length == 0){
             requestUpdateRates();
         }
-        orders.push(OrderData(OrderType.ORDER_BUY, _address, _tokensCount, now));
-        OrderCreated("Sell", _tokensCount, 0, cryptoFiatRateSell); // пока заранее не считаем эфиры на вывод
+        SellOrders.push(OrderData(_address, _tokensCount, now));
+        OrderCreated("Sell", _tokensCount); 
     }
 
     /**
@@ -140,9 +138,9 @@ contract BasicBank is UsingMultiOracles, Pausable {
      * @param _orderID The order ID.
      */
     function fillBuyOrder(uint256 _orderID) internal returns (bool) {
-        uint256 cryptoAmount = orders[_orderID].orderAmount;
+        uint256 cryptoAmount = BuyOrders[_orderID].orderAmount;
         uint256 tokensAmount = cryptoAmount.mul(cryptoFiatRateBuy).div(100);
-        address benificiar = orders[_orderID].clientAddress;  
+        address benificiar = BuyOrders[_orderID].clientAddress;  
         libreToken.mint(benificiar, tokensAmount);
         LogBuy(benificiar, tokensAmount, cryptoAmount, cryptoFiatRateBuy);
         return true;
@@ -153,15 +151,15 @@ contract BasicBank is UsingMultiOracles, Pausable {
      * @param _orderID The order ID.
      */
     function fillSellOrder(uint256 _orderID) internal returns (bool) {
-        address beneficiar = orders[_orderID].clientAddress;
-        uint256 tokensAmount = orders[_orderID].orderAmount;
+        address beneficiar = SellOrders[_orderID].clientAddress;
+        uint256 tokensAmount = SellOrders[_orderID].orderAmount;
         uint256 cryptoAmount = tokensAmount.div(cryptoFiatRateBuy).mul(100);
         if (this.balance < cryptoAmount) {  // checks if the bank has enough Ethers to send
             tokensAmount = this.balance.mul(cryptoFiatRateBuy).div(100); 
-            libreToken.mint(beneficiar, orders[_orderID].orderAmount.sub(tokensAmount));
+            libreToken.mint(beneficiar, SellOrders[_orderID].orderAmount.sub(tokensAmount));
             cryptoAmount = this.balance;
         } else {
-            tokensAmount = orders[_orderID].orderAmount;
+            tokensAmount = SellOrders[_orderID].orderAmount;
             cryptoAmount = tokensAmount.div(cryptoFiatRateBuy).mul(100);
         }
         if (!beneficiar.send(cryptoAmount)) { 
@@ -172,33 +170,42 @@ contract BasicBank is UsingMultiOracles, Pausable {
         return true;
     }
 
-    uint256 bottomOrderIndex = 0; // поднять потом наверх
+    uint256 bottomBuyOrderIndex = 0; // поднять потом наверх
+    uint256 bottomSellOrderIndex = 0;
 
     /**
      * @dev Fills order queue.
      */
-    function fillOrders() internal returns (bool) {
-        require (bottomOrderIndex < orders.length);
-        uint ordersLength = orders.length;
-        for (uint i = bottomOrderIndex; i < ordersLength; i++) {
-            if (orders[i].orderType == OrderType.ORDER_BUY) {
+    function fillBuyOrders() internal returns (bool) {
+        require (bottomBuyOrderIndex < BuyOrders.length);
+        uint BuyOrdersLength = BuyOrders.length;
+        for (uint i = bottomBuyOrderIndex; i < BuyOrdersLength; i++) {
                 if (!fillBuyOrder(i)) {
-                    bottomOrderIndex = i;
+                    bottomBuyOrderIndex = i;
                     return false;
                 } 
-            } else {
-                if (!fillSellOrder(i)) {
-                    bottomOrderIndex = i;
-                    return false;
-                }
-            }
-            delete(orders[i]); // в solidity массив не сдвигается, тут будет нулевой элемент
+            delete(BuyOrders[i]); // в solidity массив не сдвигается, тут будет нулевой элемент
         } // for
-        bottomOrderIndex = 0;
+        bottomBuyOrderIndex = 0;
         // см. ответ про траты газа:
         // https://ethereum.stackexchange.com/questions/3373/how-to-clear-large-arrays-without-blowing-the-gas-limit
         return true;
-    } // function fillOrders()
+    }
+    function fillSellOrders() internal returns (bool) {
+        require (bottomSellOrderIndex < SellOrders.length);
+        uint SellOrdersLength = SellOrders.length;
+        for (uint i = bottomSellOrderIndex; i < SellOrdersLength; i++) {
+            if (!fillSellOrder(i)) {
+                    bottomSellOrderIndex = i;
+                    return false;
+            } 
+            delete(SellOrders[i]); // в solidity массив не сдвигается, тут будет нулевой элемент
+        } // for
+        bottomSellOrderIndex = 0;
+        // см. ответ про траты газа:
+        // https://ethereum.stackexchange.com/questions/3373/how-to-clear-large-arrays-without-blowing-the-gas-limit
+        return true;
+    }  
 
     
     // про видимость подумать
@@ -268,7 +275,8 @@ contract BasicBank is UsingMultiOracles, Pausable {
         oracles[_address].waiting = false;
         if (numWaitingOracles == 0) {
                 calculateRate();
-                fillOrders();
+                fillSellOrders();
+                fillBuyOrders();
         }
         }
     }
