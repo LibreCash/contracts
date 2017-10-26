@@ -30,6 +30,21 @@ contract BasicBank is UsingMultiOracles, Pausable {
     token libreToken;
 
     //bool bankAllowTests = false; // для тестов
+    
+
+  /**
+   * @dev Throws if called by any account other than the owner.
+   */
+  modifier onlyOracles() {
+     for (uint256 i = 0; i < oracleAddresses.length; i++) {
+            if (oracles[oracleAddresses[i]] == msg.sender) {
+            return true; 
+            }
+      }
+    return false;
+  }
+
+    
 
 
     enum OrderType { ORDER_BUY, ORDER_SELL }
@@ -131,11 +146,11 @@ contract BasicBank is UsingMultiOracles, Pausable {
      * @dev Transfers crypto.
      */
    function withdrawCrypto(address _beneficiar) public onlyOwner {
-        _beneficiar.transfer(this.balance);
-    }
+         _beneficiar.transfer(this.balance);
+         }
 
     function () payable external {
-        //createBuyOrder(msg.sender);
+        createBuyOrder(msg.sender);
     }
 
     /**
@@ -145,11 +160,11 @@ contract BasicBank is UsingMultiOracles, Pausable {
     function createBuyOrder(address _address) payable public {
         uint256 tokenCount = msg.value.mul(cryptoFiatRateBuy);
         require((tokenCount > getMinimumBuyTokens()) && (tokenCount < getMaximumBuyTokens()));
-        orders.push(OrderData(OrderType.ORDER_BUY, _address, msg.value, now));
-        OrderCreated("Buy", tokenCount, msg.value, cryptoFiatRateBuy);
         if (orders.length == 0) {
             requestUpdateRates();
         }
+        orders.push(OrderData(OrderType.ORDER_BUY, _address, msg.value, now));
+        OrderCreated("Buy", tokenCount, msg.value, cryptoFiatRateBuy);
     }
 
     /**
@@ -159,11 +174,11 @@ contract BasicBank is UsingMultiOracles, Pausable {
      */
     function createSellOrder(address _address, uint256 _tokensCount) public {
         require((_tokensCount > getMinimumBuyTokens()) && (_tokensCount < getMaximumSellTokens()));
-        orders.push(OrderData(OrderType.ORDER_BUY, _address, _tokensCount, now));
-        OrderCreated("Sell", _tokensCount, 0, cryptoFiatRateSell); // пока заранее не считаем эфиры на вывод
         if (orders.length == 0) {
             requestUpdateRates();
         }
+        orders.push(OrderData(OrderType.ORDER_BUY, _address, _tokensCount, now));
+        OrderCreated("Sell", _tokensCount, 0, cryptoFiatRateSell); // пока заранее не считаем эфиры на вывод
     }
 
     /**
@@ -171,9 +186,6 @@ contract BasicBank is UsingMultiOracles, Pausable {
      * @param _orderID The order ID.
      */
     function fillBuyOrder(uint256 _orderID) internal returns (bool) {
-/*        if (!isRateActual()) {
-            return false;
-        }*/
         uint256 cryptoAmount = orders[_orderID].orderAmount;
         uint256 tokensAmount = cryptoAmount.mul(cryptoFiatRateBuy).div(100);
         address benificiar = orders[_orderID].clientAddress;  
@@ -289,7 +301,7 @@ contract BasicBank is UsingMultiOracles, Pausable {
      * @param _rate The oracle ETH/USD rate.
      * @param _time Update time sent from oracle.
      */
-    function oraclesCallback(address _address, uint256 _rate, uint256 _time) public /*onlyOracles*/ {
+    function oraclesCallback(address _address, uint256 _rate, uint256 _time) public onlyOracles {
         OracleCallback(_address, oracles[_address].name, _rate);
         if (!oracles[_address].waiting) {
 -            TextLog("Oracle not waiting");
