@@ -138,7 +138,7 @@ contract BasicBank is UsingMultiOracles, Pausable {
     /**
      * @dev Returns total tokens count.
      */
-    function totalTokenCount() internal returns (uint256) {
+    function totalTokenCount() public view returns (uint256) {
         return libreToken.getTokensAmount();
     }
 
