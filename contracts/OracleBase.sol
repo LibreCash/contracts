@@ -122,6 +122,14 @@ contract OracleBase is Ownable, usingOraclize {
     }
 
     /**
+    * @dev Oraclize default callback without the proof set.
+    */
+   function __callback(bytes32 myid, string result) public {
+       bytes memory proof  = new bytes(1);
+       __callback(myid,result,proof);
+    }
+
+    /**
      * @dev Updates oraclize costs.
      * Shall be run after datasource setting.
      */
