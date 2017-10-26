@@ -48,6 +48,54 @@ contract PriceFeesLimits is Ownable {
     }
 
     /**
+     * @dev Sets min/max buy limits.
+     * @param _min Min limit.
+     * @param _max Max limit.
+     */
+    function setBuyTokenLimits(uint256 _min, uint256 _max) public onlyOwner {
+        setLimitValue(limitType.minTokensBuy, _min);
+        setLimitValue(limitType.maxTokensBuy, _max);
+    }
+
+    /**
+     * @dev Sets min/max sell limits.
+     * @param _min Min limit.
+     * @param _max Max limit.
+     */
+    function setSellTokenLimits(uint256 _min, uint256 _max) public onlyOwner {
+        setLimitValue(limitType.minTokensSell, _min);
+        setLimitValue(limitType.maxTokensSell, _max);
+    }
+
+    /**
+     * @dev Gets min buy limit in tokens.
+     */
+    function getMinimumBuyTokens() public view returns (uint256) {
+        return getLimitValue(limitType.minTokensBuy);
+    }
+
+    /**
+     * @dev Gets max buy limit in tokens.
+     */
+    function getMaximumBuyTokens() public view returns (uint256) {
+        return getLimitValue(limitType.maxTokensBuy);
+    }
+
+    /**
+     * @dev Gets min sell limit in tokens.
+     */
+    function getMinimumSellTokens() public view returns (uint256) {
+        return getLimitValue(limitType.minTokensSell);
+    }
+
+    /**
+     * @dev Gets max sell limit in tokens.
+     */
+   function getMaximumSellTokens() public view returns (uint256) {
+        return getLimitValue(limitType.maxTokensSell);
+    }
+
+    /**
      * @dev Sets buying fee.
      * @param _fee The fee in percent (100% = 10000).
      */
