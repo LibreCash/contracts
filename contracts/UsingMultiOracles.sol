@@ -79,12 +79,20 @@ contract UsingMultiOracles is PriceFeesLimits {
         return oracleAddresses.length;
     }
 
+    function isNotOracle (address _address) returns (bool) {
+        for (uint i = 0; i < oracleAddresses.length; i++) {
+            require (oracles[oracleAddresses[i]] != _address);
+        }
+        return true;
+    }
+
     // не забываем потом добавить соотв. модификатор
     /**
      * @dev Adds an oracle.
      * @param _address The oracle address.
      */
     function addOracle(address _address) public onlyOwner {
+        require(isNotOracle ( _address));
         require(_address != 0x0);
         oracleInterface currentOracleInterface = oracleInterface(_address);
         // TODO: возможно нам не нужно обращаться к оракулу лишний раз
@@ -107,6 +115,7 @@ contract UsingMultiOracles is PriceFeesLimits {
      * @param _address The oracle address.
      */
     function disableOracle(address _address) public onlyOwner {
+        require(!isNotOracle( _address));
         oracles[_address].enabled = false;
         OracleDisabled(_address, oracles[_address].name);
         if (numEnabledOracles!=0) {
@@ -120,6 +129,7 @@ contract UsingMultiOracles is PriceFeesLimits {
      * @param _address The oracle address.
      */
     function enableOracle(address _address) public onlyOwner {
+        require(!isNotOracle( _address));
         oracles[_address].enabled = true;
         OracleEnabled(_address, oracles[_address].name);
         numEnabledOracles++;
@@ -131,6 +141,7 @@ contract UsingMultiOracles is PriceFeesLimits {
      * @param _address The oracle address.
      */
     function deleteOracle(address _address) public onlyOwner {
+        require(!isNotOracle( _address));
         OracleDeleted(_address, oracles[_address].name);
         // может быть не стоит удалять ждущие? обсудить - Дима
         if (oracles[_address].waiting) {

@@ -36,7 +36,7 @@ contract BasicBank is UsingMultiOracles, Pausable {
    * @dev Throws if called by any account other than the owner.
    */
   modifier onlyOracles() {
-     for (uint256 i = 0; i < oracleAddresses.length; i++) {
+     for (uint i = 0; i < oracleAddresses.length; i++) {
             if (oracles[oracleAddresses[i]] == msg.sender) {
             return true; 
             }
@@ -44,6 +44,7 @@ contract BasicBank is UsingMultiOracles, Pausable {
     return false;
   }
 
+    
     
 
     enum OrderType { ORDER_BUY, ORDER_SELL }
@@ -207,7 +208,7 @@ contract BasicBank is UsingMultiOracles, Pausable {
     function requestUpdateRates() internal {
         require (numEnabledOracles >= MIN_ENABLED_ORACLES);
         numWaitingOracles = 0;
-        for (uint256 i = 0; i < oracleAddresses.length; i++) {
+        for (uint i = 0; i < oracleAddresses.length; i++) {
             if (oracles[oracleAddresses[i]].enabled) {
                 oracleInterface(oracleAddresses[i]).updateRate();
                 OracleTouched(oracleAddresses[i], oracles[oracleAddresses[i]].name);
