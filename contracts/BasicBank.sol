@@ -50,6 +50,7 @@ contract BasicBank is UsingMultiOracles, Pausable {
         address clientAddress;
         uint256 orderAmount;
         uint256 orderTimestamp;
+        bool deleted;
         //uint ClientLimit;
     }
 
@@ -63,14 +64,14 @@ contract BasicBank is UsingMultiOracles, Pausable {
         setSellTokenLimits(0, MAX_UINT256);
      }
 
-    function cancelBuyOrder (uint256 _orderID) internal {
+    function cancelBuyOrder (uint256 _orderID) public onlyOwner {
         require (buyOrderIndex + _orderID < buyOrderLast);
         uint256 realOrderId = buyOrderIndex + _orderID;
         buyOrders[realOrderId].clientAddress.transfer(buyOrders[realOrderId].orderAmount);
         delete(buyOrders[realOrderId]); 
     }
 
-    function cancelSellOrder (uint256 _orderID) internal {
+    function cancelSellOrder (uint256 _orderID) public onlyOwner {
         require (sellOrderIndex + _orderID < sellOrderLast);
         uint256 realOrderId = sellOrderIndex + _orderID;
         libreToken.mint(sellOrders[realOrderId].clientAddress, sellOrders[realOrderId].orderAmount);
@@ -133,7 +134,7 @@ contract BasicBank is UsingMultiOracles, Pausable {
         if (buyOrderLast == buyOrders.length) {
             buyOrders.length += 1;
         }
-        buyOrders[buyOrderLast++] = OrderData(_address, msg.value, now);
+        buyOrders[buyOrderLast++] = OrderData({clientAddress: _address, orderAmount: msg.value, orderTimestamp: now, deleted: false});
         BuyOrderCreated(msg.value);
     }
 
@@ -144,13 +145,33 @@ contract BasicBank is UsingMultiOracles, Pausable {
      */
     function createSellOrder(address _address, uint256 _tokensCount) public {
         require((_tokensCount > getMinimumSellTokens()) && (_tokensCount < getMaximumSellTokens()));
+        require(_tokensCount <= libreToken.balanceOf(_address));
         if ((buyOrders.length == 0) && (sellOrders.length == 0)) {
             requestUpdateRates();
         }
         if (sellOrderLast == sellOrders.length) {
             sellOrders.length += 1;
         }
-        sellOrders[sellOrderLast++] = OrderData(_address, _tokensCount, now);
+        sellOrders[sellOrderLast++] = OrderData({clientAddress: _address, orderAmount: _tokensCount, orderTimestamp: now, deleted: false});
+        libreToken.burn(_address, _tokensCount);
+        SellOrderCreated(_tokensCount); 
+    }
+
+    /**
+     * @dev Creates sell order.
+     * @param _tokensCount Amount of tokens to sell.
+     */
+    function createSellOrder(uint256 _tokensCount) public {
+        require((_tokensCount > getMinimumSellTokens()) && (_tokensCount < getMaximumSellTokens()));
+        require(_tokensCount <= libreToken.balanceOf(msg.sender));
+        if ((buyOrders.length == 0) && (sellOrders.length == 0)) {
+            requestUpdateRates();
+        }
+        if (sellOrderLast == sellOrders.length) {
+            sellOrders.length += 1;
+        }
+        sellOrders[sellOrderLast++] = OrderData({clientAddress: msg.sender, orderAmount: _tokensCount, orderTimestamp: now, deleted: false});
+        libreToken.burn(msg.sender, _tokensCount);
         SellOrderCreated(_tokensCount); 
     }
 
@@ -158,7 +179,10 @@ contract BasicBank is UsingMultiOracles, Pausable {
      * @dev Fills buy order from queue.
      * @param _orderID The order ID.
      */
-    function fillBuyOrder(uint256 _orderID) internal returns (bool) {
+    function fillBuyOrder(uint256 _orderID) public returns (bool) {
+        if (buyOrders[_orderID].deleted) {
+            return true; // ордер удалён
+        }
         uint256 cryptoAmount = buyOrders[_orderID].orderAmount;
         uint256 tokensAmount = cryptoAmount.mul(cryptoFiatRateBuy).div(100);
         address benificiar = buyOrders[_orderID].clientAddress;  
@@ -171,7 +195,10 @@ contract BasicBank is UsingMultiOracles, Pausable {
      * @dev Fills sell order from queue.
      * @param _orderID The order ID.
      */
-    function fillSellOrder(uint256 _orderID) internal returns (bool) {
+    function fillSellOrder(uint256 _orderID) public returns (bool) {
+        if (sellOrders[_orderID].deleted) {
+            return true; // ордер удалён
+        }
         address beneficiar = sellOrders[_orderID].clientAddress;
         uint256 tokensAmount = sellOrders[_orderID].orderAmount;
         uint256 cryptoAmount = tokensAmount.div(cryptoFiatRateBuy).mul(100);
@@ -191,15 +218,16 @@ contract BasicBank is UsingMultiOracles, Pausable {
         return true;
     }
 
-    uint256 buyOrderIndex = 0; // поднять потом наверх
-    uint256 buyOrderLast = 0;
-    uint256 sellOrderIndex = 0;
-    uint256 sellOrderLast = 0;
+// public для тестов
+    uint256 public buyOrderIndex = 0; // поднять потом наверх
+    uint256 public buyOrderLast = 0;
+    uint256 public sellOrderIndex = 0;
+    uint256 public sellOrderLast = 0;
 
     /**
      * @dev Fill buy orders queue.
      */
-    function fillBuyQueue() internal returns (bool) {
+    function fillBuyQueue() public returns (bool) {
         // TODO: при нарушении данного условия контракт окажется сломан. Нарушение малореально, но всё же найти выход
         require (buyOrderIndex < buyOrderLast);
         for (uint256 i = buyOrderIndex; i < buyOrderLast; i++) {
@@ -220,7 +248,7 @@ contract BasicBank is UsingMultiOracles, Pausable {
     /**
      * @dev Fill sell orders queue.
      */
-    function fillSellQueue() internal returns (bool) {
+    function fillSellQueue() public returns (bool) {
         // TODO: при нарушении данного условия контракт окажется сломан. Нарушение малореально, но всё же найти выход
         require (sellOrderIndex < sellOrderLast);
         for (uint i = sellOrderIndex; i < sellOrderLast; i++) {
@@ -256,8 +284,9 @@ contract BasicBank is UsingMultiOracles, Pausable {
      * @dev Show buy order amount.
      */
     function getBuyOrderValue(uint256 _orderId) public view onlyOwner returns (uint256) {
-        require (buyOrderIndex + _orderId < buyOrderLast);
         uint256 realOrderId = buyOrderIndex + _orderId;
+        require (realOrderId < buyOrderLast);
+        require (!buyOrders[realOrderId].deleted);
         return buyOrders[realOrderId].orderAmount;
     }
     
@@ -265,8 +294,9 @@ contract BasicBank is UsingMultiOracles, Pausable {
      * @dev Show sell order amount.
      */
     function getSellOrderValue(uint256 _orderId) public view onlyOwner returns (uint256) {
-        require (sellOrderIndex + _orderId < sellOrderLast);
         uint256 realOrderId = sellOrderIndex + _orderId;
+        require (realOrderId < sellOrderLast);
+        require (!sellOrders[realOrderId].deleted);
         return sellOrders[realOrderId].orderAmount;
     }
     
@@ -274,7 +304,7 @@ contract BasicBank is UsingMultiOracles, Pausable {
     /**
      * @dev Touches oracles asking them to get new rates.
      */
-    function requestUpdateRates() internal {
+    function requestUpdateRates() public {
         require (numEnabledOracles >= MIN_ENABLED_ORACLES);
         numWaitingOracles = 0;
         for (uint i = 0; i < oracleAddresses.length; i++) {
@@ -293,7 +323,7 @@ contract BasicBank is UsingMultiOracles, Pausable {
     /**
      * @dev Calculates crypto/fiat rate from "oracles" array.
      */
-    function calculateRate() internal {
+    function calculateRate() public {
         require (numWaitingOracles <= MIN_WAITING_ORACLES);
         require (numEnabledOracles-numWaitingOracles >= MIN_ENABLED_NOT_WAITING_ORACLES);
 

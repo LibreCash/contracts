@@ -54,11 +54,11 @@ function temporarySetDependencies(contractName, instance) {
 }
 
 function writeDeployedContractData(contractName, contractAddress, contractABI) {
-  //try {
+  try {
     fs.unlinkSync("build/contracts/" + contractName + ".json");
-  //} catch (err) {
-  //  console.log(err);
-  //}
+  } catch (err) {
+    console.log(err.message);
+  }
   var directory = "build/data/";
   var fileName = contractName + ".txt";
   var stream = fs.createWriteStream(directory + fileName);
