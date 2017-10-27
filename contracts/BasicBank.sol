@@ -26,6 +26,7 @@ contract BasicBank is UsingMultiOracles, Pausable {
     event SellOrderCreated(uint256 amount);
     event LogBuy(address clientAddress, uint256 tokenAmount, uint256 cryptoAmount, uint256 buyPrice);
     event LogSell(address clientAddress, uint256 tokenAmount, uint256 cryptoAmount, uint256 sellPrice);
+    event OrderQueueGeneral(string description);
 
     address tokenAddress;
     token libreToken;
@@ -115,7 +116,10 @@ contract BasicBank is UsingMultiOracles, Pausable {
         if ((buyOrders.length == 0) && (sellOrders.length == 0)) {
             requestUpdateRates();
         }
-        buyOrders.push(OrderData( _address, msg.value, now));
+        if (buyOrderCount == buyOrders.length) {
+            buyOrders.length += 1;
+        }
+        buyOrders[buyOrderCount++] = OrderData(_address, msg.value, now);
         BuyOrderCreated(msg.value);
     }
 
@@ -126,10 +130,13 @@ contract BasicBank is UsingMultiOracles, Pausable {
      */
     function createSellOrder(address _address, uint256 _tokensCount) public {
         require((_tokensCount > getMinimumSellTokens()) && (_tokensCount < getMaximumSellTokens()));
-        if ((buyOrders.length == 0) && (sellOrders.length == 0)){
+        if ((buyOrders.length == 0) && (sellOrders.length == 0)) {
             requestUpdateRates();
         }
-        sellOrders.push(OrderData(_address, _tokensCount, now));
+        if (sellOrderCount == sellOrders.length) {
+            sellOrders.length += 1;
+        }
+        sellOrders[sellOrderCount++] = OrderData(_address, _tokensCount, now);
         SellOrderCreated(_tokensCount); 
     }
 
@@ -170,41 +177,47 @@ contract BasicBank is UsingMultiOracles, Pausable {
         return true;
     }
 
-    uint256 bottomBuyOrderIndex = 0; // поднять потом наверх
-    uint256 bottomSellOrderIndex = 0;
+    uint256 buyOrderIndex = 0; // поднять потом наверх
+    uint256 buyOrderCount = 0;
+    uint256 sellOrderIndex = 0;
+    uint256 sellOrderCount = 0;
 
     /**
      * @dev Fills order queue.
      */
     function fillBuyQueue() internal returns (bool) {
-        require (bottomBuyOrderIndex < buyOrders.length);
-        uint buyOrdersLength = buyOrders.length;
-        for (uint i = bottomBuyOrderIndex; i < buyOrdersLength; i++) {
+        // TODO: при нарушении данного условия контракт окажется сломан. Нарушение малореально, но всё же найти выход
+        require (buyOrderIndex < buyOrderCount);
+        for (uint256 i = buyOrderIndex; i < buyOrderCount; i++) {
                 if (!fillBuyOrder(i)) {
-                    bottomBuyOrderIndex = i;
+                    buyOrderIndex = i;
+                    OrderQueueGeneral("Очередь ордеров на покупку очищена не до конца");
                     return false;
                 } 
             delete(buyOrders[i]); // в solidity массив не сдвигается, тут будет нулевой элемент
         } // for
-        bottomBuyOrderIndex = 0;
-        // см. ответ про траты газа:
-        // https://ethereum.stackexchange.com/questions/3373/how-to-clear-large-arrays-without-blowing-the-gas-limit
+        // дешёвая "очистка" массива
+        buyOrderIndex = 0;
+        buyOrderCount = 0;
+        OrderQueueGeneral("Очередь ордеров на покупку очищена");
         return true;
     }
 
     function fillSellQueue() internal returns (bool) {
-        require (bottomSellOrderIndex < sellOrders.length);
-        uint sellOrdersLength = sellOrders.length;
-        for (uint i = bottomSellOrderIndex; i < sellOrdersLength; i++) {
+        // TODO: при нарушении данного условия контракт окажется сломан. Нарушение малореально, но всё же найти выход
+        require (sellOrderIndex < sellOrderCount);
+        for (uint i = sellOrderIndex; i < sellOrderCount; i++) {
             if (!fillSellOrder(i)) {
-                    bottomSellOrderIndex = i;
-                    return false;
+                sellOrderIndex = i;
+                OrderQueueGeneral("Очередь ордеров на продажу очищена не до конца");
+                return false;
             } 
             delete(sellOrders[i]); // в solidity массив не сдвигается, тут будет нулевой элемент
         } // for
-        bottomSellOrderIndex = 0;
-        // см. ответ про траты газа:
-        // https://ethereum.stackexchange.com/questions/3373/how-to-clear-large-arrays-without-blowing-the-gas-limit
+        // дешёвая "очистка" массива
+        sellOrderIndex = 0;
+        sellOrderCount = 0;
+        OrderQueueGeneral("Очередь ордеров на продажу очищена");
         return true;
     }  
     
