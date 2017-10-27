@@ -70,7 +70,7 @@ contract PriceFeesLimits is Ownable {
     /**
      * @dev Gets min buy limit in tokens.
      */
-    function getMinimumBuyTokens() public view returns (uint256) {
+    function getMinimumBuyTokens() internal view returns (uint256) {
         return getLimitValue(limitType.minTokensBuy);
     }
 
@@ -84,7 +84,7 @@ contract PriceFeesLimits is Ownable {
     /**
      * @dev Gets min sell limit in tokens.
      */
-    function getMinimumSellTokens() public view returns (uint256) {
+    function getMinimumSellTokens() internal view returns (uint256) {
         return getLimitValue(limitType.minTokensSell);
     }
 

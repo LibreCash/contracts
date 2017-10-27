@@ -123,6 +123,14 @@ contract BasicBank is UsingMultiOracles, Pausable {
     }
 
     /**
+     * @dev Gets token balance of an address.
+     * @param _address Address provided.
+     */
+    function tokenBalanceOf(address _address) public view returns (uint256) {
+        return libreToken.balanceOf(_address);
+    }
+
+    /**
      * @dev Creates buy order.
      * @param _address Beneficiar.
      */
@@ -308,7 +316,7 @@ contract BasicBank is UsingMultiOracles, Pausable {
         require (numEnabledOracles >= MIN_ENABLED_ORACLES);
         numWaitingOracles = 0;
         for (uint i = 0; i < oracleAddresses.length; i++) {
-            if (oracles[oracleAddresses[i]].enabled) {
+            if ((oracles[oracleAddresses[i]].enabled) && (!oracles[oracleAddresses[i]].waiting)) {
                 oracleInterface(oracleAddresses[i]).updateRate();
                 OracleTouched(oracleAddresses[i], oracles[oracleAddresses[i]].name);
                 oracles[oracleAddresses[i]].waiting = true;
@@ -319,13 +327,24 @@ contract BasicBank is UsingMultiOracles, Pausable {
         OraclesTouched("Запущено обновление курсов");
     }
 
+    function dummySpenderDelegate() public {
+        address(this).delegatecall(bytes4(sha3("dummySpender()")));
+    }
+
+    uint256 dummyData;
+    function dummySpender() public {
+        for (uint i = 1; i < 250; i++) {
+            dummyData += i * 2;
+        }
+    }
+
     // подумать над видимостью
     /**
      * @dev Calculates crypto/fiat rate from "oracles" array.
      */
     function calculateRate() public {
-        require (numWaitingOracles <= MIN_WAITING_ORACLES);
-        require (numEnabledOracles-numWaitingOracles >= MIN_ENABLED_NOT_WAITING_ORACLES);
+    //    require (numWaitingOracles <= MIN_WAITING_ORACLES);
+    //    require (numEnabledOracles-numWaitingOracles >= MIN_ENABLED_NOT_WAITING_ORACLES);
 
         uint256 numReadyOracles = 0;
         uint256 sumRating = 0;
@@ -335,17 +354,24 @@ contract BasicBank is UsingMultiOracles, Pausable {
         for (uint i = 0; i < oracleAddresses.length; i++) {
             OracleData storage currentOracleData = oracles[oracleAddresses[i]];
             if (now <= currentOracleData.updateTime + 3 minutes) { // защита от флуда обновлениями, потом мб уберём
-                if (currentOracleData.enabled) {
+                if ((currentOracleData.enabled) && (!currentOracleData.waiting)) {
                     numReadyOracles++;
                     sumRating += currentOracleData.rating;
                     integratedRates += currentOracleData.rating.mul(currentOracleData.cryptoFiatRate);
                 }
             }
         }
-        require (numReadyOracles >= MIN_READY_ORACLES);
+    //    require (numReadyOracles >= MIN_READY_ORACLES);
 
         uint256 finalRate = integratedRates.div(sumRating); // the formula is in upper comment
-        setCurrencyRate(finalRate);
+        //setCurrencyRate(finalRate);
+
+
+        cryptoFiatRate = finalRate;
+        //currencyUpdateTime = now;
+        cryptoFiatRateSell = finalRate.add(sellSpread.mul(sellFee).div(10000));
+        cryptoFiatRateBuy = finalRate.sub(buySpread.mul(buyFee).div(10000));
+
     }
 
     /**
@@ -365,11 +391,11 @@ contract BasicBank is UsingMultiOracles, Pausable {
            oracles[msg.sender].cryptoFiatRate = _rate;
            oracles[msg.sender].updateTime = _time;
            oracles[msg.sender].waiting = false;
-           if (numWaitingOracles == 0) { // Добавить второе условие (будильник Ethereum)
+           /*if (numWaitingOracles == 0) { // Добавить второе условие (будильник Ethereum)
                 calculateRate();
                 fillSellQueue();
                 fillBuyQueue();
-           }
+           }*/
         }
     }
 
