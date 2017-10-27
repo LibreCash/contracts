@@ -259,18 +259,18 @@ contract BasicBank is UsingMultiOracles, Pausable {
      * @param _rate The oracle ETH/USD rate.
      * @param _time Update time sent from oracle.
      */
-    function oraclesCallback(address _address, uint256 _rate, uint256 _time) public {
-        OracleCallback(_address, oracles[_address].name, _rate);
+    function oraclesCallback(uint256 _rate, uint256 _time) public { // дублирование _address и msg.sender
+        OracleCallback(msg.sender, oracles[msg.sender].name, _rate);
         require(!isNotOracle(msg.sender));
-        if (!oracles[_address].waiting) {
--            TextLog("Oracle not waiting");
--       }  else {
+        if (!oracles[msg.sender].waiting) {
+            TextLog("Oracle not waiting");
+            } else {
            // all ok, we waited for it
            numWaitingOracles--;
            // maybe we should check for existance of structure oracles[_address]? to think about it
-           oracles[_address].cryptoFiatRate = _rate;
-           oracles[_address].updateTime = _time;
-           oracles[_address].waiting = false;
+           oracles[msg.sender].cryptoFiatRate = _rate;
+           oracles[msg.sender].updateTime = _time;
+           oracles[msg.sender].waiting = false;
            if (numWaitingOracles == 0) { // Добавить второе условие (будильник Ethereum)
                 calculateRate();
                 fillSellQueue();

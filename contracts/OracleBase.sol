@@ -6,7 +6,7 @@ import "./zeppelin/ownership/Ownable.sol";
 interface bankInterface {
     // TODO: research events in interfaces (TypeError: Member "OraclizeStatus" not found or not visible after argument-dependent lookup in contract bankInterface)
     //event OraclizeStatus(address indexed _address, bytes32 oraclesName, string description);
-    function oraclesCallback(address _address, uint256 value, uint256 timestamp) public;
+    function oraclesCallback(uint256 value, uint256 timestamp) public;
 }
 
 /**
@@ -118,7 +118,7 @@ contract OracleBase is Ownable, usingOraclize {
         rate = parseInt(result, 2); // save it in storage as $ cents
         delete(validIds[myid]);
         lastResultTimestamp = now;
-        bank.oraclesCallback(address(this), rate, now);
+        bank.oraclesCallback(rate, now);
     }
 
     /**
