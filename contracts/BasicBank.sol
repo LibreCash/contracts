@@ -31,7 +31,13 @@ contract BasicBank is UsingMultiOracles, Pausable {
     address tokenAddress;
     token libreToken;
 
+    uint256 timeUpdateRequested;
+
     uint256 constant MAX_UINT256 = 2**256 - 1;
+    uint256 constant MIN_ENABLED_ORACLES = 0; //2;
+    uint256 constant MIN_WAITING_ORACLES = 2; //количество оракулов, которое допустимо омтавлять в ожидании
+    uint256 constant MIN_READY_ORACLES = 1; //2;
+    uint256 constant MIN_ENABLED_NOT_WAITING_ORACLES = 1; //2;
 
     //bool bankAllowTests = false; // для тестов
     
@@ -328,11 +334,16 @@ contract BasicBank is UsingMultiOracles, Pausable {
     }
 
     function dummySpenderDelegate() public {
-        address(this).delegatecall(bytes4(sha3("dummySpender()")));
+        this.delegatecall(bytes4(sha3("dummySpenderExt()")));
     }
 
     uint256 dummyData;
     function dummySpender() public {
+        for (uint i = 1; i < 250; i++) {
+            dummyData += i * 2;
+        }
+    }
+    function dummySpenderExt() external {
         for (uint i = 1; i < 250; i++) {
             dummyData += i * 2;
         }

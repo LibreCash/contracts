@@ -42,6 +42,9 @@ contract UsingMultiOracles is PriceFeesLimits {
     event OraculusDivergenceAlert (string description);
     event LowOraclesNumberAlert (string description);
 
+    uint constant MAX_ORACLE_RATING = 10000;
+
+
     struct OracleData {
         bytes32 name;
         uint256 rating;
@@ -57,20 +60,9 @@ contract UsingMultiOracles is PriceFeesLimits {
     address[] oracleAddresses;
 
 
-
-    // пока на все случаи возможные
-    uint256 constant MIN_ENABLED_ORACLES = 0; //2;
-    uint256 constant MIN_WAITING_ORACLES = 2; //количество оракулов, которое допустимо омтавлять в ожидании
-    uint256 constant MIN_READY_ORACLES = 1; //2;
-    uint256 constant MIN_ENABLED_NOT_WAITING_ORACLES = 1; //2;
-    uint constant MAX_ORACLE_RATING = 10000;
-
     uint256 public numWaitingOracles;
     uint256 public numEnabledOracles;
     // maybe we should add weightWaitingOracles - sum of rating of waiting oracles
-    uint256 timeUpdateRequested;
-
-
 
 
     /**
