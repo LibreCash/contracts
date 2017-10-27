@@ -278,4 +278,24 @@ contract BasicBank is UsingMultiOracles, Pausable {
            }
         }
     }
+
+    function CalculateSellPrice(uint256 _tokensAmount) internal returns (uint) {
+        
+    }
+
+    function CalculateBuyPrice(uint256 _tokensAmount) internal returns (uint)  {
+        
+    }
+
+    function CalculateBuySpread(uint256 _tokensAmount) internal returns (uint)  {
+        
+    }
+
+    function CalculateSellSpread(uint256 _tokensAmount) internal returns (uint)  {
+        
+    }
+
+    function isRateValid(uint _rate) internal returns (bool)  {
+        
+    }
 }
