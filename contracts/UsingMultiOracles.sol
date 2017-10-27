@@ -4,7 +4,7 @@ import "./zeppelin/math/SafeMath.sol";
 import "./PriceFeesLimits.sol";
 
 interface oracleInterface {
-    function updateRate() payable public;
+    function updateRate() payable public returns (bytes32);
     function getName() constant public returns (bytes32);
     function setBank(address _bankAddress) public;
     function hasReceivedRate() public returns (bool);
@@ -46,7 +46,8 @@ contract UsingMultiOracles is PriceFeesLimits {
         bytes32 name;
         uint256 rating;
         bool enabled;
-        bool waiting;
+        //bool waiting;
+        bytes32 queryId;
         uint256 updateTime; // time of callback
         uint256 cryptoFiatRate; // exchange rate
         uint listPointer; // чтобы знать по какому индексу удалять из массива oracleAddresses
@@ -102,7 +103,7 @@ contract UsingMultiOracles is PriceFeesLimits {
         // возможно, стоит добавить параметр name в функцию, тем самым упростив всё
         bytes32 oracleName = currentOracleInterface.getName();
         OracleData memory thisOracle = OracleData({name: oracleName, rating: MAX_ORACLE_RATING.div(2), 
-                                                    enabled: true, waiting: false, updateTime: 0, cryptoFiatRate: 0, listPointer: 0});
+                                                    enabled: true, queryId: 0, updateTime: 0, cryptoFiatRate: 0, listPointer: 0});
         oracles[_address] = thisOracle;
         // listPointer - индекс массива oracleAddresses с адресом оракула. Надо для удаления
         oracles[_address].listPointer = oracleAddresses.push(_address) - 1;
@@ -146,7 +147,7 @@ contract UsingMultiOracles is PriceFeesLimits {
         require(!isNotOracle(_address));
         OracleDeleted(_address, oracles[_address].name);
         // может быть не стоит удалять ждущие? обсудить - Дима
-        if (oracles[_address].waiting) {
+        if (oracles[_address].queryId != 0) {
             numWaitingOracles--;
         }
         if (oracles[_address].enabled) {

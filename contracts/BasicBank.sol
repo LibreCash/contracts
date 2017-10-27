@@ -316,10 +316,10 @@ contract BasicBank is UsingMultiOracles, Pausable {
         require (numEnabledOracles >= MIN_ENABLED_ORACLES);
         numWaitingOracles = 0;
         for (uint i = 0; i < oracleAddresses.length; i++) {
-            if ((oracles[oracleAddresses[i]].enabled) && (!oracles[oracleAddresses[i]].waiting)) {
-                oracleInterface(oracleAddresses[i]).updateRate();
+            if ((oracles[oracleAddresses[i]].enabled) && (oracles[oracleAddresses[i]].queryId == 0x0)) {
+                bytes32 queryId = oracleInterface(oracleAddresses[i]).updateRate();
                 OracleTouched(oracleAddresses[i], oracles[oracleAddresses[i]].name);
-                oracles[oracleAddresses[i]].waiting = true;
+                oracles[oracleAddresses[i]].queryId = queryId;
                 numWaitingOracles++;
             }
             timeUpdateRequested = now;
@@ -354,7 +354,7 @@ contract BasicBank is UsingMultiOracles, Pausable {
         for (uint i = 0; i < oracleAddresses.length; i++) {
             OracleData storage currentOracleData = oracles[oracleAddresses[i]];
             if (now <= currentOracleData.updateTime + 3 minutes) { // защита от флуда обновлениями, потом мб уберём
-                if ((currentOracleData.enabled) && (!currentOracleData.waiting)) {
+                if ((currentOracleData.enabled) && (currentOracleData.queryId != 0x0)) {
                     numReadyOracles++;
                     sumRating += currentOracleData.rating;
                     integratedRates += currentOracleData.rating.mul(currentOracleData.cryptoFiatRate);
@@ -382,7 +382,7 @@ contract BasicBank is UsingMultiOracles, Pausable {
     function oraclesCallback(uint256 _rate, uint256 _time) public { // дублирование _address и msg.sender
         OracleCallback(msg.sender, oracles[msg.sender].name, _rate);
         require(!isNotOracle(msg.sender));
-        if (!oracles[msg.sender].waiting) {
+        if (oracles[msg.sender].queryId != 0x0) {
             TextLog("Oracle not waiting");
             } else {
            // all ok, we waited for it
@@ -390,7 +390,7 @@ contract BasicBank is UsingMultiOracles, Pausable {
            // maybe we should check for existance of structure oracles[_address]? to think about it
            oracles[msg.sender].cryptoFiatRate = _rate;
            oracles[msg.sender].updateTime = _time;
-           oracles[msg.sender].waiting = false;
+           oracles[msg.sender].queryId = 0x0;
            /*if (numWaitingOracles == 0) { // Добавить второе условие (будильник Ethereum)
                 calculateRate();
                 fillSellQueue();
