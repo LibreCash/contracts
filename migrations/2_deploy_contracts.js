@@ -4,8 +4,8 @@ var contracts = ['LibreCash',
                  'OracleBitfinex',
                  'OracleBitstamp',
                  'OracleGDAX',
-                 'OracleGemini',
-                 'OracleKraken',
+                 //'OracleGemini',
+                 //'OracleKraken',
                  'OracleWEX',
                  'BasicBank'
                 ];
@@ -54,7 +54,11 @@ function temporarySetDependencies(contractName, instance) {
 }
 
 function writeDeployedContractData(contractName, contractAddress, contractABI) {
-  fs.unlinkSync("build/contracts/" + contractName + ".json");
+  //try {
+    fs.unlinkSync("build/contracts/" + contractName + ".json");
+  //} catch (err) {
+  //  console.log(err);
+  //}
   var directory = "build/data/";
   var fileName = contractName + ".txt";
   var stream = fs.createWriteStream(directory + fileName);

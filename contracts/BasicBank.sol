@@ -22,19 +22,22 @@ contract BasicBank is UsingMultiOracles, Pausable {
     event TokensBought(address _beneficiar, uint256 tokensAmount, uint256 cryptoAmount);
     event TokensSold(address _beneficiar, uint256 tokensAmount, uint256 cryptoAmount);
     event UINTLog(uint256 data);
-    event OrderCreated(string _type, uint256 amount);
+    event BuyOrderCreated(uint256 amount);
+    event SellOrderCreated(uint256 amount);
     event LogBuy(address clientAddress, uint256 tokenAmount, uint256 cryptoAmount, uint256 buyPrice);
     event LogSell(address clientAddress, uint256 tokenAmount, uint256 cryptoAmount, uint256 sellPrice);
 
     address tokenAddress;
     token libreToken;
 
+    uint256 constant MAX_UINT256 = 2**256 - 1;
+
     //bool bankAllowTests = false; // для тестов
     
 
-  /**
-   * @dev Throws if called by any account other than the oracles.
-   */
+//  /**
+//   * @dev Throws if called by any account other than the oracles.
+//   */
   /*modifier onlyOracles() {
      for (uint i = 0; i < oracleAddresses.length; i++) {
             require(oracles[oracleAddresses[i]] == msg.sender);
@@ -49,20 +52,15 @@ contract BasicBank is UsingMultiOracles, Pausable {
         //uint ClientLimit;
     }
 
-    OrderData[] BuyOrders; // очередь ордеров на покупку
-    OrderData[] SellOrders; // очередь ордеров на покупку
+    OrderData[] buyOrders; // очередь ордеров на покупку
+    OrderData[] sellOrders; // очередь ордеров на покупку
 
     uint256 orderCount = 0;
 
     function BasicBank() public {
-        setBuyTokenLimits(0,0);
-        setSellTokenLimits(0,0);
-    }
-
-    function clearOrdersByAdmin() public onlyOwner {
-        fillBuyQueue();
-        fillSellQueue();
-    } 
+        setBuyTokenLimits(0, MAX_UINT256);
+        setSellTokenLimits(0, MAX_UINT256);
+     }
 
     /**
      * @dev Attaches token contract.
@@ -100,9 +98,9 @@ contract BasicBank is UsingMultiOracles, Pausable {
     /**
      * @dev Transfers crypto.
      */
-   function withdrawCrypto(address _beneficiar) public onlyOwner {
+    function withdrawCrypto(address _beneficiar) public onlyOwner {
          _beneficiar.transfer(this.balance);
-         }
+    }
 
     function () payable external {
         createBuyOrder(msg.sender);
@@ -114,11 +112,11 @@ contract BasicBank is UsingMultiOracles, Pausable {
      */
     function createBuyOrder(address _address) payable public {
         require((msg.value > getMinimumBuyTokens()) && (msg.value < getMaximumBuyTokens()));
-        if ((BuyOrders.length == 0) && (SellOrders.length == 0)){
+        if ((buyOrders.length == 0) && (sellOrders.length == 0)) {
             requestUpdateRates();
         }
-        BuyOrders.push(OrderData( _address, msg.value, now));
-        OrderCreated("Buy", msg.value);
+        buyOrders.push(OrderData( _address, msg.value, now));
+        BuyOrderCreated(msg.value);
     }
 
     /**
@@ -128,11 +126,11 @@ contract BasicBank is UsingMultiOracles, Pausable {
      */
     function createSellOrder(address _address, uint256 _tokensCount) public {
         require((_tokensCount > getMinimumSellTokens()) && (_tokensCount < getMaximumSellTokens()));
-        if ((BuyOrders.length == 0) && (SellOrders.length == 0)){
+        if ((buyOrders.length == 0) && (sellOrders.length == 0)){
             requestUpdateRates();
         }
-        SellOrders.push(OrderData(_address, _tokensCount, now));
-        OrderCreated("Sell", _tokensCount); 
+        sellOrders.push(OrderData(_address, _tokensCount, now));
+        SellOrderCreated(_tokensCount); 
     }
 
     /**
@@ -140,9 +138,9 @@ contract BasicBank is UsingMultiOracles, Pausable {
      * @param _orderID The order ID.
      */
     function fillBuyOrder(uint256 _orderID) internal returns (bool) {
-        uint256 cryptoAmount = BuyOrders[_orderID].orderAmount;
+        uint256 cryptoAmount = buyOrders[_orderID].orderAmount;
         uint256 tokensAmount = cryptoAmount.mul(cryptoFiatRateBuy).div(100);
-        address benificiar = BuyOrders[_orderID].clientAddress;  
+        address benificiar = buyOrders[_orderID].clientAddress;  
         libreToken.mint(benificiar, tokensAmount);
         LogBuy(benificiar, tokensAmount, cryptoAmount, cryptoFiatRateBuy);
         return true;
@@ -153,15 +151,15 @@ contract BasicBank is UsingMultiOracles, Pausable {
      * @param _orderID The order ID.
      */
     function fillSellOrder(uint256 _orderID) internal returns (bool) {
-        address beneficiar = SellOrders[_orderID].clientAddress;
-        uint256 tokensAmount = SellOrders[_orderID].orderAmount;
+        address beneficiar = sellOrders[_orderID].clientAddress;
+        uint256 tokensAmount = sellOrders[_orderID].orderAmount;
         uint256 cryptoAmount = tokensAmount.div(cryptoFiatRateBuy).mul(100);
         if (this.balance < cryptoAmount) {  // checks if the bank has enough Ethers to send
             tokensAmount = this.balance.mul(cryptoFiatRateBuy).div(100); 
-            libreToken.mint(beneficiar, SellOrders[_orderID].orderAmount.sub(tokensAmount));
+            libreToken.mint(beneficiar, sellOrders[_orderID].orderAmount.sub(tokensAmount));
             cryptoAmount = this.balance;
         } else {
-            tokensAmount = SellOrders[_orderID].orderAmount;
+            tokensAmount = sellOrders[_orderID].orderAmount;
             cryptoAmount = tokensAmount.div(cryptoFiatRateBuy).mul(100);
         }
         if (!beneficiar.send(cryptoAmount)) { 
@@ -179,36 +177,36 @@ contract BasicBank is UsingMultiOracles, Pausable {
      * @dev Fills order queue.
      */
     function fillBuyQueue() internal returns (bool) {
-        require (bottomBuyOrderIndex < BuyOrders.length);
-        uint BuyOrdersLength = BuyOrders.length;
-        for (uint i = bottomBuyOrderIndex; i < BuyOrdersLength; i++) {
+        require (bottomBuyOrderIndex < buyOrders.length);
+        uint buyOrdersLength = buyOrders.length;
+        for (uint i = bottomBuyOrderIndex; i < buyOrdersLength; i++) {
                 if (!fillBuyOrder(i)) {
                     bottomBuyOrderIndex = i;
                     return false;
                 } 
-            delete(BuyOrders[i]); // в solidity массив не сдвигается, тут будет нулевой элемент
+            delete(buyOrders[i]); // в solidity массив не сдвигается, тут будет нулевой элемент
         } // for
         bottomBuyOrderIndex = 0;
         // см. ответ про траты газа:
         // https://ethereum.stackexchange.com/questions/3373/how-to-clear-large-arrays-without-blowing-the-gas-limit
         return true;
     }
+
     function fillSellQueue() internal returns (bool) {
-        require (bottomSellOrderIndex < SellOrders.length);
-        uint SellOrdersLength = SellOrders.length;
-        for (uint i = bottomSellOrderIndex; i < SellOrdersLength; i++) {
+        require (bottomSellOrderIndex < sellOrders.length);
+        uint sellOrdersLength = sellOrders.length;
+        for (uint i = bottomSellOrderIndex; i < sellOrdersLength; i++) {
             if (!fillSellOrder(i)) {
                     bottomSellOrderIndex = i;
                     return false;
             } 
-            delete(SellOrders[i]); // в solidity массив не сдвигается, тут будет нулевой элемент
+            delete(sellOrders[i]); // в solidity массив не сдвигается, тут будет нулевой элемент
         } // for
         bottomSellOrderIndex = 0;
         // см. ответ про траты газа:
         // https://ethereum.stackexchange.com/questions/3373/how-to-clear-large-arrays-without-blowing-the-gas-limit
         return true;
     }  
-
     
     // про видимость подумать
     /**
@@ -283,23 +281,23 @@ contract BasicBank is UsingMultiOracles, Pausable {
         }
     }
 
-    function CalculateSellPrice(uint256 _tokensAmount) internal returns (uint) {
+    function calculateSellPrice(uint256 _tokensAmount) internal returns (uint) {
         
     }
 
-    function CalculateBuyPrice(uint256 _tokensAmount) internal returns (uint)  {
+    function calculateBuyPrice(uint256 _tokensAmount) internal returns (uint) {
         
     }
 
-    function CalculateBuySpread(uint256 _tokensAmount) internal returns (uint)  {
+    function calculateBuySpread(uint256 _tokensAmount) internal returns (uint) {
         
     }
 
-    function CalculateSellSpread(uint256 _tokensAmount) internal returns (uint)  {
+    function calculateSellSpread(uint256 _tokensAmount) internal returns (uint) {
         
     }
 
-    function isRateValid(uint _rate) internal returns (bool)  {
-        
+    function isRateValid(uint _rate) internal returns (bool) {
+        return true;
     }
 }
