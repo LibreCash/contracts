@@ -57,7 +57,12 @@ contract BasicBank is UsingMultiOracles, Pausable {
     function BasicBank() public {
         setBuyTokenLimits(0,0);
         setSellTokenLimits(0,0);
-     }
+    }
+
+    function clearOrdersByAdmin() public onlyOwner {
+        fillBuyQueue();
+        fillSellQueue();
+    } 
 
     /**
      * @dev Attaches token contract.
