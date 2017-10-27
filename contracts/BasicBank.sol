@@ -37,11 +37,8 @@ contract BasicBank is UsingMultiOracles, Pausable {
    */
   modifier onlyOracles() {
      for (uint i = 0; i < oracleAddresses.length; i++) {
-            if (oracles[oracleAddresses[i]] == msg.sender) {
-            return true; 
-            }
+            require(oracles[oracleAddresses[i]] == msg.sender);
       }
-    return false;
   }
 
     
