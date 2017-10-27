@@ -112,7 +112,7 @@ contract BasicBank is UsingMultiOracles, Pausable {
      */
     function createBuyOrder(address _address) payable public {
         require((msg.value > getMinimumBuyTokens()) && (msg.value < getMaximumBuyTokens()));
-        if (BuyOrders.length == 0) && (SellOrders.length == 0){
+        if ((BuyOrders.length == 0) && (SellOrders.length == 0)){
             requestUpdateRates();
         }
         BuyOrders.push(OrderData( _address, msg.value, now));
@@ -126,7 +126,7 @@ contract BasicBank is UsingMultiOracles, Pausable {
      */
     function createSellOrder(address _address, uint256 _tokensCount) public {
         require((_tokensCount > getMinimumSellTokens()) && (_tokensCount < getMaximumSellTokens()));
-        if (BuyOrders.length == 0) && (SellOrders.length == 0){
+        if ((BuyOrders.length == 0) && (SellOrders.length == 0)){
             requestUpdateRates();
         }
         SellOrders.push(OrderData(_address, _tokensCount, now));
@@ -266,20 +266,18 @@ contract BasicBank is UsingMultiOracles, Pausable {
         OracleCallback(_address, oracles[_address].name, _rate);
         if (!oracles[_address].waiting) {
 -            TextLog("Oracle not waiting");
--        } else {
-        // all ok, we waited for it
-        numWaitingOracles--;
-        // maybe we should check for existance of structure oracles[_address]? to think about it
-        oracles[_address].cryptoFiatRate = _rate;
-        oracles[_address].updateTime = _time;
-        oracles[_address].waiting = false;
-        if (numWaitingOracles == 0) {
+-       }  else {
+           // all ok, we waited for it
+           numWaitingOracles--;
+           // maybe we should check for existance of structure oracles[_address]? to think about it
+           oracles[_address].cryptoFiatRate = _rate;
+           oracles[_address].updateTime = _time;
+           oracles[_address].waiting = false;
+           if (numWaitingOracles == 0) { // Добавить второе условие (будильник Ethereum)
                 calculateRate();
                 fillSellQueue();
                 fillBuyQueue();
-        }
+           }
         }
     }
-    }
-
 }
