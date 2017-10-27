@@ -33,13 +33,13 @@ contract BasicBank is UsingMultiOracles, Pausable {
     
 
   /**
-   * @dev Throws if called by any account other than the owner.
+   * @dev Throws if called by any account other than the oracles.
    */
-  modifier onlyOracles() {
+  /*modifier onlyOracles() {
      for (uint i = 0; i < oracleAddresses.length; i++) {
             require(oracles[oracleAddresses[i]] == msg.sender);
       }
-  }
+  }*/
 
     
     struct OrderData {
@@ -259,8 +259,9 @@ contract BasicBank is UsingMultiOracles, Pausable {
      * @param _rate The oracle ETH/USD rate.
      * @param _time Update time sent from oracle.
      */
-    function oraclesCallback(address _address, uint256 _rate, uint256 _time) public onlyOracles {
+    function oraclesCallback(address _address, uint256 _rate, uint256 _time) public {
         OracleCallback(_address, oracles[_address].name, _rate);
+        require(!isNotOracle(msg.sender));
         if (!oracles[_address].waiting) {
 -            TextLog("Oracle not waiting");
 -       }  else {
