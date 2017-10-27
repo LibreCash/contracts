@@ -63,6 +63,20 @@ contract BasicBank is UsingMultiOracles, Pausable {
         setSellTokenLimits(0, MAX_UINT256);
      }
 
+    function cancelBuyOrder (uint256 _orderID) internal {
+        require (buyOrderIndex + _orderId < buyOrderLast);
+        uint256 realOrderId = buyOrderIndex + _orderId;
+        buyOrders[realOrderId].clientAddress.send(buyOrders[realOrderId].orderAmount);
+        delete(buyOrders[realOrderId]); 
+    }
+
+    function cancelSellOrder (uint256 _orderID) internal {
+        require (sellOrderIndex + _orderId < sellOrderLast);
+        uint256 realOrderId = sellOrderIndex + _orderId;
+        libreToken.mint(sellOrders[realOrderId].clientAddress, sellOrders[realOrderId].orderAmount);
+        delete(sellOrders[realOrderId]);
+    }
+
     /**
      * @dev Attaches token contract.
      * @param _tokenAddress The token address.
