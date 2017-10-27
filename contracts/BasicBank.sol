@@ -22,12 +22,15 @@ contract BasicBank is UsingMultiOracles, Pausable {
     event TokensBought(address _beneficiar, uint256 tokensAmount, uint256 cryptoAmount);
     event TokensSold(address _beneficiar, uint256 tokensAmount, uint256 cryptoAmount);
     event UINTLog(uint256 data);
-    event OrderCreated(string _type, uint256 amount);
+    event BuyOrderCreated(uint256 amount);
+    event SellOrderCreated(uint256 amount);
     event LogBuy(address clientAddress, uint256 tokenAmount, uint256 cryptoAmount, uint256 buyPrice);
     event LogSell(address clientAddress, uint256 tokenAmount, uint256 cryptoAmount, uint256 sellPrice);
 
     address tokenAddress;
     token libreToken;
+
+    uint256 constant MAX_UINT256 = 2**256 - 1;
 
     //bool bankAllowTests = false; // для тестов
     
@@ -55,8 +58,8 @@ contract BasicBank is UsingMultiOracles, Pausable {
     uint256 orderCount = 0;
 
     function BasicBank() public {
-        setBuyTokenLimits(0,0);
-        setSellTokenLimits(0,0);
+        setBuyTokenLimits(0, MAX_UINT256);
+        setSellTokenLimits(0, MAX_UINT256);
      }
 
     /**
@@ -95,9 +98,9 @@ contract BasicBank is UsingMultiOracles, Pausable {
     /**
      * @dev Transfers crypto.
      */
-   function withdrawCrypto(address _beneficiar) public onlyOwner {
+    function withdrawCrypto(address _beneficiar) public onlyOwner {
          _beneficiar.transfer(this.balance);
-         }
+    }
 
     function () payable external {
         createBuyOrder(msg.sender);
@@ -113,7 +116,7 @@ contract BasicBank is UsingMultiOracles, Pausable {
             requestUpdateRates();
         }
         buyOrders.push(OrderData( _address, msg.value, now));
-        OrderCreated("Buy", msg.value);
+        BuyOrderCreated(msg.value);
     }
 
     /**
@@ -127,7 +130,7 @@ contract BasicBank is UsingMultiOracles, Pausable {
             requestUpdateRates();
         }
         sellOrders.push(OrderData(_address, _tokensCount, now));
-        OrderCreated("Sell", _tokensCount); 
+        SellOrderCreated(_tokensCount); 
     }
 
     /**
