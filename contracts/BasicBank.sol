@@ -116,10 +116,10 @@ contract BasicBank is UsingMultiOracles, Pausable {
         if ((buyOrders.length == 0) && (sellOrders.length == 0)) {
             requestUpdateRates();
         }
-        if (buyOrderCount == buyOrders.length) {
+        if (buyOrderLast == buyOrders.length) {
             buyOrders.length += 1;
         }
-        buyOrders[buyOrderCount++] = OrderData(_address, msg.value, now);
+        buyOrders[buyOrderLast++] = OrderData(_address, msg.value, now);
         BuyOrderCreated(msg.value);
     }
 
@@ -133,10 +133,10 @@ contract BasicBank is UsingMultiOracles, Pausable {
         if ((buyOrders.length == 0) && (sellOrders.length == 0)) {
             requestUpdateRates();
         }
-        if (sellOrderCount == sellOrders.length) {
+        if (sellOrderLast == sellOrders.length) {
             sellOrders.length += 1;
         }
-        sellOrders[sellOrderCount++] = OrderData(_address, _tokensCount, now);
+        sellOrders[sellOrderLast++] = OrderData(_address, _tokensCount, now);
         SellOrderCreated(_tokensCount); 
     }
 
@@ -178,17 +178,17 @@ contract BasicBank is UsingMultiOracles, Pausable {
     }
 
     uint256 buyOrderIndex = 0; // поднять потом наверх
-    uint256 buyOrderCount = 0;
+    uint256 buyOrderLast = 0;
     uint256 sellOrderIndex = 0;
-    uint256 sellOrderCount = 0;
+    uint256 sellOrderLast = 0;
 
     /**
-     * @dev Fills order queue.
+     * @dev Fill buy orders queue.
      */
     function fillBuyQueue() internal returns (bool) {
         // TODO: при нарушении данного условия контракт окажется сломан. Нарушение малореально, но всё же найти выход
-        require (buyOrderIndex < buyOrderCount);
-        for (uint256 i = buyOrderIndex; i < buyOrderCount; i++) {
+        require (buyOrderIndex < buyOrderLast);
+        for (uint256 i = buyOrderIndex; i < buyOrderLast; i++) {
                 if (!fillBuyOrder(i)) {
                     buyOrderIndex = i;
                     OrderQueueGeneral("Очередь ордеров на покупку очищена не до конца");
@@ -198,15 +198,18 @@ contract BasicBank is UsingMultiOracles, Pausable {
         } // for
         // дешёвая "очистка" массива
         buyOrderIndex = 0;
-        buyOrderCount = 0;
+        buyOrderLast = 0;
         OrderQueueGeneral("Очередь ордеров на покупку очищена");
         return true;
     }
 
+    /**
+     * @dev Fill sell orders queue.
+     */
     function fillSellQueue() internal returns (bool) {
         // TODO: при нарушении данного условия контракт окажется сломан. Нарушение малореально, но всё же найти выход
-        require (sellOrderIndex < sellOrderCount);
-        for (uint i = sellOrderIndex; i < sellOrderCount; i++) {
+        require (sellOrderIndex < sellOrderLast);
+        for (uint i = sellOrderIndex; i < sellOrderLast; i++) {
             if (!fillSellOrder(i)) {
                 sellOrderIndex = i;
                 OrderQueueGeneral("Очередь ордеров на продажу очищена не до конца");
@@ -216,10 +219,42 @@ contract BasicBank is UsingMultiOracles, Pausable {
         } // for
         // дешёвая "очистка" массива
         sellOrderIndex = 0;
-        sellOrderCount = 0;
+        sellOrderLast = 0;
         OrderQueueGeneral("Очередь ордеров на продажу очищена");
         return true;
-    }  
+    }
+
+    /**
+     * @dev Show buy order count.
+     */
+    function getBuyOrderCount() public view onlyOwner returns (uint256) {
+        return buyOrderLast - buyOrderIndex;
+    }
+
+    /**
+     * @dev Show sell order count.
+     */
+    function getSellOrderCount() public view onlyOwner returns (uint256) {
+        return sellOrderLast - sellOrderIndex;
+    }
+
+    /**
+     * @dev Show buy order amount.
+     */
+    function getBuyOrderValue(uint256 _orderId) public view onlyOwner returns (uint256) {
+        require (buyOrderIndex + _orderId < buyOrderLast);
+        uint256 realOrderId = buyOrderIndex + _orderId;
+        return buyOrders[realOrderId].orderAmount;
+    }
+    
+    /**
+     * @dev Show sell order amount.
+     */
+    function getSellOrderValue(uint256 _orderId) public view onlyOwner returns (uint256) {
+        require (sellOrderIndex + _orderId < sellOrderLast);
+        uint256 realOrderId = sellOrderIndex + _orderId;
+        return sellOrders[realOrderId].orderAmount;
+    }
     
     // про видимость подумать
     /**
