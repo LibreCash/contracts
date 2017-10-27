@@ -255,7 +255,6 @@ contract BasicBank is UsingMultiOracles, Pausable {
 
     /**
      * @dev The callback from oracles.
-     * @param _address The oracle address.
      * @param _rate The oracle ETH/USD rate.
      * @param _time Update time sent from oracle.
      */
