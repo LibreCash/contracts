@@ -176,7 +176,7 @@ contract BasicBank is UsingMultiOracles, Pausable {
     /**
      * @dev Fills order queue.
      */
-    function fillBuyOrders() internal returns (bool) {
+    function fillBuyQueue() internal returns (bool) {
         require (bottomBuyOrderIndex < BuyOrders.length);
         uint BuyOrdersLength = BuyOrders.length;
         for (uint i = bottomBuyOrderIndex; i < BuyOrdersLength; i++) {
@@ -191,7 +191,7 @@ contract BasicBank is UsingMultiOracles, Pausable {
         // https://ethereum.stackexchange.com/questions/3373/how-to-clear-large-arrays-without-blowing-the-gas-limit
         return true;
     }
-    function fillSellOrders() internal returns (bool) {
+    function fillSellQueue() internal returns (bool) {
         require (bottomSellOrderIndex < SellOrders.length);
         uint SellOrdersLength = SellOrders.length;
         for (uint i = bottomSellOrderIndex; i < SellOrdersLength; i++) {
@@ -275,10 +275,11 @@ contract BasicBank is UsingMultiOracles, Pausable {
         oracles[_address].waiting = false;
         if (numWaitingOracles == 0) {
                 calculateRate();
-                fillSellOrders();
-                fillBuyOrders();
+                fillSellQueue();
+                fillBuyQueue();
         }
         }
+    }
     }
 
 }
