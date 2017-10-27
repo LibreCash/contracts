@@ -32,9 +32,9 @@ contract BasicBank is UsingMultiOracles, Pausable {
     //bool bankAllowTests = false; // для тестов
     
 
-  /**
-   * @dev Throws if called by any account other than the oracles.
-   */
+//  /**
+//   * @dev Throws if called by any account other than the oracles.
+//   */
   /*modifier onlyOracles() {
      for (uint i = 0; i < oracleAddresses.length; i++) {
             require(oracles[oracleAddresses[i]] == msg.sender);
