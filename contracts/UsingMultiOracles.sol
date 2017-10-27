@@ -81,7 +81,9 @@ contract UsingMultiOracles is PriceFeesLimits {
 
     function isNotOracle (address _address) returns (bool) {
         for (uint i = 0; i < oracleAddresses.length; i++) {
-            require (oracleAddresses[i] != _address);
+            if (oracleAddresses[i] == _address) {
+                return false;
+            }
         }
         return true;
     }
