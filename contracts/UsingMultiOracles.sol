@@ -4,7 +4,7 @@ import "./zeppelin/math/SafeMath.sol";
 import "./PriceFeesLimits.sol";
 
 interface oracleInterface {
-    function updateRate() payable public;
+    function updateRate() payable public returns (bytes32);
     function getName() constant public returns (bytes32);
     function setBank(address _bankAddress) public;
     function hasReceivedRate() public returns (bool);
@@ -42,11 +42,15 @@ contract UsingMultiOracles is PriceFeesLimits {
     event OraculusDivergenceAlert (string description);
     event LowOraclesNumberAlert (string description);
 
+    uint constant MAX_ORACLE_RATING = 10000;
+
+
     struct OracleData {
         bytes32 name;
         uint256 rating;
         bool enabled;
-        bool waiting;
+        //bool waiting;
+        bytes32 queryId;
         uint256 updateTime; // time of callback
         uint256 cryptoFiatRate; // exchange rate
         uint listPointer; // чтобы знать по какому индексу удалять из массива oracleAddresses
@@ -56,20 +60,9 @@ contract UsingMultiOracles is PriceFeesLimits {
     address[] oracleAddresses;
 
 
-
-    // пока на все случаи возможные
-    uint256 constant MIN_ENABLED_ORACLES = 0; //2;
-    uint256 constant MIN_WAITING_ORACLES = 2; //количество оракулов, которое допустимо омтавлять в ожидании
-    uint256 constant MIN_READY_ORACLES = 1; //2;
-    uint256 constant MIN_ENABLED_NOT_WAITING_ORACLES = 1; //2;
-    uint constant MAX_ORACLE_RATING = 10000;
-
     uint256 public numWaitingOracles;
     uint256 public numEnabledOracles;
     // maybe we should add weightWaitingOracles - sum of rating of waiting oracles
-    uint256 timeUpdateRequested;
-
-
 
 
     /**
@@ -79,12 +72,22 @@ contract UsingMultiOracles is PriceFeesLimits {
         return oracleAddresses.length;
     }
 
+    function isNotOracle(address _address) public view returns (bool) {
+        for (uint i = 0; i < oracleAddresses.length; i++) {
+            if (oracleAddresses[i] == _address) {
+                return false;
+            }
+        }
+        return true;
+    }
+
     // не забываем потом добавить соотв. модификатор
     /**
      * @dev Adds an oracle.
      * @param _address The oracle address.
      */
     function addOracle(address _address) public onlyOwner {
+        require(isNotOracle (_address));
         require(_address != 0x0);
         oracleInterface currentOracleInterface = oracleInterface(_address);
         // TODO: возможно нам не нужно обращаться к оракулу лишний раз
@@ -92,7 +95,7 @@ contract UsingMultiOracles is PriceFeesLimits {
         // возможно, стоит добавить параметр name в функцию, тем самым упростив всё
         bytes32 oracleName = currentOracleInterface.getName();
         OracleData memory thisOracle = OracleData({name: oracleName, rating: MAX_ORACLE_RATING.div(2), 
-                                                    enabled: true, waiting: false, updateTime: 0, cryptoFiatRate: 0, listPointer: 0});
+                                                    enabled: true, queryId: 0, updateTime: 0, cryptoFiatRate: 0, listPointer: 0});
         oracles[_address] = thisOracle;
         // listPointer - индекс массива oracleAddresses с адресом оракула. Надо для удаления
         oracles[_address].listPointer = oracleAddresses.push(_address) - 1;
@@ -107,6 +110,7 @@ contract UsingMultiOracles is PriceFeesLimits {
      * @param _address The oracle address.
      */
     function disableOracle(address _address) public onlyOwner {
+        require(!isNotOracle(_address));
         oracles[_address].enabled = false;
         OracleDisabled(_address, oracles[_address].name);
         if (numEnabledOracles!=0) {
@@ -120,6 +124,7 @@ contract UsingMultiOracles is PriceFeesLimits {
      * @param _address The oracle address.
      */
     function enableOracle(address _address) public onlyOwner {
+        require(!isNotOracle(_address));
         oracles[_address].enabled = true;
         OracleEnabled(_address, oracles[_address].name);
         numEnabledOracles++;
@@ -131,9 +136,10 @@ contract UsingMultiOracles is PriceFeesLimits {
      * @param _address The oracle address.
      */
     function deleteOracle(address _address) public onlyOwner {
+        require(!isNotOracle(_address));
         OracleDeleted(_address, oracles[_address].name);
         // может быть не стоит удалять ждущие? обсудить - Дима
-        if (oracles[_address].waiting) {
+        if (oracles[_address].queryId != 0) {
             numWaitingOracles--;
         }
         if (oracles[_address].enabled) {
@@ -188,5 +194,4 @@ contract UsingMultiOracles is PriceFeesLimits {
             }
         } // foreach oracles
     }
-
 }

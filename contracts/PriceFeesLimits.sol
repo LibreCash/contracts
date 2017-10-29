@@ -39,7 +39,7 @@ contract PriceFeesLimits is Ownable {
      * @dev Sets fiat rate limits via range.
      * @param _percent Value in percent in both directions (100% = 10000).
      */
-    function setRateRange(uint256 _percent) public {
+    function setRateRange(uint256 _percent) public /*onlyOwner*/{
         require (cryptoFiatRate > 0);
         require ((_percent < 10000) && (_percent > 0));
         uint256 _min = cryptoFiatRate.mul(10000 - _percent).div(10000);
@@ -70,7 +70,7 @@ contract PriceFeesLimits is Ownable {
     /**
      * @dev Gets min buy limit in tokens.
      */
-    function getMinimumBuyTokens() public view returns (uint256) {
+    function getMinimumBuyTokens() internal view returns (uint256) {
         return getLimitValue(limitType.minTokensBuy);
     }
 
@@ -84,7 +84,7 @@ contract PriceFeesLimits is Ownable {
     /**
      * @dev Gets min sell limit in tokens.
      */
-    function getMinimumSellTokens() public view returns (uint256) {
+    function getMinimumSellTokens() internal view returns (uint256) {
         return getLimitValue(limitType.minTokensSell);
     }
 
@@ -133,14 +133,14 @@ contract PriceFeesLimits is Ownable {
     /**
      * @dev Gets min crypto fiat rate.
      */
-    function getMinimumCryptoFiatRate() internal returns (uint256) {
+    function getMinimumCryptoFiatRate() public view returns (uint256) {
         return getLimitValue(limitType.minCryptoFiatRate);
     }
 
     /**
      * @dev Gets max crypto fiat rate.
      */
-    function getMaximumCryptoFiatRate() internal returns (uint256) {
+    function getMaximumCryptoFiatRate() public view returns (uint256) {
         return getLimitValue(limitType.maxCryptoFiatRate);
     }
 

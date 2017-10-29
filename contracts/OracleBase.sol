@@ -6,7 +6,7 @@ import "./zeppelin/ownership/Ownable.sol";
 interface bankInterface {
     // TODO: research events in interfaces (TypeError: Member "OraclizeStatus" not found or not visible after argument-dependent lookup in contract bankInterface)
     //event OraclizeStatus(address indexed _address, bytes32 oraclesName, string description);
-    function oraclesCallback(address _address, uint256 value, uint256 timestamp) public;
+    function oraclesCallback(uint256 value, uint256 timestamp) public;
 }
 
 /**
@@ -90,7 +90,7 @@ contract OracleBase is Ownable, usingOraclize {
     /**
      * @dev Sends query to oraclize.
      */
-    function updateRate() payable public /*onlyBank*/ {
+    function updateRate() payable public /*onlyBank*/ returns (bytes32) {
         // для тестов отдельно оракула закомментировать след. строку
         require (msg.sender == bankAddress);
         // для тестов отдельно оракула закомментировать след. строку
@@ -98,12 +98,14 @@ contract OracleBase is Ownable, usingOraclize {
         receivedRate = false;
         if (oraclize_getPrice("URL") > this.balance) {
             NewOraclizeQuery("Oraclize query was NOT sent, please add some ETH to cover for the query fee");
+            return 0;
             //bank.OraclizeStatus(address(this), oracleName, "Oraclize query was NOT sent, please add some ETH to cover for the query fee");
         } else {
             bytes32 queryId = oraclize_query(0, oracleConfig.datasource, oracleConfig.arguments);
             NewOraclizeQuery("Oraclize query was sent, standing by for the answer...");
             //bank.OraclizeStatus(address(this), oracleName, "Oraclize query was sent, standing by for the answer...");
             validIds[queryId] = true;
+            return queryId;
         }
     }
 
@@ -118,7 +120,7 @@ contract OracleBase is Ownable, usingOraclize {
         rate = parseInt(result, 2); // save it in storage as $ cents
         delete(validIds[myid]);
         lastResultTimestamp = now;
-        bank.oraclesCallback(address(this), rate, now);
+        bank.oraclesCallback(rate, now);
     }
 
     /**
