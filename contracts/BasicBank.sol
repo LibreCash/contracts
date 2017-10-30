@@ -369,7 +369,8 @@ contract BasicBank is UsingMultiOracles, Pausable {
         uint256 minimalRate = MAX_UINT256;
         uint256 maximalRate = 0;
         for (uint i = 0; i < oracleAddresses.length; i++) {
-            if ((oracles[oracleAddresses[i]].enabled) && (oracles[oracleAddresses[i]].queryId == bytes32(""))) {
+            if ((oracles[oracleAddresses[i]].enabled) && (oracles[oracleAddresses[i]].queryId == bytes32(""))
+                        && (oracles[oracleAddresses[i]].cryptoFiatRate != 0)) {
                 if (oracles[oracleAddresses[i]].cryptoFiatRate < minimalRate) {
                     minimalRate = oracles[oracleAddresses[i]].cryptoFiatRate;
                 }
@@ -401,7 +402,7 @@ contract BasicBank is UsingMultiOracles, Pausable {
         for (uint i = 0; i < oracleAddresses.length; i++) {
             OracleData storage currentOracleData = oracles[oracleAddresses[i]];
             if (now <= currentOracleData.updateTime + 3 minutes) { // защита от флуда обновлениями, потом мб уберём
-                if ((currentOracleData.enabled) && (currentOracleData.queryId != bytes32(""))) {
+                if ((currentOracleData.enabled) && (currentOracleData.queryId != bytes32("")) && (currentOracleData.cryptoFiatRate != 0)) {
                     numReadyOracles++;
                     sumRating += currentOracleData.rating;
                     integratedRates += currentOracleData.rating.mul(currentOracleData.cryptoFiatRate);
