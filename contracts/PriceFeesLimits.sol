@@ -77,7 +77,7 @@ contract PriceFeesLimits is Ownable {
     /**
      * @dev Gets max buy limit in tokens.
      */
-    function getMaximumBuyTokens() public view returns (uint256) {
+    function getMaximumBuyTokens() internal view returns (uint256) {
         return getLimitValue(limitType.maxTokensBuy);
     }
 
@@ -91,7 +91,7 @@ contract PriceFeesLimits is Ownable {
     /**
      * @dev Gets max sell limit in tokens.
      */
-   function getMaximumSellTokens() public view returns (uint256) {
+   function getMaximumSellTokens() internal view returns (uint256) {
         return getLimitValue(limitType.maxTokensSell);
     }
 
