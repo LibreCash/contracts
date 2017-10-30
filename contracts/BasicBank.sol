@@ -72,7 +72,7 @@ contract BasicBank is UsingMultiOracles, Pausable {
         setSellTokenLimits(0, MAX_UINT256);
      }
 
-    function cancelBuyOrder (uint256 _orderID) public onlyOwner {
+    function cancelBuyOrder(uint256 _orderID) public onlyOwner {
         require (buyOrderIndex + _orderID < buyOrderLast);
         uint256 realOrderId = buyOrderIndex + _orderID;
         buyOrders[realOrderId].clientAddress.transfer(buyOrders[realOrderId].orderAmount);
@@ -80,12 +80,30 @@ contract BasicBank is UsingMultiOracles, Pausable {
         buyOrders[realOrderId].clientAddress = 0x0;
     }
 
-    function cancelSellOrder (uint256 _orderID) public onlyOwner {
+    function cancelSellOrder(uint256 _orderID) public onlyOwner {
         require (sellOrderIndex + _orderID < sellOrderLast);
         uint256 realOrderId = sellOrderIndex + _orderID;
         libreToken.mint(sellOrders[realOrderId].clientAddress, sellOrders[realOrderId].orderAmount);
         //delete(sellOrders[realOrderId]);
         sellOrders[realOrderId].clientAddress = 0x0;
+    }
+
+    // без рекваеров, _orderID тут в старой системе в отличие от неSafe варианта
+    // TODO: подогнать индексы ордеров под одну систему, наверно не нативную как в массиве, а от 0, как выше
+    function cancelBuyOrderSafe(uint256 _orderID) public onlyOwner {
+        bool sent = buyOrders[_orderID].clientAddress.send(buyOrders[_orderID].orderAmount);
+        // а что делать если вернуло false (не отправилось) - подумать. снова ордер добавить?
+        // помним, что эта функция выполняется во время разгребания оочереди, если лимит цены не подошёл,
+        // и ордер надо вернуть
+        sent; // от warning
+        buyOrders[_orderID].clientAddress = 0x0;
+    }
+
+    // без рекваеров, _orderID тут в старой системе в отличие от неSafe варианта
+    // TODO: подогнать индексы ордеров под одну систему, наверно не нативную как в массиве, а от 0, как выше
+    function cancelSellOrderSafe(uint256 _orderID) public onlyOwner {
+        libreToken.mint(sellOrders[_orderID].clientAddress, sellOrders[_orderID].orderAmount);
+        sellOrders[_orderID].clientAddress = 0x0;
     }
 
     /**
@@ -205,7 +223,13 @@ contract BasicBank is UsingMultiOracles, Pausable {
         uint256 cryptoAmount = buyOrders[_orderID].orderAmount;
         uint256 tokensAmount = cryptoAmount.mul(cryptoFiatRateBuy).div(100);
         address benificiar = buyOrders[_orderID].clientAddress;  
-        libreToken.mint(benificiar, tokensAmount);
+        uint256 maxRate = buyOrders[_orderID].rateLimit;
+        if ((maxRate != 0) && (cryptoFiatRateBuy > maxRate)) {
+            // todo: log
+            cancelBuyOrderSafe(_orderID);
+            return true; // go next orders
+        }
+    libreToken.mint(benificiar, tokensAmount);
         LogBuy(benificiar, tokensAmount, cryptoAmount, cryptoFiatRateBuy);
         return true;
     }
@@ -221,6 +245,12 @@ contract BasicBank is UsingMultiOracles, Pausable {
         address beneficiar = sellOrders[_orderID].clientAddress;
         uint256 tokensAmount = sellOrders[_orderID].orderAmount;
         uint256 cryptoAmount = tokensAmount.div(cryptoFiatRateBuy).mul(100);
+        uint256 minRate = sellOrders[_orderID].rateLimit;
+        if ((minRate != 0) && (cryptoFiatRateSell < minRate)) {
+            // todo: log
+            cancelSellOrderSafe(_orderID);
+            return true; // go next orders
+        }
         if (this.balance < cryptoAmount) {  // checks if the bank has enough Ethers to send
             tokensAmount = this.balance.mul(cryptoFiatRateBuy).div(100); 
             libreToken.mint(beneficiar, sellOrders[_orderID].orderAmount.sub(tokensAmount));
@@ -419,7 +449,7 @@ contract BasicBank is UsingMultiOracles, Pausable {
         }
     }
 
-    function calculateSellPrice(uint256 _tokensAmount) internal returns (uint) {
+/*    function calculateSellPrice(uint256 _tokensAmount) internal returns (uint) {
         
     }
 
@@ -437,5 +467,5 @@ contract BasicBank is UsingMultiOracles, Pausable {
 
     function isRateValid(uint _rate) internal returns (bool) {
         return true;
-    }
+    }*/
 }
