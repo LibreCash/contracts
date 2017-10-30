@@ -147,7 +147,7 @@ contract BasicBank is UsingMultiOracles, Pausable {
     }
 
     function () payable external {
-        createBuyOrder(msg.sender, 0);
+        createBuyOrder(msg.sender, 0); // 0 - без ценовых ограничений
     }
 
     /**
@@ -218,7 +218,7 @@ contract BasicBank is UsingMultiOracles, Pausable {
      */
     function fillBuyOrder(uint256 _orderID) public returns (bool) {
         if (buyOrders[_orderID].clientAddress == 0x0) {
-            return true; // ордер удалён
+            return true; // ордер удалён, идём дальше
         }
         uint256 cryptoAmount = buyOrders[_orderID].orderAmount;
         uint256 tokensAmount = cryptoAmount.mul(cryptoFiatRateBuy).div(100);
@@ -229,7 +229,7 @@ contract BasicBank is UsingMultiOracles, Pausable {
             cancelBuyOrderSafe(_orderID);
             return true; // go next orders
         }
-    libreToken.mint(benificiar, tokensAmount);
+        libreToken.mint(benificiar, tokensAmount);
         LogBuy(benificiar, tokensAmount, cryptoAmount, cryptoFiatRateBuy);
         return true;
     }
@@ -412,9 +412,10 @@ contract BasicBank is UsingMultiOracles, Pausable {
         UINTLog("оракулов готово", numWaitingOracles);
 
         //UINTLog(sumRating);
-        //uint256 finalRate = integratedRates.div(sumRating); // the formula is in upper comment
+        // sumRating может быть равно 0, тогда вылетает
+        uint256 finalRate = integratedRates.div(sumRating); // the formula is in upper comment
         //setCurrencyRate(finalRate);
-        uint256 finalRate = 30000;
+        //uint256 finalRate = 30000;
 
         cryptoFiatRate = finalRate;
         //currencyUpdateTime = now;
@@ -447,6 +448,26 @@ contract BasicBank is UsingMultiOracles, Pausable {
                 fillBuyQueue();
            }*/
         }
+    }
+
+    function processWaitingOracles() public {
+        for (uint i = 0; i < oracleAddresses.length; i++) {
+            if (oracles[oracleAddresses[i]].enabled) {
+                if (oracles[oracleAddresses[i]].queryId == bytes32("")) {
+
+                }
+                else {
+                    // waiting but waiting more than 10 minutes
+                    if (oracles[oracleAddresses[i]].updateTime < now - 10 minutes) {
+                        oracles[oracleAddresses[i]].cryptoFiatRate = 0; // быть неактуальным
+                        oracles[oracleAddresses[i]].queryId = bytes32(""); // но не ждать
+                        numWaitingOracles.sub(1);
+                    } else {
+                        revert(); // не даём завершить, пока есть ждущие менее 10 минут оракулы
+                    }
+                }
+            }
+        } // foreach oracles
     }
 
 /*    function calculateSellPrice(uint256 _tokensAmount) internal returns (uint) {
