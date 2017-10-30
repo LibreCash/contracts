@@ -21,7 +21,7 @@ contract BasicBank is UsingMultiOracles, Pausable {
     using SafeMath for uint256;
     event TokensBought(address _beneficiar, uint256 tokensAmount, uint256 cryptoAmount);
     event TokensSold(address _beneficiar, uint256 tokensAmount, uint256 cryptoAmount);
-    event UINTLog(uint256 data);
+    event UINTLog(string description, uint256 data);
     event BuyOrderCreated(uint256 amount);
     event SellOrderCreated(uint256 amount);
     event LogBuy(address clientAddress, uint256 tokenAmount, uint256 cryptoAmount, uint256 buyPrice);
@@ -33,7 +33,6 @@ contract BasicBank is UsingMultiOracles, Pausable {
 
     uint256 timeUpdateRequested;
 
-    uint256 constant MAX_UINT256 = 2**256 - 1;
     uint256 constant MIN_ENABLED_ORACLES = 0; //2;
     uint256 constant MIN_WAITING_ORACLES = 2; //количество оракулов, которое допустимо омтавлять в ожидании
     uint256 constant MIN_READY_ORACLES = 1; //2;
@@ -62,7 +61,11 @@ contract BasicBank is UsingMultiOracles, Pausable {
     OrderData[] buyOrders; // очередь ордеров на покупку
     OrderData[] sellOrders; // очередь ордеров на покупку
 
-    uint256 orderCount = 0;
+    uint256 buyOrderIndex = 0;
+    uint256 buyOrderLast = 0;
+    uint256 sellOrderIndex = 0;
+    uint256 sellOrderLast = 0;
+//    uint256 orderCount = 0;
 
     function BasicBank() public {
         setBuyTokenLimits(0, MAX_UINT256);
@@ -140,6 +143,7 @@ contract BasicBank is UsingMultiOracles, Pausable {
     /**
      * @dev Creates buy order.
      * @param _address Beneficiar.
+     * @param _rateLimit Max affordable buying rate, 0 to allow all.
      */
     function createBuyOrder(address _address, uint256 _rateLimit) payable public {
         require((msg.value > getMinimumBuyTokens()) && (msg.value < getMaximumBuyTokens()));
@@ -154,9 +158,18 @@ contract BasicBank is UsingMultiOracles, Pausable {
     }
 
     /**
+     * @dev Creates buy order.
+     * @param _rateLimit Max affordable buying rate, 0 to allow all.
+     */
+    function createBuyOrder(uint256 _rateLimit) payable public {
+        createBuyOrder(msg.sender, _rateLimit);
+    }
+
+    /**
      * @dev Creates sell order.
      * @param _address Beneficiar.
      * @param _tokensCount Amount of tokens to sell.
+     * @param _rateLimit Min affordable selling rate, 0 to allow all.
      */
     function createSellOrder(address _address, uint256 _tokensCount, uint256 _rateLimit) public {
         require((_tokensCount > getMinimumSellTokens()) && (_tokensCount < getMaximumSellTokens()));
@@ -175,6 +188,7 @@ contract BasicBank is UsingMultiOracles, Pausable {
     /**
      * @dev Creates sell order.
      * @param _tokensCount Amount of tokens to sell.
+     * @param _rateLimit Min affordable selling rate, 0 to allow all.
      */
     function createSellOrder(uint256 _tokensCount, uint256 _rateLimit) public {
         createSellOrder(msg.sender, _tokensCount, _rateLimit);
@@ -202,7 +216,7 @@ contract BasicBank is UsingMultiOracles, Pausable {
      */
     function fillSellOrder(uint256 _orderID) public returns (bool) {
         if (sellOrders[_orderID].clientAddress == 0x0) {
-            return true; // ордер удалён
+            return true; // ордер удалён, можно продолжать разгребать
         }
         address beneficiar = sellOrders[_orderID].clientAddress;
         uint256 tokensAmount = sellOrders[_orderID].orderAmount;
@@ -222,12 +236,6 @@ contract BasicBank is UsingMultiOracles, Pausable {
         LogSell(beneficiar, tokensAmount, cryptoAmount, cryptoFiatRateBuy);
         return true;
     }
-
-// public для тестов
-    uint256 public buyOrderIndex = 0; // поднять потом наверх
-    uint256 public buyOrderLast = 0;
-    uint256 public sellOrderIndex = 0;
-    uint256 public sellOrderLast = 0;
 
     /**
      * @dev Fill buy orders queue.
@@ -307,20 +315,6 @@ contract BasicBank is UsingMultiOracles, Pausable {
                     buyOrders[realOrderId].rateLimit);
     }
     
-    /**
-     * @dev Show sell orders.
-     */
-    function getSellOrders() public view onlyOwner returns (OrderData) {
-        return sellOrders[0];
-    }
-
-    /**
-     * @dev Show buy orders.
-     */
-    function getBuyOrders() public view onlyOwner returns (OrderData) {
-        return buyOrders[0];
-    }
-    
     // про видимость подумать
     /**
      * @dev Touches oracles asking them to get new rates.
@@ -340,20 +334,24 @@ contract BasicBank is UsingMultiOracles, Pausable {
         OraclesTouched("Запущено обновление курсов");
     }
 
-    function dummySpenderDelegate() public {
-        this.delegatecall(bytes4(sha3("dummySpenderExt()")));
-    }
-
-    uint256 dummyData;
-    function dummySpender() public {
-        for (uint i = 1; i < 250; i++) {
-            dummyData += i * 2;
-        }
-    }
-    function dummySpenderExt() external {
-        for (uint i = 1; i < 250; i++) {
-            dummyData += i * 2;
-        }
+    // бета-аналог без условий по минимуму и максимуму и проценту
+    function calculateRatesWithSpread() public {
+        uint256 minimalRate = MAX_UINT256;
+        uint256 maximalRate = 0;
+        for (uint i = 0; i < oracleAddresses.length; i++) {
+            if ((oracles[oracleAddresses[i]].enabled) && (oracles[oracleAddresses[i]].queryId == bytes32(""))) {
+                if (oracles[oracleAddresses[i]].cryptoFiatRate < minimalRate) {
+                    minimalRate = oracles[oracleAddresses[i]].cryptoFiatRate;
+                }
+                if (oracles[oracleAddresses[i]].cryptoFiatRate > maximalRate) {
+                    maximalRate = oracles[oracleAddresses[i]].cryptoFiatRate;
+                }
+            }
+        } // foreach oracles
+        uint256 middleRate = minimalRate.add(maximalRate).div(2);
+        cryptoFiatRateBuy = minimalRate.sub(middleRate.mul(buyFee).div(100));
+        cryptoFiatRateSell = maximalRate.add(middleRate.mul(sellFee).div(100));
+        cryptoFiatRate = middleRate;
     }
 
     // подумать над видимостью
@@ -362,8 +360,9 @@ contract BasicBank is UsingMultiOracles, Pausable {
      */
     function calculateRate() public {
     //    require (numWaitingOracles <= MIN_WAITING_ORACLES);
+        UINTLog("оракулов ждёт", numWaitingOracles);
     //    require (numEnabledOracles-numWaitingOracles >= MIN_ENABLED_NOT_WAITING_ORACLES);
-
+        UINTLog("вкл. оракулов не ждёт", numWaitingOracles);
         uint256 numReadyOracles = 0;
         uint256 sumRating = 0;
         uint256 integratedRates = 0;
@@ -380,15 +379,18 @@ contract BasicBank is UsingMultiOracles, Pausable {
             }
         }
     //    require (numReadyOracles >= MIN_READY_ORACLES);
-    UINTLog(sumRating);
+        UINTLog("оракулов готово", numWaitingOracles);
+
+        //UINTLog(sumRating);
         //uint256 finalRate = integratedRates.div(sumRating); // the formula is in upper comment
         //setCurrencyRate(finalRate);
-uint256 finalRate = 30000;
+        uint256 finalRate = 30000;
 
         cryptoFiatRate = finalRate;
         //currencyUpdateTime = now;
-        cryptoFiatRateSell = finalRate.add(sellSpread.mul(sellFee).div(10000));
-        cryptoFiatRateBuy = finalRate.sub(buySpread.mul(buyFee).div(10000));
+        // уходим от этой концепции, 500 нужно чтобы пока тоже работало
+        cryptoFiatRateSell = finalRate.add(500);
+        cryptoFiatRateBuy = finalRate.sub(500);
 
     }
 

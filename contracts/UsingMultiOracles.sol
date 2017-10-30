@@ -81,7 +81,6 @@ contract UsingMultiOracles is PriceFeesLimits {
         return true;
     }
 
-    // не забываем потом добавить соотв. модификатор
     /**
      * @dev Adds an oracle.
      * @param _address The oracle address.
@@ -104,7 +103,6 @@ contract UsingMultiOracles is PriceFeesLimits {
         OracleAdded(_address, oracleName);
     }
 
-    // не забываем потом добавить соотв. модификатор
     /**
      * @dev Disable oracle.
      * @param _address The oracle address.
@@ -118,7 +116,6 @@ contract UsingMultiOracles is PriceFeesLimits {
         }
     }
 
-    // не забываем потом добавить соотв. модификатор
     /**
      * @dev Enable oracle.
      * @param _address The oracle address.
@@ -130,7 +127,6 @@ contract UsingMultiOracles is PriceFeesLimits {
         numEnabledOracles++;
     }
 
-    // не забываем потом добавить соотв. модификатор
     /**
      * @dev Delete oracle.
      * @param _address The oracle address.
@@ -139,7 +135,7 @@ contract UsingMultiOracles is PriceFeesLimits {
         require(!isNotOracle(_address));
         OracleDeleted(_address, oracles[_address].name);
         // может быть не стоит удалять ждущие? обсудить - Дима
-        if (oracles[_address].queryId != 0) {
+        if (oracles[_address].queryId != bytes32("")) {
             numWaitingOracles--;
         }
         if (oracles[_address].enabled) {
@@ -171,7 +167,7 @@ contract UsingMultiOracles is PriceFeesLimits {
      * @dev Gets oracle rating.
      * @param _address The oracle address.
      */
-    function getOracleRating(address _address) public view returns(uint256) {
+    function getOracleRating(address _address) internal view returns(uint256) {
         return oracles[_address].rating;
     }
 
@@ -179,7 +175,7 @@ contract UsingMultiOracles is PriceFeesLimits {
      * @dev Gets oracle rate.
      * @param _address The oracle address.
      */
-    function getOracleRate(address _address) public view returns(uint256) {
+    function getOracleRate(address _address) internal view returns(uint256) {
         return oracles[_address].cryptoFiatRate;
     }
 
