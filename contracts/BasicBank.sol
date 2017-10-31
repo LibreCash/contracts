@@ -79,7 +79,7 @@ contract BasicBank is UsingMultiOracles, Pausable {
         //delete(buyOrders[realOrderId]); 
         buyOrders[realOrderId].clientAddress = 0x0;
     }
-
+ 
     function cancelSellOrder(uint256 _orderID) public onlyOwner {
         require (sellOrderIndex + _orderID < sellOrderLast);
         uint256 realOrderId = sellOrderIndex + _orderID;
@@ -165,9 +165,6 @@ contract BasicBank is UsingMultiOracles, Pausable {
      */
     function createBuyOrder(address _address, uint256 _rateLimit) payable public {
         require((msg.value > getMinimumBuyTokens()) && (msg.value < getMaximumBuyTokens()));
-        //if ((buyOrders.length == 0) && (sellOrders.length == 0)) {
-        //    requestUpdateRates();
-        //}
         if (buyOrderLast == buyOrders.length) {
             buyOrders.length += 1;
         }
@@ -192,9 +189,6 @@ contract BasicBank is UsingMultiOracles, Pausable {
     function createSellOrder(address _address, uint256 _tokensCount, uint256 _rateLimit) public {
         require((_tokensCount > getMinimumSellTokens()) && (_tokensCount < getMaximumSellTokens()));
         require(_tokensCount <= libreToken.balanceOf(_address));
-        //if ((buyOrders.length == 0) && (sellOrders.length == 0)) {
-        //    requestUpdateRates();
-        //}
         if (sellOrderLast == sellOrders.length) {
             sellOrders.length += 1;
         }
@@ -369,13 +363,13 @@ contract BasicBank is UsingMultiOracles, Pausable {
         uint256 minimalRate = MAX_UINT256;
         uint256 maximalRate = 0;
         for (uint i = 0; i < oracleAddresses.length; i++) {
-            if ((oracles[oracleAddresses[i]].enabled) && (oracles[oracleAddresses[i]].queryId == bytes32(""))
-                        && (oracles[oracleAddresses[i]].cryptoFiatRate != 0)) {
-                if (oracles[oracleAddresses[i]].cryptoFiatRate < minimalRate) {
-                    minimalRate = oracles[oracleAddresses[i]].cryptoFiatRate;
+            OracleData currentOracle = oracles[oracleAddresses[i]];
+            if ((currentOracle.enabled) && (currentOracle.queryId == bytes32("")) && (currentOracle.cryptoFiatRate != 0)) {
+                if (currentOracle.cryptoFiatRate < minimalRate) {
+                    minimalRate = currentOracle.cryptoFiatRate;
                 }
-                if (oracles[oracleAddresses[i]].cryptoFiatRate > maximalRate) {
-                    maximalRate = oracles[oracleAddresses[i]].cryptoFiatRate;
+                if (currentOracle.cryptoFiatRate > maximalRate) {
+                    maximalRate = currentOracle.cryptoFiatRate;
                 }
             }
         } // foreach oracles
