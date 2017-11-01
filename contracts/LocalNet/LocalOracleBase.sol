@@ -14,24 +14,17 @@ interface bankInterface {
  *
  * @dev Base contract for oracles. Not abstract.
  */
-contract OracleBase is Ownable, usingOraclize {
-    event NewOraclizeQuery(string description);
-    event NewPriceTicker(bytes32 oracleName, uint256 price, uint256 timestamp);
-    event NewPriceTicker(string price);
-    event Log(string description);
+contract LocalOracleBase is Ownable {
 
     struct OracleConfig {
         string datasource;
         string arguments;
     }
 
-    bytes32 public oracleName = "Base Oracle";
-    bytes16 public oracleType = "Undefined";
-    string public description; // либо избавиться, либо в байты переделать
-    //uint256 public lastResult; // по сути это rate
+    bytes32 public oracleName = "Local Oracle";
+    bytes16 public oracleType = "DUMMY";
     uint256 public lastResultTimestamp;
-    uint256 public updateCost;
-    //address public owner; // убрать со след. коммитом, по идее это не нужно
+    uint256 public string rateData = "30000";
     mapping(bytes32=>bool) validIds; // ensure that each query response is processed only once
     address public bankAddress;
     uint public rate;
@@ -49,15 +42,9 @@ contract OracleBase is Ownable, usingOraclize {
      * @dev Constructor.
      */
     function OracleBase() public {
-        //owner = msg.sender; // убрать со след. коммитом, по идее это не нужно
-        oraclize_setProof(proofType_TLSNotary | proofStorage_IPFS);
-    }
-
-    /**
-     * @dev Returns if oraclize callback is received. Is needed for automated tests only.
-     */
-    function hasReceivedRate() public view returns (bool) {
-        return receivedRate;
+        oracleConfig = OracleConfig({datasource: "", arguments: "";});
+        bankAddress = _bankAddress;
+        updateCosts();
     }
 
     /**
@@ -69,14 +56,6 @@ contract OracleBase is Ownable, usingOraclize {
         bank = bankInterface(_bankAddress);
     }
 
-    // for test
-    /**
-     * @dev Gets bank address.
-     */
-    function getBank() public view returns (address) {
-        return bankAddress;
-    }
-
     /**
      * @dev Sends query to oraclize.
      */
@@ -85,40 +64,17 @@ contract OracleBase is Ownable, usingOraclize {
         require (msg.sender == bankAddress);
         // для тестов отдельно оракула закомментировать след. строку
         require (now > lastResultTimestamp + MIN_UPDATE_TIME);
-        receivedRate = false;
-        if (oraclize_getPrice("URL") > this.balance) {
-            NewOraclizeQuery("Oraclize query was NOT sent, please add some ETH to cover for the query fee");
-            return 0;
-            //bank.OraclizeStatus(address(this), oracleName, "Oraclize query was NOT sent, please add some ETH to cover for the query fee");
-        } else {
-            bytes32 queryId = oraclize_query(0, oracleConfig.datasource, oracleConfig.arguments);
-            NewOraclizeQuery("Oraclize query was sent, standing by for the answer...");
-            //bank.OraclizeStatus(address(this), oracleName, "Oraclize query was sent, standing by for the answer...");
-            validIds[queryId] = true;
-            return queryId;
-        }
+        // это локальный вариант оракула, тут не будет ораклайза, а просто:
+        __callback("dummyId", rateData, "proof");
     }
 
     /**
     * @dev Oraclize default callback with the proof set.
     */
-   function __callback(bytes32 myid, string result, bytes proof) public {
-        require(validIds[myid]);
-        require(msg.sender == oraclize_cbAddress());
-        receivedRate = true;
-        NewPriceTicker(result);
+    function __callback(bytes32 myid, string result, bytes proof) public {
         rate = parseInt(result, 2); // save it in storage as $ cents
-        delete(validIds[myid]);
         lastResultTimestamp = now;
         bank.oraclesCallback(rate, now);
-    }
-
-    /**
-     * @dev Updates oraclize costs.
-     * Shall be run after datasource setting.
-     */
-    function updateCosts() internal {
-        updateCost = 2 * oraclize_getPrice(oracleConfig.datasource);
     }
 
     /**

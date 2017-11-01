@@ -32,7 +32,29 @@ contract LocalRPCBank is Pausable, PriceFeesLimits {
     uint256 constant MIN_WAITING_ORACLES = 2; //количество оракулов, которое допустимо омтавлять в ожидании
     uint256 constant MIN_READY_ORACLES = 1; //2;
     uint256 constant MIN_ENABLED_NOT_WAITING_ORACLES = 1; //2;
-    
+// oracles
+    uint constant MAX_ORACLE_RATING = 10000;
+
+
+    struct OracleData {
+        bytes32 name;
+        uint256 rating;
+        bool enabled;
+        //bool waiting;
+        bytes32 queryId;
+        uint256 updateTime; // time of callback
+        uint256 cryptoFiatRate; // exchange rate
+        uint listPointer; // чтобы знать по какому индексу удалять из массива oracleAddresses
+    }
+
+    mapping (address=>OracleData) oracles;
+    address[] oracleAddresses;
+
+    uint256 numWaitingOracles = 0;
+// /oracles
+
+
+
     struct OrderData {
         address clientAddress;
         uint256 orderAmount;
@@ -319,6 +341,10 @@ contract LocalRPCBank is Pausable, PriceFeesLimits {
         require (sellOrders[realOrderId].clientAddress != 0x0);
         return (sellOrders[realOrderId].orderAmount, sellOrders[realOrderId].clientAddress, buyOrders[realOrderId].orderTimestamp,
                     buyOrders[realOrderId].rateLimit);
+    }
+
+    function addOracles() public {
+
     }
 
     // бета-аналог без условий по минимуму и максимуму и проценту
