@@ -220,7 +220,7 @@ contract BasicBank is UsingMultiOracles, Pausable {
         address senderAddress = buyOrders[_orderID].senderAddress;
         address recipientAddress = buyOrders[_orderID].recipientAddress;
         uint256 maxRate = buyOrders[_orderID].rateLimit;
-        if ((maxRate != 0) && (cryptoFiatRateBuy > maxRate)) {
+        if ((maxRate != 0) && (cryptoFiatRateBuy < maxRate)) {
             RateBuyLimitOverflow(cryptoFiatRateBuy, maxRate, cryptoAmount);
             cancelBuyOrderSafe(_orderID);
             return true; // go next orders
@@ -243,7 +243,7 @@ contract BasicBank is UsingMultiOracles, Pausable {
         uint256 tokensAmount = sellOrders[_orderID].orderAmount;
         uint256 cryptoAmount = tokensAmount.div(cryptoFiatRateBuy).mul(100);
         uint256 minRate = sellOrders[_orderID].rateLimit;
-        if ((minRate != 0) && (cryptoFiatRateSell < minRate)) {
+        if ((minRate != 0) && (cryptoFiatRateSell > minRate)) {
             RateBuyLimitOverflow(cryptoFiatRateBuy, minRate, cryptoAmount);
             cancelSellOrderSafe(_orderID);
             return true; // go next orders
