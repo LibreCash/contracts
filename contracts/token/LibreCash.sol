@@ -1,7 +1,7 @@
 pragma solidity ^0.4.10;
 
-import "./zeppelin/token/PausableToken.sol";
-import "./zeppelin/token/MintableToken.sol";
+import "../zeppelin/token/PausableToken.sol";
+import "../zeppelin/token/MintableToken.sol";
 
 /**
  * @title LibreCash token contract.

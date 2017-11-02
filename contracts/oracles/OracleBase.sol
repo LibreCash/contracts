@@ -1,7 +1,7 @@
 pragma solidity ^0.4.10;
 
 import "./oraclizeAPI_0.4.sol";
-import "./zeppelin/ownership/Ownable.sol";
+import "../zeppelin/ownership/Ownable.sol";
 
 interface bankInterface {
     // TODO: research events in interfaces (TypeError: Member "OraclizeStatus" not found or not visible after argument-dependent lookup in contract bankInterface)
