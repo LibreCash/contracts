@@ -358,12 +358,19 @@ contract BasicBank is UsingMultiOracles, Pausable {
         OraclesTouched("Запущено обновление курсов");
     }
 
-    // бета-аналог без условий по минимуму и максимуму и проценту
+    /**
+     * @dev Touches oracles asking them to get new rates.
+     */
     function calculateRatesWithSpread() public {
+        require (numWaitingOracles <= MIN_WAITING_ORACLES);
+        UINTLog("оракулов ждёт", numWaitingOracles);
+        require (numEnabledOracles-numWaitingOracles >= MIN_ENABLED_NOT_WAITING_ORACLES);
+        UINTLog("вкл. оракулов не ждёт", numWaitingOracles);
+        uint256 numReadyOracles = 0;
         uint256 minimalRate = MAX_UINT256;
         uint256 maximalRate = 0;
         for (uint i = 0; i < oracleAddresses.length; i++) {
-            OracleData currentOracle = oracles[oracleAddresses[i]];
+            OracleData memory currentOracle = oracles[oracleAddresses[i]];
             if ((currentOracle.enabled) && (currentOracle.queryId == bytes32("")) && (currentOracle.cryptoFiatRate != 0)) {
                 if (currentOracle.cryptoFiatRate < minimalRate) {
                     minimalRate = currentOracle.cryptoFiatRate;
@@ -371,53 +378,15 @@ contract BasicBank is UsingMultiOracles, Pausable {
                 if (currentOracle.cryptoFiatRate > maximalRate) {
                     maximalRate = currentOracle.cryptoFiatRate;
                 }
+                numReadyOracles++;
             }
         } // foreach oracles
+        require (numReadyOracles >= MIN_READY_ORACLES);
+        UINTLog("оракулов готово", numReadyOracles);
         uint256 middleRate = minimalRate.add(maximalRate).div(2);
-        cryptoFiatRateBuy = minimalRate.sub(middleRate.mul(buyFee).div(100));
-        cryptoFiatRateSell = maximalRate.add(middleRate.mul(sellFee).div(100));
+        cryptoFiatRateBuy = minimalRate.sub(middleRate.mul(buyFee).div(100).div(100));
+        cryptoFiatRateSell = maximalRate.add(middleRate.mul(sellFee).div(100).div(100));
         cryptoFiatRate = middleRate;
-    }
-
-    // подумать над видимостью
-    /**
-     * @dev Calculates crypto/fiat rate from "oracles" array.
-     */
-    function calculateRate() public {
-    //    require (numWaitingOracles <= MIN_WAITING_ORACLES);
-        UINTLog("оракулов ждёт", numWaitingOracles);
-    //    require (numEnabledOracles-numWaitingOracles >= MIN_ENABLED_NOT_WAITING_ORACLES);
-        UINTLog("вкл. оракулов не ждёт", numWaitingOracles);
-        uint256 numReadyOracles = 0;
-        uint256 sumRating = 0;
-        uint256 integratedRates = 0;
-        // the average rate would be: (sum of rating*rate)/(sum of ratings)
-        // so the more rating oracle has, the more powerful his rate is
-        for (uint i = 0; i < oracleAddresses.length; i++) {
-            OracleData storage currentOracleData = oracles[oracleAddresses[i]];
-            if (now <= currentOracleData.updateTime + 3 minutes) { // защита от флуда обновлениями, потом мб уберём
-                if ((currentOracleData.enabled) && (currentOracleData.queryId != bytes32("")) && (currentOracleData.cryptoFiatRate != 0)) {
-                    numReadyOracles++;
-                    sumRating += currentOracleData.rating;
-                    integratedRates += currentOracleData.rating.mul(currentOracleData.cryptoFiatRate);
-                }
-            }
-        }
-    //    require (numReadyOracles >= MIN_READY_ORACLES);
-        UINTLog("оракулов готово", numWaitingOracles);
-
-        //UINTLog(sumRating);
-        // sumRating может быть равно 0, тогда вылетает
-        uint256 finalRate = integratedRates.div(sumRating); // the formula is in upper comment
-        //setCurrencyRate(finalRate);
-        //uint256 finalRate = 30000;
-
-        cryptoFiatRate = finalRate;
-        //currencyUpdateTime = now;
-        // уходим от этой концепции, 500 нужно чтобы пока тоже работало
-        cryptoFiatRateSell = finalRate.add(500);
-        cryptoFiatRateBuy = finalRate.sub(500);
-
     }
 
     /**

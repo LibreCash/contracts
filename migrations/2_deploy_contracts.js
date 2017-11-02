@@ -30,8 +30,8 @@ else {
                  'OracleBitfinex',
                  'OracleBitstamp',
                  //'OracleGDAX',
-                 'OracleGemini',
-                 'OracleKraken',
+                 //'OracleGemini',
+                 //'OracleKraken',
                  'OracleWEX',
                  'BasicBank'
                 ];
