@@ -321,24 +321,6 @@ contract BasicBank is UsingMultiOracles, Pausable {
         return (sellOrderIndex, sellOrderLast);
     }
 
-    /**
-     * @dev Show buy order amount.
-     */
-    function getBuyOrder(uint256 _orderId) public view onlyOwner returns (uint256, address, address, uint256, uint256) {
-        require (buyOrders[_orderId].senderAddress != 0x0);
-        return (buyOrders[_orderId].orderAmount, buyOrders[_orderId].senderAddress, buyOrders[_orderId].recipientAddress, buyOrders[_orderId].orderTimestamp,
-                    buyOrders[_orderId].rateLimit);
-    }
-    
-    /**
-     * @dev Show sell order amount.
-     */
-    function getSellOrder(uint256 _orderId) public view onlyOwner returns (uint256, address, address, uint256, uint256) {
-        require (sellOrders[_orderId].senderAddress != 0x0);
-        return (sellOrders[_orderId].orderAmount, sellOrders[_orderId].senderAddress, sellOrders[_orderId].recipientAddress, sellOrders[_orderId].orderTimestamp,
-                    sellOrders[_orderId].rateLimit);
-    }
-    
     // про видимость подумать
     /**
      * @dev Touches oracles asking them to get new rates.
