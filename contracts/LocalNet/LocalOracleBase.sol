@@ -1,7 +1,7 @@
 pragma solidity ^0.4.10;
 
-import "./oraclizeAPI_0.4.sol";
-import "./zeppelin/ownership/Ownable.sol";
+import "../oraclizeAPI_0.4.sol";
+import "../zeppelin/ownership/Ownable.sol";
 
 interface bankInterface {
     // TODO: research events in interfaces (TypeError: Member "OraclizeStatus" not found or not visible after argument-dependent lookup in contract bankInterface)
@@ -24,7 +24,7 @@ contract LocalOracleBase is Ownable {
     bytes32 public oracleName = "Local Oracle";
     bytes16 public oracleType = "DUMMY";
     uint256 public lastResultTimestamp;
-    uint256 public string rateData = "30000";
+    string public rateData = "30000";
     mapping(bytes32=>bool) validIds; // ensure that each query response is processed only once
     address public bankAddress;
     uint public rate;
@@ -41,11 +41,35 @@ contract LocalOracleBase is Ownable {
     /**
      * @dev Constructor.
      */
-    function OracleBase() public {
-        oracleConfig = OracleConfig({datasource: "", arguments: "";});
+    function OracleBase(address _bankAddress) public {
+        oracleConfig = OracleConfig({datasource: "", arguments: ""});
         bankAddress = _bankAddress;
-        updateCosts();
     }
+
+    // parseInt
+    function parseInt(string _a) internal returns (uint) {
+        return parseInt(_a, 0);
+    }
+
+    // parseInt(parseFloat*10^_b)
+    function parseInt(string _a, uint _b) internal returns (uint) {
+        bytes memory bresult = bytes(_a);
+        uint mint = 0;
+        bool decimals = false;
+        for (uint i=0; i<bresult.length; i++){
+            if ((bresult[i] >= 48)&&(bresult[i] <= 57)){
+                if (decimals){
+                   if (_b == 0) break;
+                    else _b--;
+                }
+                mint *= 10;
+                mint += uint(bresult[i]) - 48;
+            } else if (bresult[i] == 46) decimals = true;
+        }
+        if (_b > 0) mint *= 10**_b;
+        return mint;
+    }
+
 
     /**
      * @dev Sets bank address.

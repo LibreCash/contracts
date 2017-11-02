@@ -2,7 +2,7 @@ var fs = require('fs');
 
 rimraf("build/contracts");
 
-let testnetLocal = true;
+let testnetLocal = false;
 
 if (testnetLocal) {
   var contracts = ['LocalRPCBank'];
