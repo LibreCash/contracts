@@ -54,8 +54,8 @@ contract BasicBank is UsingMultiOracles, Pausable {
         uint256 rateLimit;
     }
 
-    OrderData[] buyOrders; // очередь ордеров на покупку
-    OrderData[] sellOrders; // очередь ордеров на покупку
+    OrderData[] public buyOrders; // очередь ордеров на покупку
+    OrderData[] public sellOrders; // очередь ордеров на покупку
 
     uint256 buyOrderIndex = 0;
     uint256 buyOrderLast = 0;
@@ -326,8 +326,8 @@ contract BasicBank is UsingMultiOracles, Pausable {
      */
     function getSellOrder(uint256 _orderId) public view onlyOwner returns (uint256, address, uint256, uint256) {
         require (sellOrders[_orderId].clientAddress != 0x0);
-        return (sellOrders[_orderId].orderAmount, sellOrders[_orderId].clientAddress, buyOrders[_orderId].orderTimestamp,
-                    buyOrders[_orderId].rateLimit);
+        return (sellOrders[_orderId].orderAmount, sellOrders[_orderId].clientAddress, sellOrders[_orderId].orderTimestamp,
+                    sellOrders[_orderId].rateLimit);
     }
     
     // про видимость подумать
@@ -409,10 +409,10 @@ contract BasicBank is UsingMultiOracles, Pausable {
         for (uint i = 0; i < oracleAddresses.length; i++) {
             if (oracles[oracleAddresses[i]].enabled) {
                 if (oracles[oracleAddresses[i]].queryId == bytes32("")) {
-
+                    // оракул и так не ждёт
                 }
                 else {
-                    // waiting but waiting more than 10 minutes
+                    // если оракул ждёт 10 минут и больше
                     if (oracles[oracleAddresses[i]].updateTime < now - 10 minutes) {
                         oracles[oracleAddresses[i]].cryptoFiatRate = 0; // быть неактуальным
                         oracles[oracleAddresses[i]].queryId = bytes32(""); // но не ждать
