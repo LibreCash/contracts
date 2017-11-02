@@ -27,6 +27,8 @@ contract BasicBank is UsingMultiOracles, Pausable {
     event LogBuy(address clientAddress, uint256 tokenAmount, uint256 cryptoAmount, uint256 buyPrice);
     event LogSell(address clientAddress, uint256 tokenAmount, uint256 cryptoAmount, uint256 sellPrice);
     event OrderQueueGeneral(string description);
+    event RateBuyLimitOverflow(uint256 cryptoFiatRateBuy, uint256 maxRate, uint256 cryptoAmount);
+    event RateSellLimitOverflow(uint256 cryptoFiatRateBuy, uint256 maxRate, uint256 tokenAmount);
 
     address tokenAddress;
     token libreToken;
@@ -48,7 +50,8 @@ contract BasicBank is UsingMultiOracles, Pausable {
   }*/
     
     struct OrderData {
-        address clientAddress;
+        address senderAddress;
+        address recipientAddress;
         uint256 orderAmount;
         uint256 orderTimestamp;
         uint256 rateLimit;
@@ -72,8 +75,8 @@ contract BasicBank is UsingMultiOracles, Pausable {
      * @param _orderID The order ID.
      */
     function cancelBuyOrder(uint256 _orderID) public onlyOwner {
-        buyOrders[_orderID].clientAddress.transfer(buyOrders[_orderID].orderAmount);
-        buyOrders[_orderID].clientAddress = 0x0;
+        buyOrders[_orderID].senderAddress.transfer(buyOrders[_orderID].orderAmount);
+        buyOrders[_orderID].senderAddress = 0x0;
     }
  
      /**
@@ -81,8 +84,8 @@ contract BasicBank is UsingMultiOracles, Pausable {
      * @param _orderID The order ID.
      */
     function cancelSellOrder(uint256 _orderID) public onlyOwner {
-        libreToken.mint(sellOrders[_orderID].clientAddress, sellOrders[_orderID].orderAmount);
-        sellOrders[_orderID].clientAddress = 0x0;
+        libreToken.mint(sellOrders[_orderID].senderAddress, sellOrders[_orderID].orderAmount);
+        sellOrders[_orderID].senderAddress = 0x0;
     }
 
     /**
@@ -90,9 +93,9 @@ contract BasicBank is UsingMultiOracles, Pausable {
      * @param _orderID The order ID.
      */
     function cancelBuyOrderSafe(uint256 _orderID) internal onlyOwner {
-        bool sent = buyOrders[_orderID].clientAddress.send(buyOrders[_orderID].orderAmount);
+        bool sent = buyOrders[_orderID].senderAddress.send(buyOrders[_orderID].orderAmount);
         if (sent) {
-            buyOrders[_orderID].clientAddress = 0x0;
+            buyOrders[_orderID].senderAddress = 0x0;
         }
     }
 
@@ -101,8 +104,8 @@ contract BasicBank is UsingMultiOracles, Pausable {
      * @param _orderID The order ID.
      */
     function cancelSellOrderSafe(uint256 _orderID) public onlyOwner {
-        libreToken.mint(sellOrders[_orderID].clientAddress, sellOrders[_orderID].orderAmount);
-        sellOrders[_orderID].clientAddress = 0x0;
+        libreToken.mint(sellOrders[_orderID].senderAddress, sellOrders[_orderID].orderAmount);
+        sellOrders[_orderID].senderAddress = 0x0;
     }
 
     /**
@@ -160,10 +163,11 @@ contract BasicBank is UsingMultiOracles, Pausable {
      */
     function createBuyOrder(address _address, uint256 _rateLimit) payable public {
         require((msg.value > getMinimumBuyTokens()) && (msg.value < getMaximumBuyTokens()));
+        require(_address != 0x0);
         if (buyOrderLast == buyOrders.length) {
             buyOrders.length += 1;
         }
-        buyOrders[buyOrderLast++] = OrderData({clientAddress: _address, orderAmount: msg.value, orderTimestamp: now, rateLimit: _rateLimit});
+        buyOrders[buyOrderLast++] = OrderData({senderAddress: msg.sender, recipientAddress: _address, orderAmount: msg.value, orderTimestamp: now, rateLimit: _rateLimit});
         BuyOrderCreated(msg.value);
     }
 
@@ -183,12 +187,14 @@ contract BasicBank is UsingMultiOracles, Pausable {
      */
     function createSellOrder(address _address, uint256 _tokensCount, uint256 _rateLimit) public {
         require((_tokensCount > getMinimumSellTokens()) && (_tokensCount < getMaximumSellTokens()));
-        require(_tokensCount <= libreToken.balanceOf(_address));
+        require(_address != 0x0);
+        address tokenOwner = msg.sender;
+        require(_tokensCount <= libreToken.balanceOf(tokenOwner));
         if (sellOrderLast == sellOrders.length) {
             sellOrders.length += 1;
         }
-        sellOrders[sellOrderLast++] = OrderData({clientAddress: _address, orderAmount: _tokensCount, orderTimestamp: now, rateLimit: _rateLimit});
-        libreToken.burn(_address, _tokensCount);
+        sellOrders[sellOrderLast++] = OrderData({senderAddress: tokenOwner, recipientAddress: _address, orderAmount: _tokensCount, orderTimestamp: now, rateLimit: _rateLimit});
+        libreToken.burn(tokenOwner, _tokensCount);
         SellOrderCreated(_tokensCount); 
     }
 
@@ -206,20 +212,21 @@ contract BasicBank is UsingMultiOracles, Pausable {
      * @param _orderID The order ID.
      */
     function fillBuyOrder(uint256 _orderID) public returns (bool) {
-        if (buyOrders[_orderID].clientAddress == 0x0) {
+        if (buyOrders[_orderID].senderAddress == 0x0) {
             return true; // ордер удалён, идём дальше
         }
         uint256 cryptoAmount = buyOrders[_orderID].orderAmount;
         uint256 tokensAmount = cryptoAmount.mul(cryptoFiatRateBuy).div(100);
-        address benificiar = buyOrders[_orderID].clientAddress;  
+        address senderAddress = buyOrders[_orderID].senderAddress;
+        address recipientAddress = buyOrders[_orderID].recipientAddress;
         uint256 maxRate = buyOrders[_orderID].rateLimit;
         if ((maxRate != 0) && (cryptoFiatRateBuy > maxRate)) {
-            // todo: log
+            RateBuyLimitOverflow(cryptoFiatRateBuy, maxRate, cryptoAmount);
             cancelBuyOrderSafe(_orderID);
             return true; // go next orders
         }
-        libreToken.mint(benificiar, tokensAmount);
-        LogBuy(benificiar, tokensAmount, cryptoAmount, cryptoFiatRateBuy);
+        libreToken.mint(recipientAddress, tokensAmount);
+        LogBuy(recipientAddress, tokensAmount, cryptoAmount, cryptoFiatRateBuy);
         return true;
     }
     
@@ -228,31 +235,33 @@ contract BasicBank is UsingMultiOracles, Pausable {
      * @param _orderID The order ID.
      */
     function fillSellOrder(uint256 _orderID) public returns (bool) {
-        if (sellOrders[_orderID].clientAddress == 0x0) {
+        if (sellOrders[_orderID].senderAddress == 0x0) {
             return true; // ордер удалён, можно продолжать разгребать
         }
-        address beneficiar = sellOrders[_orderID].clientAddress;
+        address recipientAddress = sellOrders[_orderID].recipientAddress;
+        address senderAddress = sellOrders[_orderID].senderAddress;
         uint256 tokensAmount = sellOrders[_orderID].orderAmount;
         uint256 cryptoAmount = tokensAmount.div(cryptoFiatRateBuy).mul(100);
         uint256 minRate = sellOrders[_orderID].rateLimit;
         if ((minRate != 0) && (cryptoFiatRateSell < minRate)) {
-            // todo: log
+            RateBuyLimitOverflow(cryptoFiatRateBuy, minRate, cryptoAmount);
             cancelSellOrderSafe(_orderID);
             return true; // go next orders
         }
         if (this.balance < cryptoAmount) {  // checks if the bank has enough Ethers to send
-            tokensAmount = this.balance.mul(cryptoFiatRateBuy).div(100); 
-            libreToken.mint(beneficiar, sellOrders[_orderID].orderAmount.sub(tokensAmount));
+            tokensAmount = this.balance.mul(cryptoFiatRateBuy).div(100);
+            // слкдующую строчку продумать
+            libreToken.mint(senderAddress, sellOrders[_orderID].orderAmount.sub(tokensAmount));
             cryptoAmount = this.balance;
         } else {
             tokensAmount = sellOrders[_orderID].orderAmount;
             cryptoAmount = tokensAmount.div(cryptoFiatRateBuy).mul(100);
         }
-        if (!beneficiar.send(cryptoAmount)) { 
-            libreToken.mint(beneficiar, tokensAmount); // so as burned at sellTokens
+        if (!recipientAddress.send(cryptoAmount)) { 
+            libreToken.mint(senderAddress, tokensAmount); // so as burned at sellTokens
             return false;                                         
         } 
-        LogSell(beneficiar, tokensAmount, cryptoAmount, cryptoFiatRateBuy);
+        LogSell(recipientAddress, tokensAmount, cryptoAmount, cryptoFiatRateBuy);
         return true;
     }
 
@@ -315,18 +324,18 @@ contract BasicBank is UsingMultiOracles, Pausable {
     /**
      * @dev Show buy order amount.
      */
-    function getBuyOrder(uint256 _orderId) public view onlyOwner returns (uint256, address, uint256, uint256) {
-        require (buyOrders[_orderId].clientAddress != 0x0);
-        return (buyOrders[_orderId].orderAmount, buyOrders[_orderId].clientAddress, buyOrders[_orderId].orderTimestamp,
+    function getBuyOrder(uint256 _orderId) public view onlyOwner returns (uint256, address, address, uint256, uint256) {
+        require (buyOrders[_orderId].senderAddress != 0x0);
+        return (buyOrders[_orderId].orderAmount, buyOrders[_orderId].senderAddress, buyOrders[_orderId].recipientAddress, buyOrders[_orderId].orderTimestamp,
                     buyOrders[_orderId].rateLimit);
     }
     
     /**
      * @dev Show sell order amount.
      */
-    function getSellOrder(uint256 _orderId) public view onlyOwner returns (uint256, address, uint256, uint256) {
-        require (sellOrders[_orderId].clientAddress != 0x0);
-        return (sellOrders[_orderId].orderAmount, sellOrders[_orderId].clientAddress, sellOrders[_orderId].orderTimestamp,
+    function getSellOrder(uint256 _orderId) public view onlyOwner returns (uint256, address, address, uint256, uint256) {
+        require (sellOrders[_orderId].senderAddress != 0x0);
+        return (sellOrders[_orderId].orderAmount, sellOrders[_orderId].senderAddress, sellOrders[_orderId].recipientAddress, sellOrders[_orderId].orderTimestamp,
                     sellOrders[_orderId].rateLimit);
     }
     
