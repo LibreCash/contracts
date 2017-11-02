@@ -38,9 +38,6 @@ contract BasicBank is UsingMultiOracles, Pausable {
     uint256 constant MIN_READY_ORACLES = 1; //2;
     uint256 constant MIN_ENABLED_NOT_WAITING_ORACLES = 1; //2;
 
-    //bool bankAllowTests = false; // для тестов
-    
-
 //  /**
 //   * @dev Throws if called by any account other than the oracles.
 //   */
@@ -49,7 +46,6 @@ contract BasicBank is UsingMultiOracles, Pausable {
             require(oracles[oracleAddresses[i]] == msg.sender);
       }
   }*/
-
     
     struct OrderData {
         address clientAddress;
@@ -65,42 +61,45 @@ contract BasicBank is UsingMultiOracles, Pausable {
     uint256 buyOrderLast = 0;
     uint256 sellOrderIndex = 0;
     uint256 sellOrderLast = 0;
-//    uint256 orderCount = 0;
 
     function BasicBank() public {
         setBuyTokenLimits(0, MAX_UINT256);
         setSellTokenLimits(0, MAX_UINT256);
      }
 
+    /**
+     * @dev Cancels buy order.
+     * @param _orderID The order ID.
+     */
     function cancelBuyOrder(uint256 _orderID) public onlyOwner {
-        require (buyOrderIndex + _orderID < buyOrderLast);
-        uint256 realOrderId = buyOrderIndex + _orderID;
-        buyOrders[realOrderId].clientAddress.transfer(buyOrders[realOrderId].orderAmount);
-        //delete(buyOrders[realOrderId]); 
-        buyOrders[realOrderId].clientAddress = 0x0;
-    }
- 
-    function cancelSellOrder(uint256 _orderID) public onlyOwner {
-        require (sellOrderIndex + _orderID < sellOrderLast);
-        uint256 realOrderId = sellOrderIndex + _orderID;
-        libreToken.mint(sellOrders[realOrderId].clientAddress, sellOrders[realOrderId].orderAmount);
-        //delete(sellOrders[realOrderId]);
-        sellOrders[realOrderId].clientAddress = 0x0;
-    }
-
-    // без рекваеров, _orderID тут в старой системе в отличие от неSafe варианта
-    // TODO: подогнать индексы ордеров под одну систему, наверно не нативную как в массиве, а от 0, как выше
-    function cancelBuyOrderSafe(uint256 _orderID) public onlyOwner {
-        bool sent = buyOrders[_orderID].clientAddress.send(buyOrders[_orderID].orderAmount);
-        // а что делать если вернуло false (не отправилось) - подумать. снова ордер добавить?
-        // помним, что эта функция выполняется во время разгребания оочереди, если лимит цены не подошёл,
-        // и ордер надо вернуть
-        sent; // от warning
+        buyOrders[_orderID].clientAddress.transfer(buyOrders[_orderID].orderAmount);
         buyOrders[_orderID].clientAddress = 0x0;
     }
+ 
+     /**
+     * @dev Cancels sell order.
+     * @param _orderID The order ID.
+     */
+    function cancelSellOrder(uint256 _orderID) public onlyOwner {
+        libreToken.mint(sellOrders[_orderID].clientAddress, sellOrders[_orderID].orderAmount);
+        sellOrders[_orderID].clientAddress = 0x0;
+    }
 
-    // без рекваеров, _orderID тут в старой системе в отличие от неSafe варианта
-    // TODO: подогнать индексы ордеров под одну систему, наверно не нативную как в массиве, а от 0, как выше
+    /**
+     * @dev Cancels buy order without exceptions.
+     * @param _orderID The order ID.
+     */
+    function cancelBuyOrderSafe(uint256 _orderID) internal onlyOwner {
+        bool sent = buyOrders[_orderID].clientAddress.send(buyOrders[_orderID].orderAmount);
+        if (sent) {
+            buyOrders[_orderID].clientAddress = 0x0;
+        }
+    }
+
+    /**
+     * @dev Cancels sell order without exceptions.
+     * @param _orderID The order ID.
+     */
     function cancelSellOrderSafe(uint256 _orderID) public onlyOwner {
         libreToken.mint(sellOrders[_orderID].clientAddress, sellOrders[_orderID].orderAmount);
         sellOrders[_orderID].clientAddress = 0x0;
@@ -115,10 +114,6 @@ contract BasicBank is UsingMultiOracles, Pausable {
         libreToken = token(tokenAddress);
         libreToken.setBankAddress(address(this));
     }
-
-    // для автотестов
-    //function allowTests() public { bankAllowTests = true; }
-    //function areTestsAllowed() public view returns (bool) { return bankAllowTests; }
 
     /**
      * @dev Gets current token address.
@@ -321,22 +316,18 @@ contract BasicBank is UsingMultiOracles, Pausable {
      * @dev Show buy order amount.
      */
     function getBuyOrder(uint256 _orderId) public view onlyOwner returns (uint256, address, uint256, uint256) {
-        uint256 realOrderId = buyOrderIndex + _orderId;
-        require (realOrderId < buyOrderLast);
-        require (buyOrders[realOrderId].clientAddress != 0x0);
-        return (buyOrders[realOrderId].orderAmount, buyOrders[realOrderId].clientAddress, buyOrders[realOrderId].orderTimestamp,
-                    buyOrders[realOrderId].rateLimit);
+        require (buyOrders[_orderId].clientAddress != 0x0);
+        return (buyOrders[_orderId].orderAmount, buyOrders[_orderId].clientAddress, buyOrders[_orderId].orderTimestamp,
+                    buyOrders[_orderId].rateLimit);
     }
     
     /**
      * @dev Show sell order amount.
      */
     function getSellOrder(uint256 _orderId) public view onlyOwner returns (uint256, address, uint256, uint256) {
-        uint256 realOrderId = sellOrderIndex + _orderId;
-        require (realOrderId < sellOrderLast);
-        require (sellOrders[realOrderId].clientAddress != 0x0);
-        return (sellOrders[realOrderId].orderAmount, sellOrders[realOrderId].clientAddress, buyOrders[realOrderId].orderTimestamp,
-                    buyOrders[realOrderId].rateLimit);
+        require (sellOrders[_orderId].clientAddress != 0x0);
+        return (sellOrders[_orderId].orderAmount, sellOrders[_orderId].clientAddress, buyOrders[_orderId].orderTimestamp,
+                    buyOrders[_orderId].rateLimit);
     }
     
     // про видимость подумать
@@ -433,24 +424,4 @@ contract BasicBank is UsingMultiOracles, Pausable {
             }
         } // foreach oracles
     }
-
-/*    function calculateSellPrice(uint256 _tokensAmount) internal returns (uint) {
-        
-    }
-
-    function calculateBuyPrice(uint256 _tokensAmount) internal returns (uint) {
-        
-    }
-
-    function calculateBuySpread(uint256 _tokensAmount) internal returns (uint) {
-        
-    }
-
-    function calculateSellSpread(uint256 _tokensAmount) internal returns (uint) {
-        
-    }
-
-    function isRateValid(uint _rate) internal returns (bool) {
-        return true;
-    }*/
 }
