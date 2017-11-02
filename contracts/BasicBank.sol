@@ -301,15 +301,15 @@ contract BasicBank is UsingMultiOracles, Pausable {
     /**
      * @dev Show buy order count.
      */
-    function getBuyOrderCount() public view onlyOwner returns (uint256) {
-        return buyOrderLast - buyOrderIndex;
+    function getBuyOrderFromTo() public view onlyOwner returns (uint256, uint256) {
+        return (buyOrderIndex, buyOrderLast);
     }
 
     /**
      * @dev Show sell order count.
      */
-    function getSellOrderCount() public view onlyOwner returns (uint256) {
-        return sellOrderLast - sellOrderIndex;
+    function getSellOrderFromTo() public view onlyOwner returns (uint256, uint256) {
+        return (sellOrderIndex, sellOrderLast);
     }
 
     /**
