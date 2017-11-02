@@ -60,16 +60,6 @@ contract OracleBase is Ownable, usingOraclize {
         return receivedRate;
     }
 
-    // TODO: onlyOwner, onlyBank - подумать ещё раз, что когда нужно, и мб сделать общий модификатор onlyOwnerOrBank
-    /**
-     * @dev Sets oracle description.
-     * @param _description Description.
-     * TODO: нужно ли вообще оракулу описание?
-     */
-    function setDescription(string _description) onlyOwner public {
-        description = _description;
-    }
-
     /**
      * @dev Sets bank address.
      * @param _bankAddress Description.

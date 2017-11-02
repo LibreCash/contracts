@@ -2,7 +2,6 @@ module.exports = {
   networks: {
     development: {
       host: "localhost",
-      //port: 9000, // testrpc (у меня - Дима)
       port: 8545,
       network_id: "*", // Match any network id
       gas: 4612388 // чтобы деплоилось - править когда gas limit ему не нравится (дефолт вроде как 4712388, и с ним ошибка)

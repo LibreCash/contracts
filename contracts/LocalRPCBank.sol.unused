@@ -2,7 +2,7 @@ pragma solidity ^0.4.10;
 
 import "./zeppelin/math/SafeMath.sol";
 import "./zeppelin/lifecycle/Pausable.sol";
-import "./UsingMultiOracles.sol";
+import "./PriceFeesLimits.sol";
 
 interface token {
     function balanceOf(address _owner) public returns (uint256);
@@ -12,12 +12,7 @@ interface token {
     function setBankAddress(address _bankAddress) public;
 }
 
-/**
- * @title BasicBank.
- *
- * @dev Bank contract.
- */
-contract BasicBank is UsingMultiOracles, Pausable {
+contract LocalRPCBank is Pausable, PriceFeesLimits {
     using SafeMath for uint256;
     event TokensBought(address _beneficiar, uint256 tokensAmount, uint256 cryptoAmount);
     event TokensSold(address _beneficiar, uint256 tokensAmount, uint256 cryptoAmount);
@@ -37,20 +32,29 @@ contract BasicBank is UsingMultiOracles, Pausable {
     uint256 constant MIN_WAITING_ORACLES = 2; //количество оракулов, которое допустимо омтавлять в ожидании
     uint256 constant MIN_READY_ORACLES = 1; //2;
     uint256 constant MIN_ENABLED_NOT_WAITING_ORACLES = 1; //2;
+// oracles
+    uint constant MAX_ORACLE_RATING = 10000;
 
-    //bool bankAllowTests = false; // для тестов
-    
 
-//  /**
-//   * @dev Throws if called by any account other than the oracles.
-//   */
-  /*modifier onlyOracles() {
-     for (uint i = 0; i < oracleAddresses.length; i++) {
-            require(oracles[oracleAddresses[i]] == msg.sender);
-      }
-  }*/
+    struct OracleData {
+        bytes32 name;
+        uint256 rating;
+        bool enabled;
+        //bool waiting;
+        bytes32 queryId;
+        uint256 updateTime; // time of callback
+        uint256 cryptoFiatRate; // exchange rate
+        uint listPointer; // чтобы знать по какому индексу удалять из массива oracleAddresses
+    }
 
-    
+    mapping (address=>OracleData) oracles;
+    address[] oracleAddresses;
+
+    uint256 numWaitingOracles = 0;
+// /oracles
+
+
+
     struct OrderData {
         address clientAddress;
         uint256 orderAmount;
@@ -67,10 +71,10 @@ contract BasicBank is UsingMultiOracles, Pausable {
     uint256 sellOrderLast = 0;
 //    uint256 orderCount = 0;
 
-    function BasicBank() public {
+    function LocalRPCBank() public {
         setBuyTokenLimits(0, MAX_UINT256);
         setSellTokenLimits(0, MAX_UINT256);
-     }
+    }
 
     function cancelBuyOrder(uint256 _orderID) public onlyOwner {
         require (buyOrderIndex + _orderID < buyOrderLast);
@@ -338,24 +342,9 @@ contract BasicBank is UsingMultiOracles, Pausable {
         return (sellOrders[realOrderId].orderAmount, sellOrders[realOrderId].clientAddress, buyOrders[realOrderId].orderTimestamp,
                     buyOrders[realOrderId].rateLimit);
     }
-    
-    // про видимость подумать
-    /**
-     * @dev Touches oracles asking them to get new rates.
-     */
-    function requestUpdateRates() public {
-        require (numEnabledOracles >= MIN_ENABLED_ORACLES);
-        numWaitingOracles = 0;
-        for (uint i = 0; i < oracleAddresses.length; i++) {
-            if ((oracles[oracleAddresses[i]].enabled) && (oracles[oracleAddresses[i]].queryId == bytes32(""))) {
-                bytes32 queryId = oracleInterface(oracleAddresses[i]).updateRate();
-                OracleTouched(oracleAddresses[i], oracles[oracleAddresses[i]].name);
-                oracles[oracleAddresses[i]].queryId = queryId;
-                numWaitingOracles++;
-            }
-            timeUpdateRequested = now;
-        } // foreach oracles
-        OraclesTouched("Запущено обновление курсов");
+
+    function addOracles() public {
+
     }
 
     // бета-аналог без условий по минимуму и максимуму и проценту
@@ -420,68 +409,9 @@ contract BasicBank is UsingMultiOracles, Pausable {
 
     }
 
-    /**
-     * @dev The callback from oracles.
-     * @param _rate The oracle ETH/USD rate.
-     * @param _time Update time sent from oracle.
-     */
-    function oraclesCallback(uint256 _rate, uint256 _time) public { // дублирование _address и msg.sender
-        OracleCallback(msg.sender, oracles[msg.sender].name, _rate);
-        require(!isNotOracle(msg.sender));
-        if (oracles[msg.sender].queryId == bytes32("")) {
-            TextLog("Oracle not waiting");
-        } else {
-           // all ok, we waited for it
-           numWaitingOracles--;
-           // maybe we should check for existance of structure oracles[_address]? to think about it
-           oracles[msg.sender].cryptoFiatRate = _rate;
-           oracles[msg.sender].updateTime = _time;
-           oracles[msg.sender].queryId = 0x0;
-           /*if (numWaitingOracles == 0) { // Добавить второе условие (будильник Ethereum)
-                calculateRate();
-                fillSellQueue();
-                fillBuyQueue();
-           }*/
-        }
-    }
 
-    function processWaitingOracles() public {
-        for (uint i = 0; i < oracleAddresses.length; i++) {
-            if (oracles[oracleAddresses[i]].enabled) {
-                if (oracles[oracleAddresses[i]].queryId == bytes32("")) {
 
-                }
-                else {
-                    // waiting but waiting more than 10 minutes
-                    if (oracles[oracleAddresses[i]].updateTime < now - 10 minutes) {
-                        oracles[oracleAddresses[i]].cryptoFiatRate = 0; // быть неактуальным
-                        oracles[oracleAddresses[i]].queryId = bytes32(""); // но не ждать
-                        numWaitingOracles.sub(1);
-                    } else {
-                        revert(); // не даём завершить, пока есть ждущие менее 10 минут оракулы
-                    }
-                }
-            }
-        } // foreach oracles
-    }
 
-/*    function calculateSellPrice(uint256 _tokensAmount) internal returns (uint) {
-        
-    }
 
-    function calculateBuyPrice(uint256 _tokensAmount) internal returns (uint) {
-        
-    }
 
-    function calculateBuySpread(uint256 _tokensAmount) internal returns (uint) {
-        
-    }
-
-    function calculateSellSpread(uint256 _tokensAmount) internal returns (uint) {
-        
-    }
-
-    function isRateValid(uint _rate) internal returns (bool) {
-        return true;
-    }*/
 }
