@@ -57,13 +57,21 @@ contract BasicBank is UsingMultiOracles, Pausable {
         uint256 rateLimit;
     }
 
-    OrderData[] public buyOrders; // очередь ордеров на покупку
-    OrderData[] public sellOrders; // очередь ордеров на покупку
+    OrderData[] buyOrders; // очередь ордеров на покупку
+    OrderData[] sellOrders; // очередь ордеров на покупку
 
     uint256 buyOrderIndex = 0;
     uint256 buyOrderLast = 0;
     uint256 sellOrderIndex = 0;
     uint256 sellOrderLast = 0;
+
+    function getBuyOrders() public onlyOwner view returns (OrderData[]) {
+        return buyOrders;
+    }
+
+    function getSellOrders() public onlyOwner view returns (OrderData[]) {
+        return sellOrders;
+    }
 
     function BasicBank() public {
         setBuyTokenLimits(0, MAX_UINT256);
