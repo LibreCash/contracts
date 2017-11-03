@@ -23,8 +23,8 @@ contract PriceFeesLimits is Ownable {
     }
 
     Limit limitCryptoFiatRate;
-    Limit limitBuyOrder;
-    Limit limitSellOrder;
+    Limit public limitBuyOrder;
+    Limit public limitSellOrder;
 
     //enum limitType { minCryptoFiatRate, maxCryptoFiatRate, minTokensBuy, minTokensSell, maxTokensBuy, maxTokensSell }
     //mapping (uint => uint256) limits;
@@ -67,20 +67,6 @@ contract PriceFeesLimits is Ownable {
     }
 
     /**
-     * @dev Gets buy limits in tokens.
-     */
-    function getBuyTokenLimits() public view returns (uint256, uint256) {
-        return (limitBuyOrder.min, limitBuyOrder.max);
-    }
-
-    /**
-     * @dev Gets sell limits in tokens.
-     */
-    function getSellTokenLimits() public view returns (uint256, uint256) {
-        return (limitSellOrder.min, limitSellOrder.max);
-    }
-
-    /**
      * @dev Sets buying fee.
      * @param _fee The fee in percent (100% = 10000).
      */
@@ -101,7 +87,7 @@ contract PriceFeesLimits is Ownable {
     /**
      * @dev Gets min crypto fiat rate.
      */
-    function getCryptoFiatRateLimits() public view returns (uint256, uint256) {
+    function getCryptoFiatRateLimits() public view onlyOwner returns (uint256, uint256) {
         return (limitCryptoFiatRate.min, limitCryptoFiatRate.max);
     }
 }

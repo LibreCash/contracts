@@ -72,13 +72,13 @@ contract UsingMultiOracles is PriceFeesLimits {
         return oracleAddresses.length;
     }
 
-    function isNotOracle(address _address) public view returns (bool) {
+    function isOracle(address _address) internal view returns (bool) {
         for (uint i = 0; i < oracleAddresses.length; i++) {
             if (oracleAddresses[i] == _address) {
-                return false;
+                return true;
             }
         }
-        return true;
+        return false;
     }
 
     /**
@@ -86,7 +86,7 @@ contract UsingMultiOracles is PriceFeesLimits {
      * @param _address The oracle address.
      */
     function addOracle(address _address) public onlyOwner {
-        require(isNotOracle (_address));
+        require(!isOracle(_address));
         require(_address != 0x0);
         oracleInterface currentOracleInterface = oracleInterface(_address);
         // TODO: возможно нам не нужно обращаться к оракулу лишний раз
@@ -108,7 +108,7 @@ contract UsingMultiOracles is PriceFeesLimits {
      * @param _address The oracle address.
      */
     function disableOracle(address _address) public onlyOwner {
-        require(!isNotOracle(_address));
+        require(isOracle(_address));
         oracles[_address].enabled = false;
         OracleDisabled(_address, oracles[_address].name);
         if (numEnabledOracles!=0) {
@@ -121,7 +121,7 @@ contract UsingMultiOracles is PriceFeesLimits {
      * @param _address The oracle address.
      */
     function enableOracle(address _address) public onlyOwner {
-        require(!isNotOracle(_address));
+        require(isOracle(_address));
         oracles[_address].enabled = true;
         OracleEnabled(_address, oracles[_address].name);
         numEnabledOracles++;
@@ -132,7 +132,7 @@ contract UsingMultiOracles is PriceFeesLimits {
      * @param _address The oracle address.
      */
     function deleteOracle(address _address) public onlyOwner {
-        require(!isNotOracle(_address));
+        require(isOracle(_address));
         OracleDeleted(_address, oracles[_address].name);
         // может быть не стоит удалять ждущие? обсудить - Дима
         if (oracles[_address].queryId != bytes32("")) {
@@ -153,30 +153,6 @@ contract UsingMultiOracles is PriceFeesLimits {
         oracles[keyToMove].listPointer = indexToDelete;
         // уменьшаем длину массива адресов, адрес в конце уже на месте удалённого стоит и нам не нужен
         oracleAddresses.length--;
-    }
-
-    /**
-     * @dev Gets oracle name.
-     * @param _address The oracle address.
-     */
-    function getOracleName(address _address) public view returns(bytes32) {
-        return oracles[_address].name;
-    }
-    
-    /**
-     * @dev Gets oracle rating.
-     * @param _address The oracle address.
-     */
-    function getOracleRating(address _address) internal view returns(uint256) {
-        return oracles[_address].rating;
-    }
-
-    /**
-     * @dev Gets oracle rate.
-     * @param _address The oracle address.
-     */
-    function getOracleRate(address _address) internal view returns(uint256) {
-        return oracles[_address].cryptoFiatRate;
     }
 
     /**
