@@ -17,13 +17,24 @@ contract PriceFeesLimits is Ownable {
     uint256 public cryptoFiatRateSell;
     uint256 public cryptoFiatRateBuy;
 
-    enum limitType { minCryptoFiatRate, maxCryptoFiatRate, minTokensBuy, minTokensSell, maxTokensBuy, maxTokensSell }
-    mapping (uint => uint256) limits;
+    struct Limit {
+        uint256 min;
+        uint256 max;
+    }
+
+    Limit limitCryptoFiatRate;
+    Limit limitBuyOrder;
+    Limit limitSellOrder;
+
+    //enum limitType { minCryptoFiatRate, maxCryptoFiatRate, minTokensBuy, minTokensSell, maxTokensBuy, maxTokensSell }
+    //mapping (uint => uint256) limits;
 
     uint256 public sellFee = 500; // 5%
     uint256 public buyFee = 500;
 
     uint256 constant MAX_UINT256 = 2**256 - 1;
+    uint256 constant MAX_BUYFEE = 30000;
+    uint256 constant MAX_SELLFEE = 30000;
 
     /**
      * @dev Sets fiat rate limits.
@@ -31,8 +42,8 @@ contract PriceFeesLimits is Ownable {
      * @param _max Max rate.
      */
     function setRateLimits(uint256 _min, uint256 _max) public onlyOwner {
-        setLimitValue(limitType.minCryptoFiatRate, _min);
-        setLimitValue(limitType.maxCryptoFiatRate, _max);
+        limitCryptoFiatRate.min = _min;
+        limitCryptoFiatRate.max = _max;
     }
 
     /**
@@ -41,8 +52,8 @@ contract PriceFeesLimits is Ownable {
      * @param _max Max limit.
      */
     function setBuyTokenLimits(uint256 _min, uint256 _max) public onlyOwner {
-        setLimitValue(limitType.minTokensBuy, _min);
-        setLimitValue(limitType.maxTokensBuy, _max);
+        limitBuyOrder.min = _min;
+        limitBuyOrder.max = _max;
     }
 
     /**
@@ -51,36 +62,22 @@ contract PriceFeesLimits is Ownable {
      * @param _max Max limit.
      */
     function setSellTokenLimits(uint256 _min, uint256 _max) public onlyOwner {
-        setLimitValue(limitType.minTokensSell, _min);
-        setLimitValue(limitType.maxTokensSell, _max);
+        limitSellOrder.min = _min;
+        limitSellOrder.max = _max;
     }
 
     /**
-     * @dev Gets min buy limit in tokens.
+     * @dev Gets buy limits in tokens.
      */
-    function getMinimumBuyTokens() internal view returns (uint256) {
-        return getLimitValue(limitType.minTokensBuy);
+    function getBuyTokenLimits() public view returns (uint256, uint256) {
+        return (limitBuyOrder.min, limitBuyOrder.max);
     }
 
     /**
-     * @dev Gets max buy limit in tokens.
+     * @dev Gets sell limits in tokens.
      */
-    function getMaximumBuyTokens() internal view returns (uint256) {
-        return getLimitValue(limitType.maxTokensBuy);
-    }
-
-    /**
-     * @dev Gets min sell limit in tokens.
-     */
-    function getMinimumSellTokens() internal view returns (uint256) {
-        return getLimitValue(limitType.minTokensSell);
-    }
-
-    /**
-     * @dev Gets max sell limit in tokens.
-     */
-   function getMaximumSellTokens() internal view returns (uint256) {
-        return getLimitValue(limitType.maxTokensSell);
+    function getSellTokenLimits() public view returns (uint256, uint256) {
+        return (limitSellOrder.min, limitSellOrder.max);
     }
 
     /**
@@ -88,7 +85,7 @@ contract PriceFeesLimits is Ownable {
      * @param _fee The fee in percent (100% = 10000).
      */
     function setBuyFee(uint256 _fee) public onlyOwner {
-        require (_fee < 300000); // fee less than 300%
+        require (_fee < MAX_BUYFEE);
         buyFee = _fee;
     }
 
@@ -97,50 +94,14 @@ contract PriceFeesLimits is Ownable {
      * @param _fee The fee in percent (100% = 10000).
      */
     function setSellFee(uint256 _fee) public onlyOwner {
-        require (_fee < 300000); // fee less than 300%
+        require (_fee < MAX_SELLFEE);
         sellFee = _fee;
-    }
-
-    /**
-     * @dev Sets one of the limits.
-     * @param _limitName The limit name.
-     * @param _value The value.
-     */
-    function setLimitValue(limitType _limitName, uint256 _value) internal {
-        limits[uint(_limitName)] = _value;
-    }
-
-    /**
-     * @dev Gets value of one of the limits.
-     * @param _limitName The limit name.
-     */
-    function getLimitValue(limitType _limitName) internal view returns (uint256) {
-        return limits[uint(_limitName)];
     }
 
     /**
      * @dev Gets min crypto fiat rate.
      */
-    function getMinimumCryptoFiatRate() public view returns (uint256) {
-        return getLimitValue(limitType.minCryptoFiatRate);
+    function getCryptoFiatRateLimits() public view returns (uint256, uint256) {
+        return (limitCryptoFiatRate.min, limitCryptoFiatRate.max);
     }
-
-    /**
-     * @dev Gets max crypto fiat rate.
-     */
-    function getMaximumCryptoFiatRate() public view returns (uint256) {
-        return getLimitValue(limitType.maxCryptoFiatRate);
-    }
-
-    /**
-     * @dev Sets currency rate and updates timestamp.
-     */
-/*    function setCurrencyRate(uint256 _rate) internal {
-        bool validRate = (_rate > getLimitValue(limitType.minUsdRate)) && (_rate < getLimitValue(limitType.maxUsdRate));
-        require(validRate);
-        cryptoFiatRate = _rate;
-        currencyUpdateTime = now;
-        cryptoFiatRateSell = _rate.add(sellSpread.mul(sellFee).div(10000));
-        cryptoFiatRateBuy = _rate.sub(buySpread.mul(buyFee).div(10000));
-    }*/
 }

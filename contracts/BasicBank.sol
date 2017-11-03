@@ -170,7 +170,8 @@ contract BasicBank is UsingMultiOracles, Pausable {
      * @param _rateLimit Max affordable buying rate, 0 to allow all.
      */
     function createBuyOrder(address _address, uint256 _rateLimit) payable public {
-        require((msg.value > getMinimumBuyTokens()) && (msg.value < getMaximumBuyTokens()));
+        var (minBuyTokens, maxBuyTokens) = getBuyTokenLimits();
+        require((msg.value > minBuyTokens) && (msg.value < maxBuyTokens));
         require(_address != 0x0);
         if (buyOrderLast == buyOrders.length) {
             buyOrders.length += 1;
@@ -194,7 +195,8 @@ contract BasicBank is UsingMultiOracles, Pausable {
      * @param _rateLimit Min affordable selling rate, 0 to allow all.
      */
     function createSellOrder(address _address, uint256 _tokensCount, uint256 _rateLimit) public {
-        require((_tokensCount > getMinimumSellTokens()) && (_tokensCount < getMaximumSellTokens()));
+        var (minSellTokens, maxSellTokens) = getSellTokenLimits();
+        require((_tokensCount > minSellTokens) && (_tokensCount < maxSellTokens));
         require(_address != 0x0);
         address tokenOwner = msg.sender;
         require(_tokensCount <= libreToken.balanceOf(tokenOwner));
