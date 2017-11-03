@@ -156,30 +156,6 @@ contract UsingMultiOracles is PriceFeesLimits {
     }
 
     /**
-     * @dev Gets oracle name.
-     * @param _address The oracle address.
-     */
-    function getOracleName(address _address) public view returns(bytes32) {
-        return oracles[_address].name;
-    }
-    
-    /**
-     * @dev Gets oracle rating.
-     * @param _address The oracle address.
-     */
-    function getOracleRating(address _address) internal view returns(uint256) {
-        return oracles[_address].rating;
-    }
-
-    /**
-     * @dev Gets oracle rate.
-     * @param _address The oracle address.
-     */
-    function getOracleRate(address _address) internal view returns(uint256) {
-        return oracles[_address].cryptoFiatRate;
-    }
-
-    /**
      * @dev Funds each oracle till its balance is 0.2 eth (TODO: make a var for 0.2 eth).
      */
     function fundOracles() public payable {
