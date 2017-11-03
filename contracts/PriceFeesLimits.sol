@@ -87,7 +87,7 @@ contract PriceFeesLimits is Ownable {
     /**
      * @dev Gets min crypto fiat rate.
      */
-    function getCryptoFiatRateLimits() public view returns (uint256, uint256) {
+    function getCryptoFiatRateLimits() public view onlyOwner returns (uint256, uint256) {
         return (limitCryptoFiatRate.min, limitCryptoFiatRate.max);
     }
 }

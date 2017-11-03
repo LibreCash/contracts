@@ -66,6 +66,11 @@ contract BasicBank is UsingMultiOracles, Pausable {
     uint256 sellOrderIndex = 0;
     uint256 sellOrderLast = 0;
 
+    modifier notPaused() {
+        require (!paused);
+        _;
+    }
+
     function getBuyOrders() public onlyOwner view returns (OrderData[]) {
         return buyOrders;
     }
@@ -177,7 +182,7 @@ contract BasicBank is UsingMultiOracles, Pausable {
      * @param _address Beneficiar.
      * @param _rateLimit Max affordable buying rate, 0 to allow all.
      */
-    function createBuyOrder(address _address, uint256 _rateLimit) payable public {
+    function createBuyOrder(address _address, uint256 _rateLimit) payable public notPaused {
         require((msg.value > limitBuyOrder.min) && (msg.value < limitBuyOrder.max));
         require(_address != 0x0);
         if (buyOrderLast == buyOrders.length) {
@@ -201,7 +206,7 @@ contract BasicBank is UsingMultiOracles, Pausable {
      * @param _tokensCount Amount of tokens to sell.
      * @param _rateLimit Min affordable selling rate, 0 to allow all.
      */
-    function createSellOrder(address _address, uint256 _tokensCount, uint256 _rateLimit) public {
+    function createSellOrder(address _address, uint256 _tokensCount, uint256 _rateLimit) public notPaused {
         require((_tokensCount > limitSellOrder.min) && (_tokensCount < limitSellOrder.max));
         require(_address != 0x0);
         address tokenOwner = msg.sender;
@@ -227,7 +232,7 @@ contract BasicBank is UsingMultiOracles, Pausable {
      * @dev Fills buy order from queue.
      * @param _orderID The order ID.
      */
-    function fillBuyOrder(uint256 _orderID) public returns (bool) {
+    function fillBuyOrder(uint256 _orderID) internal returns (bool) {
         if (buyOrders[_orderID].senderAddress == 0x0) {
             return true; // ордер удалён, идём дальше
         }
@@ -252,7 +257,7 @@ contract BasicBank is UsingMultiOracles, Pausable {
      * @dev Fills sell order from queue.
      * @param _orderID The order ID.
      */
-    function fillSellOrder(uint256 _orderID) public returns (bool) {
+    function fillSellOrder(uint256 _orderID) internal returns (bool) {
         if (sellOrders[_orderID].senderAddress == 0x0) {
             return true; // ордер удалён, можно продолжать разгребать
         }
@@ -288,7 +293,7 @@ contract BasicBank is UsingMultiOracles, Pausable {
     /**
      * @dev Fill buy orders queue.
      */
-    function fillBuyQueue() public returns (bool) {
+    function fillBuyQueue() public notPaused returns (bool) {
         // TODO: при нарушении данного условия контракт окажется сломан. Нарушение малореально, но всё же найти выход
         require (buyOrderIndex < buyOrderLast);
         for (uint256 i = buyOrderIndex; i < buyOrderLast; i++) {
@@ -309,7 +314,7 @@ contract BasicBank is UsingMultiOracles, Pausable {
     /**
      * @dev Fill sell orders queue.
      */
-    function fillSellQueue() public returns (bool) {
+    function fillSellQueue() public notPaused returns (bool) {
         // TODO: при нарушении данного условия контракт окажется сломан. Нарушение малореально, но всё же найти выход
         require (sellOrderIndex < sellOrderLast);
         for (uint i = sellOrderIndex; i < sellOrderLast; i++) {
@@ -345,7 +350,7 @@ contract BasicBank is UsingMultiOracles, Pausable {
     /**
      * @dev Touches oracles asking them to get new rates.
      */
-    function requestUpdateRates() public {
+    function requestUpdateRates() public notPaused {
         require (numEnabledOracles >= MIN_ENABLED_ORACLES);
         numWaitingOracles = 0;
         for (uint i = 0; i < oracleAddresses.length; i++) {
@@ -363,7 +368,7 @@ contract BasicBank is UsingMultiOracles, Pausable {
     /**
      * @dev Touches oracles asking them to get new rates.
      */
-    function calculateRatesWithSpread() public {
+    function calculateRatesWithSpread() public notPaused {
         require (numWaitingOracles <= MIN_WAITING_ORACLES);
         UINTLog("оракулов ждёт", numWaitingOracles);
         require (numEnabledOracles-numWaitingOracles >= MIN_ENABLED_NOT_WAITING_ORACLES);
@@ -396,7 +401,7 @@ contract BasicBank is UsingMultiOracles, Pausable {
      * @param _rate The oracle ETH/USD rate.
      * @param _time Update time sent from oracle.
      */
-    function oraclesCallback(uint256 _rate, uint256 _time) public { // дублирование _address и msg.sender
+    function oraclesCallback(uint256 _rate, uint256 _time) public notPaused { // дублирование _address и msg.sender
         OracleCallback(msg.sender, oracles[msg.sender].name, _rate);
         require(!isNotOracle(msg.sender));
         if (oracles[msg.sender].queryId == bytes32("")) {
@@ -416,7 +421,7 @@ contract BasicBank is UsingMultiOracles, Pausable {
         }
     }
 
-    function processWaitingOracles() public {
+    function processWaitingOracles() public notPaused {
         for (uint i = 0; i < oracleAddresses.length; i++) {
             if (oracles[oracleAddresses[i]].enabled) {
                 if (oracles[oracleAddresses[i]].queryId == bytes32("")) {
