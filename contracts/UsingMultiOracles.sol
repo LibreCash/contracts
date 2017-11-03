@@ -109,6 +109,7 @@ contract UsingMultiOracles is PriceFeesLimits {
      */
     function disableOracle(address _address) public onlyOwner {
         require(isOracle(_address));
+        require(oracles[_address].enabled);
         oracles[_address].enabled = false;
         OracleDisabled(_address, oracles[_address].name);
         if (numEnabledOracles!=0) {
@@ -122,6 +123,7 @@ contract UsingMultiOracles is PriceFeesLimits {
      */
     function enableOracle(address _address) public onlyOwner {
         require(isOracle(_address));
+        require(!oracles[_address].enabled);
         oracles[_address].enabled = true;
         OracleEnabled(_address, oracles[_address].name);
         numEnabledOracles++;

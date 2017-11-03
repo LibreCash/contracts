@@ -403,7 +403,7 @@ contract BasicBank is UsingMultiOracles, Pausable {
      */
     function oraclesCallback(uint256 _rate, uint256 _time) public notPaused { // дублирование _address и msg.sender
         OracleCallback(msg.sender, oracles[msg.sender].name, _rate);
-        require(!isNotOracle(msg.sender));
+        require(isOracle(msg.sender));
         if (oracles[msg.sender].queryId == bytes32("")) {
             TextLog("Oracle not waiting");
         } else {
