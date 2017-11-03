@@ -86,12 +86,15 @@ else {
       console.log(err.message);
     }
     var directory = "build/data/";
-    var fileName = contractName + ".txt";
+    var fileName = contractName + ".json";
     var stream = fs.createWriteStream(directory + fileName);
     stream.once('open', function(fd) {
-      stream.write(contractName + "\n" + 
-                  contractAddress + "\n\n" +
-                  contractABI + "\n");
+	  let contractData = {
+		"contractName":contractName,
+		"contractAddress":contractAddress,
+		"contractABI":contractABI
+	  }
+      stream.write(JSON.stringify(contractData));
       stream.end();
     });
   }
