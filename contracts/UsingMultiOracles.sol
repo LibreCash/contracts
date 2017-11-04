@@ -68,8 +68,26 @@ contract UsingMultiOracles is PriceFeesLimits {
     /**
      * @dev Gets oracle count.
      */
-    function getOracleCount() public view returns (uint) {
+    function getOracleCount() public view returns (uint256) {
         return oracleAddresses.length;
+    }
+
+    function getWaitingOracleCount() public view returns (uint256 count) {
+        count = 0;
+        for (uint256 i = 0; i < oracleAddresses.length; i++) {
+            if (oracles[oracleAddresses[1]].queryId != 0) {
+                count++;
+            }
+        }
+    }
+
+    function getEnabledOracleCount() public view returns (uint256 count) {
+        count = 0;
+        for (uint256 i = 0; i < oracleAddresses.length; i++) {
+            if (oracles[oracleAddresses[1]].enabled) {
+                count++;
+            }
+        }
     }
 
     function isOracle(address _address) internal view returns (bool) {
