@@ -61,15 +61,24 @@
 		</script>
 		
 		<script type="text/javascript">
+
+			function attachScriptArr(srcArr){
+				if (Array.isArray(srcArr)) {
+					srcArr.forEach((item)=>attachScript(item));
+				} else {
+					attachScript(srcArr);
+				}
+			}
+			
 			function attachScript(src) {
 				let attachingScript = document.createElement('script');
 				attachingScript.setAttribute('src', src);
 				document.head.appendChild(attachingScript);
 			}
+			
 			document.addEventListener("DOMContentLoaded", function() {
-				attachScript('listContracts.js');
-				attachScript('addContractButtons.js');
-				var contract;
+				attachScriptArr(['web3additions.js', 'listContracts.js','addContractButtons.js']);
+
 				let btnRun = document.getElementById('testRunButton');	 
 				var txtTestName = document.getElementById('testRunTestName');	 
 				var textContractData = document.getElementById("inputContractData");
