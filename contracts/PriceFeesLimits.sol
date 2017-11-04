@@ -31,10 +31,12 @@ contract PriceFeesLimits is Ownable {
 
     uint256 public sellFee = 500; // 5%
     uint256 public buyFee = 500;
+    uint256 public sellBuyDelta = 500; // +-5 usd to eth
 
     uint256 constant MAX_UINT256 = 2**256 - 1;
     uint256 constant MAX_BUYFEE = 30000;
     uint256 constant MAX_SELLFEE = 30000;
+    uint256 constant MAX_SELLBUYDELTA = 500000000; // +-5000000 usd to eth
 
     /**
      * @dev Sets fiat rate limits.
@@ -82,6 +84,15 @@ contract PriceFeesLimits is Ownable {
     function setSellFee(uint256 _fee) public onlyOwner {
         require (_fee < MAX_SELLFEE);
         sellFee = _fee;
+    }
+
+    /**
+     * @dev Sets selling fee.
+     * @param _delta The delta in fiat (100 = 1 in fiat to crypto).
+     */
+    function setSellBuyDelta(uint256 _delta) public onlyOwner {
+        require (_delta < MAX_SELLBUYDELTA);
+        sellBuyDelta = _delta;
     }
 
     /**

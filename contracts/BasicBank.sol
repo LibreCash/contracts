@@ -391,8 +391,8 @@ contract BasicBank is UsingMultiOracles, Pausable {
         require (numReadyOracles >= MIN_READY_ORACLES);
         UINTLog("оракулов готово", numReadyOracles);
         uint256 middleRate = minimalRate.add(maximalRate).div(2);
-        cryptoFiatRateBuy = minimalRate.sub(minimalRate.mul(buyFee).div(100).div(100));
-        cryptoFiatRateSell = maximalRate.add(maximalRate.mul(sellFee).div(100).div(100));
+        cryptoFiatRateBuy = minimalRate.sub(minimalRate.mul(buyFee).div(100).div(100)).sub(sellBuyDelta);
+        cryptoFiatRateSell = maximalRate.add(maximalRate.mul(sellFee).div(100).div(100)).add(sellBuyDelta);
         cryptoFiatRate = middleRate;
     }
 
