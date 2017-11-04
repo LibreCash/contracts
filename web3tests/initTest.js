@@ -16,3 +16,7 @@ allTestFunctions.forEach(function(testFunction) {
     divFunctionList.appendChild(buttonTestFunction);
     buttonTestFunction.onclick = window[testFunction];
 });
+
+monitor.forEach(function(variable) {
+    console.log(contract[variable]().toString(10));
+});

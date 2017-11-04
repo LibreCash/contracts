@@ -1,6 +1,11 @@
-async function testFee() {  
+monitor = ['numWaitingOracles', 'sellFee'];
+
+async function main() {
     contract = web3.eth.contract(JSON.parse(contractABI)).at(contractAddress); 
     web3.eth.defaultAccount = web3.eth.coinbase;
+}
+
+async function testFee() {  
     var buyFee = await contract.buyFee.call();
     console.log(buyFee.toNumber());
     var setBuyFeeTXAddr = await contract.setBuyFee(500);
@@ -9,3 +14,5 @@ async function testFee() {
     var buyFee = await contract.buyFee.call();
     console.log(buyFee.toNumber());
 }
+
+main();

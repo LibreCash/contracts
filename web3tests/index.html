@@ -60,6 +60,8 @@
 				attachingScript.setAttribute('src', src);
 				document.head.appendChild(attachingScript);
 			}
+
+			var contract;
 			
 			document.addEventListener("DOMContentLoaded", function() {
 				attachScriptArr(['initWeb3.js', 'web3additions.js', 'listTestsAndContracts.js', 'addButtons.js']);
@@ -73,6 +75,7 @@
 					contractDataSrc = textContractData.value;
 					attachScript(contractDataSrc);
 					scriptSrc = txtTestName.value;
+					var monitor;
 					attachScript(scriptSrc);
 					attachScript('initTest.js');
 				}
