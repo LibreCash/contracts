@@ -61,14 +61,22 @@
 		</script>
 		
 		<script type="text/javascript">
+		
+			function attachScriptArr(srcArr){
+				if(Array.isArray(scrArr){
+					scrArr.forEach((srcItem)=>attachScript(srcItem));
+				} else {
+					attachScript(scrArr);
+				}
+			}
+			
 			function attachScript(src) {
 				let attachingScript = document.createElement('script');
 				attachingScript.setAttribute('src', src);
 				document.head.appendChild(attachingScript);
 			}
 			document.addEventListener("DOMContentLoaded", function() {
-				attachScript('listContracts.js');
-				attachScript('addContractButtons.js');
+				attachScript(['listContracts.js','addContractButtons.js']);
 
 				let btnRun = document.getElementById('testRunButton');	 
 				var txtTestName = document.getElementById('testRunTestName');	 
