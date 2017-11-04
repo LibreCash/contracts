@@ -1,1 +1,0 @@
-var contracts = ['LibreCash', 'OracleBitfinex', 'OracleBitstamp', 'OracleWEX', 'BasicBank', ];

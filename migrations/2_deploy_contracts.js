@@ -78,15 +78,22 @@ else {
 
   function finalizeDeploy() {
     var directory = "web3tests/";
-    var fileName = "listContracts.js";
-    var jsData = "var contracts = [{0}];";
+    var fileName = "listTestsAndContracts.js";
+    var jsDataContracts = "var contracts = [{0}];\n";
     var listOfContracts = "";
     contracts.forEach(function(contractName) {
       listOfContracts += "'{0}', ".replace("{0}", contractName);
     });
+
+    var jsDataTests = "var tests = [{0}];";
+    var listOfTests = "";
+    fs.readdirSync(directory + "tests/").forEach(_fileName => {
+      listOfTests += "'{0}', ".replace("{0}", _fileName);
+    })
     var stream = fs.createWriteStream(directory + fileName);
     stream.once('open', function(fd) {
-      stream.write(jsData.replace("{0}", listOfContracts));
+      stream.write(jsDataContracts.replace("{0}", listOfContracts));
+      stream.write(jsDataTests.replace("{0}", listOfTests));
       stream.end();
     });
   }
@@ -106,9 +113,9 @@ else {
         "contractAddress": contractAddress,
         "contractABI": contractABI
       }
-      stream.write("contractName = '{0}';\r".replace('{0}', contractData.contractName));
-      stream.write("contractAddress = '{0}\r';".replace('{0}', contractData.contractAddress));
-      stream.write("contractABI = '{0}';\r".replace('{0}', contractData.contractABI));
+      stream.write("contractName = '{0}';\n".replace('{0}', contractData.contractName));
+      stream.write("contractAddress = '{0}';\n".replace('{0}', contractData.contractAddress));
+      stream.write("contractABI = '{0}';\n".replace('{0}', contractData.contractABI));
       stream.end();
     });
   }

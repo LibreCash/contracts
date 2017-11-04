@@ -20,17 +20,16 @@
 		<div class="container-fluid">		
 			<div class="col-lg-8 offset-lg-2">
 				<div class="jumbotron">
-					<div id="contractList">
-
-					</div>
 					<div id="web3-status">Error. No Web3</div>      
-					<div class="form-group">
-							<label for="testRunTestName">JS for contract</label>
-							<input type="text" class="form-control" id="inputContractData" placeholder="Enter test name" value="data/BasicBank.js">
-							<label for="testRunTestName">Test name</label>
-							<input type="text" class="form-control" id="testRunTestName" placeholder="Enter test name" value="test1.js">
-							</div>
-					<button class="btn btn-primary" id="testRunButton">Run test</button>
+					<div id="contractList"></div>
+					<label for="testRunTestName">JS for contract</label>
+					<input type="text" class="form-control" id="inputContractData" placeholder="Enter test name" value="data/BasicBank.js">
+					<hr/>
+					<div id="testList"></div>
+					<label for="testRunTestName">Test name</label>
+					<input type="text" class="form-control" id="inputTestData" placeholder="Enter test name" value="tests/test1.js">
+					<hr/>
+					<button class="btn btn-primary" id="testRunButton" style="display: none">Run test</button>
 				</div>
 			</div>
 		</div>
@@ -45,23 +44,7 @@
         
 		<script src="include/web3.min.js"></script>
 		
-		<script>
-		initWeb3();
-		
-		function initWeb3(){
-		if (typeof web3 !== 'undefined') {
-			web3 = new Web3(web3.currentProvider);
-			$('#web3-status').text("Using existed web3");
-		} else {
-		// set the provider you want from Web3.providers
-			web3 = new Web3(new Web3.providers.HttpProvider("http://localhost:8545"));
-			$('#web3-status').text("New web3 instanse created");
-		}
-		}
-		</script>
-		
 		<script type="text/javascript">
-
 			function attachScriptArr(srcArr){
 				if (Array.isArray(srcArr)) {
 					srcArr.forEach((item)=>attachScript(item));
@@ -77,10 +60,10 @@
 			}
 			
 			document.addEventListener("DOMContentLoaded", function() {
-				attachScriptArr(['web3additions.js', 'listContracts.js','addContractButtons.js']);
+				attachScriptArr(['initWeb3.js', 'web3additions.js', 'listTestsAndContracts.js', 'addButtons.js']);
 
 				let btnRun = document.getElementById('testRunButton');	 
-				var txtTestName = document.getElementById('testRunTestName');	 
+				var txtTestName = document.getElementById('inputTestData');	 
 				var textContractData = document.getElementById("inputContractData");
 				btnRun.onclick = function() {
 					var contractData;

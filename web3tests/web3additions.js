@@ -1,6 +1,6 @@
-web3.eth.getTransactionReceiptMined = function (txnHash, interval) {
+web3.eth.getTransactionReceiptMined = function (txnHash) {
     var transactionReceiptAsync;
-    interval = interval ? interval : 500;
+    interval = 100;
     transactionReceiptAsync = function(txnHash, resolve, reject) {
         try {
             var receipt = web3.eth.getTransactionReceipt(txnHash);
@@ -19,7 +19,7 @@ web3.eth.getTransactionReceiptMined = function (txnHash, interval) {
     if (Array.isArray(txnHash)) {
         var promises = [];
         txnHash.forEach(function (oneTxHash) {
-            promises.push(web3.eth.getTransactionReceiptMined(oneTxHash, interval));
+            promises.push(web3.eth.getTransactionReceiptMined(oneTxHash));
         });
         return Promise.all(promises);
     } else {
