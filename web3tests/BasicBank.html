@@ -30,6 +30,8 @@
 					<input type="text" class="form-control" id="inputTestData" placeholder="Enter test name" value="tests/test1.js">
 					<hr/>
 					<button class="btn btn-primary" id="testRunButton" style="display: none">Run test</button>
+					<hr/>
+					<div id="functionList"></div>
 				</div>
 			</div>
 		</div>
@@ -72,6 +74,7 @@
 					attachScript(contractDataSrc);
 					scriptSrc = txtTestName.value;
 					attachScript(scriptSrc);
+					attachScript('initTest.js');
 				}
 			});
 		</script>
