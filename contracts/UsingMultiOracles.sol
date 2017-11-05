@@ -43,7 +43,7 @@ contract UsingMultiOracles is PriceFeesLimits {
     event LowOraclesNumberAlert (string description);
 
     uint constant MAX_ORACLE_RATING = 10000;
-
+    uint contant MIN_ORACLE_BALANCE = 200 finney;
 
     struct OracleData {
         bytes32 name;
@@ -68,23 +68,23 @@ contract UsingMultiOracles is PriceFeesLimits {
     /**
      * @dev Gets oracle count.
      */
-    function getOracleCount() public view returns (uint256) {
+    function getOracleCount() public view returns (uint) {
         return oracleAddresses.length;
     }
 
-    function getWaitingOracleCount() public view returns (uint256 count) {
+    function getWaitingOracleCount() public view returns (uint count) {
         count = 0;
-        for (uint256 i = 0; i < oracleAddresses.length; i++) {
-            if (oracles[oracleAddresses[1]].queryId != 0) {
+        for (uint i = 0; i < oracleAddresses.length; i++) {
+            if (oracles[oracleAddresses[i]].queryId != 0) {
                 count++;
             }
         }
     }
 
-    function getEnabledOracleCount() public view returns (uint256 count) {
+    function getEnabledOracleCount() public view returns (uint count) {
         count = 0;
-        for (uint256 i = 0; i < oracleAddresses.length; i++) {
-            if (oracles[oracleAddresses[1]].enabled) {
+        for (uint i = 0; i < oracleAddresses.length; i++) {
+            if (oracles[oracleAddresses[i]].enabled) {
                 count++;
             }
         }
@@ -179,10 +179,10 @@ contract UsingMultiOracles is PriceFeesLimits {
      * @dev Funds each oracle till its balance is 0.2 eth (TODO: make a var for 0.2 eth).
      */
     function fundOracles() public payable {
-        for (uint256 i = 0; i < oracleAddresses.length; i++) {
+        for (uint i = 0; i < oracleAddresses.length; i++) {
             /* 200 finney = 0.2 ether */
-            if (oracleAddresses[i].balance < 200 finney) {
-               oracleAddresses[i].transfer(200 finney - oracleAddresses[i].balance);
+            if (oracleAddresses[i].balance < MIN_ORACLE_BALANCE) {
+               oracleAddresses[i].transfer(MIN_ORACLE_BALANCE - oracleAddresses[i].balance);
             }
         } // foreach oracles
     }
