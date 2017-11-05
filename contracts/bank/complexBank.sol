@@ -1,6 +1,7 @@
 pragma solidity ^0.4.10;
 
 import "../zeppelin/math/SafeMath.sol";
+import "../zeppelin/math/Math.sol";
 import "../zeppelin/lifecycle/Pausable.sol";
 
 interface token {
@@ -49,7 +50,7 @@ contract ComplexBank is Pausable {
     // 01-emission start
     function createBuyOrder(address beneficiary,uint256 rateLimit) public {
         require((msg.value > buyEther.min) && (msg.value < buyEther.max));
-        OrderData currentOrder = OrderData({
+        OrderData memory currentOrder = OrderData({
             senderAddress:msg.sender,
             recipientAddress: beneficiary, 
             orderAmount: msg.value, 
@@ -62,7 +63,7 @@ contract ComplexBank is Pausable {
     function createSellOrder(uint256 _tokensCount, uint256 _rateLimit) public {
     require((_tokensCount > sellTokens.min) && (_tokensCount < sellTokens.max));
     require(_tokensCount <= libreToken.balanceOf(msg.sender));
-    OrderData currentOrder = OrderData({
+    OrderData memory currentOrder  = OrderData({
         senderAddress:msg.sender,
         recipientAddress: msg.sender, 
         orderAmount: _tokensCount, 
@@ -160,11 +161,16 @@ contract ComplexBank is Pausable {
     event OracleCallback(address indexed _address, bytes32 name, uint256 result);
     event TextLog(string data);
 
+    uint256 constant MIN_ENABLED_ORACLES = 0; //2;
+    uint256 constant MIN_WAITING_ORACLES = 2; //количество оракулов, которое допустимо омтавлять в ожидании
+    uint256 constant MIN_READY_ORACLES = 1; //2;
+    uint256 constant MIN_ENABLED_NOT_WAITING_ORACLES = 1; //2;
+    uint256 constant RELEVANCE_PERIOD = 24 hours; // Время актуальности курса
+
     struct OracleData {
         bytes32 name;
         uint256 rating;
         bool enabled;
-        //bool waiting;
         bytes32 queryId;
         uint256 updateTime; // time of callback
         uint256 cryptoFiatRate; // exchange rate
@@ -173,9 +179,34 @@ contract ComplexBank is Pausable {
 
     mapping (address=>OracleData) oracles;
     address[] oracleAddresses;
+    uint256 public cryptoFiatRateBuy;
+    uint256 public cryptoFiatRateSell;
+    uint256 public cryptoFiatRate;
+    uint256 public buyFee = 0;
+    uint256 public sellFee = 0;
+
     uint constant MAX_ORACLE_RATING = 10000;
-    uint256 public numWaitingOracles; // Maybe use view function instead?
-    uint256 public numEnabledOracles; // Maybe use view function instead?
+    
+    function numWaitingOracles() view returns (uint256) {
+        uint256 numOracles = 0;
+        for(uint i = 0; i < oracleAddresses.length; i++) {
+            if ( oracles[oracleAddresses[i]].queryId != 0x0  ) 
+                numOracles++;
+        }
+        return numOracles;
+    }
+
+    function numEnabledOracles() view returns (uint256) {
+        uint256 numOracles = 0;
+        for(uint i = 0; i < oracleAddresses.length; i++) {
+            if ( oracles[oracleAddresses[i]].enabled == true ) 
+                numOracles++;
+        }
+        return numOracles;
+    }
+
+
+    uint256 timeUpdateRequest = 0;
 
     function getOracleCount() public view returns (uint) {
         return oracleAddresses.length;
@@ -278,7 +309,8 @@ contract ComplexBank is Pausable {
 
     function fundOracles(uint256 sumToFund) public payable onlyOwner {
         for (uint256 i = 0; i < oracleAddresses.length; i++) {
-            if (oracles[oracleAddresses[i]].enabled == false) continue; // Ignore disabled oracles
+            if (oracles[oracleAddresses[i]].enabled == false) 
+                continue; // Ignore disabled oracles
 
             if (oracleAddresses[i].balance < sumToFund) {
                oracleAddresses[i].transfer(sumToFund - oracleAddresses[i].balance);
@@ -286,17 +318,129 @@ contract ComplexBank is Pausable {
         } // foreach oracles
     }
 
+    // TODO: change to intrernal or add onlyOwner
+    function requestUpdateRates() public {
+        for (uint i = 0; i < oracleAddresses.length; i++) {
+            if ((oracles[oracleAddresses[i]].enabled) && (oracles[oracleAddresses[i]].queryId == bytes32(""))) {
+                bytes32 queryId = oracleInterface(oracleAddresses[i]).updateRate();
+                OracleTouched(oracleAddresses[i], oracles[oracleAddresses[i]].name);
+                oracles[oracleAddresses[i]].queryId = queryId;
+            }
+            timeUpdateRequest = now;
+        } // foreach oracles
+        OraclesTouched("Запущено обновление курсов");
+    }
 
-    // 03-oracles methods end
+    /**
+     * @dev The callback from oracles.
+     * @param _rate The oracle ETH/USD rate.
+     * @param _time Update time sent from oracle.
+     */
+    function oraclesCallback(uint256 _rate, uint256 _time) public { // дублирование _address и msg.sender
+        OracleCallback(msg.sender, oracles[msg.sender].name, _rate);
+        require(isOracle(msg.sender));
+        if (oracles[msg.sender].queryId == bytes32("")) {
+            TextLog("Oracle not waiting");
+        } else {
+           oracles[msg.sender].cryptoFiatRate = _rate;
+           oracles[msg.sender].updateTime = _time;
+           oracles[msg.sender].queryId = 0x0;
+        }
+    }
+    
+    // TODO - rewrote method, append to google docs
+    function processWaitingOracles() public {
+        for (uint i = 0; i < oracleAddresses.length; i++) {
+            if (oracles[oracleAddresses[i]].enabled) {
+                if (oracles[oracleAddresses[i]].queryId == bytes32("")) {
+                    // оракул и так не ждёт
+                } else {
+                    // если оракул ждёт 10 минут и больше
+                    if (oracles[oracleAddresses[i]].updateTime < now - 10 minutes) {
+                        oracles[oracleAddresses[i]].cryptoFiatRate = 0; // быть неактуальным
+                        oracles[oracleAddresses[i]].queryId = bytes32(""); // но не ждать
+                    } else {
+                        revert(); // не даём завершить, пока есть ждущие менее 10 минут оракулы
+                    }
+                }
+            }
+        } // foreach oracles
+    }
+
+     // 03-oracles methods end
 
 
     // 04-spread calc start 
+    function calcRates() public {
+        uint256 waitingOracles = numWaitingOracles();
+        require (waitingOracles <= MIN_WAITING_ORACLES);
+        UINTLog("оракулов ждёт", waitingOracles);
+        require (numEnabledOracles() - waitingOracles >= MIN_ENABLED_NOT_WAITING_ORACLES);
+        UINTLog("вкл. оракулов не ждёт", waitingOracles);
+        uint256 numReadyOracles = 0;
+        uint256 minimalRate = 2**256 - 1; // Max for UINT256
+        uint256 maximalRate = 0;
+        
+        for (uint i = 0; i < oracleAddresses.length; i++) {
+            OracleData memory currentOracle = oracles[oracleAddresses[i]];
+            if((currentOracle.cryptoFiatRate == 0)) continue;
+            // TODO: данные хранятся и в оракуле и в эмиссионном контракте
+            if ((currentOracle.enabled) && (currentOracle.queryId == bytes32(""))) {
+                minimalRate = Math.min256(currentOracle.cryptoFiatRate,minimalRate);    
+                maximalRate = Math.max256(currentOracle.cryptoFiatRate,maximalRate);
+                numReadyOracles++; // TODO: Delete It
+            }
+        } // foreach oracles
 
+        require (numReadyOracles >= MIN_READY_ORACLES);
+        UINTLog("оракулов готово", numReadyOracles);
+        uint256 middleRate = minimalRate.add(maximalRate).div(2);
+        cryptoFiatRateBuy = minimalRate.sub(minimalRate.mul(buyFee).div(100).div(100));
+        cryptoFiatRateSell = maximalRate.add(maximalRate.mul(sellFee).div(100).div(100));
+        cryptoFiatRate = middleRate;
+    }
     // 04-spread calc end
+
+    // 05-monitoring start
+    uint256 constant TARGET_VIOLANCE_ALERT = 20000; // 200% Проценты при котором происходит уведомление
+    uint256 constant STOCK_VIOLANCE_ALERT = 3000; // 30% процент разницы между биржами при котором происходит уведомление
+    function checkContract() {
+        // TODO: Добавить проверки
+    }   
+    // TODO: change to internal after tests
+    function targetRateViolance(uint256 newCryptoFiatRate) public constant returns(uint256){
+        uint256 maxRate = Math.max256(cryptoFiatRate,newCryptoFiatRate);
+        uint256 minRate = Math.min256(cryptoFiatRate,newCryptoFiatRate);
+        return percent(maxRate,minRate,2);
+    }
+    // 05-monitoring end
+    
+    // 08-helper methods start
+    
+    /**
+     * @dev Calculate percents using fixed-float arithmetic.
+     * @param numerator - Calculation numerator (first number)
+     * @param denominator - Calculation denomirator (first number)
+     * @param precision - calc precision
+     */
+    function percent(uint numerator, uint denominator, uint precision) public constant returns(uint quotient) {
+        uint _numerator  = numerator.mul(10 ** (precision+1));
+        uint _quotient = _numerator.div(denominator).add(5).div(10);
+        return _quotient;
+    }
+
+    /**
+     * @dev Checks if the rate is up to date
+     */
+    function isRateActual() public constant returns(bool) {
+        return (now <= timeUpdateRequest + RELEVANCE_PERIOD);
+    }
+
+    // 08-helper methods end
+
 
 
     // sytem methods start
-
 
     /**
      * @dev Returns total tokens count.
