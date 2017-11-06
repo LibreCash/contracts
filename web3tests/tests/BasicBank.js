@@ -1,4 +1,4 @@
-monitor = ['numWaitingOracles', 'sellFee'];
+monitor = ['numWaitingOracles', 'sellFee', 'buyFee'];
 
 async function main() {
     contract = web3.eth.contract(JSON.parse(contractABI)).at(contractAddress); 

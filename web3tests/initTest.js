@@ -1,4 +1,4 @@
-var allTestFunctions=[];
+var allTestFunctions = [];
 for(var i in this) {
 	if(((typeof this[i]).toString() == "function") && (this[i].toString().indexOf("native") == -1)) {
         if (this[i].name.substr(0, 4) == "test") {
@@ -17,6 +17,15 @@ allTestFunctions.forEach(function(testFunction) {
     buttonTestFunction.onclick = window[testFunction];
 });
 
+var divWatches = document.getElementById("watches");
+var allTimers = [];
 monitor.forEach(function(variable) {
-    console.log(contract[variable]().toString(10));
+    let divWatch = document.createElement("div");
+    divWatches.appendChild(divWatch);
+    allTimers.push(setInterval(
+        function() {
+            divWatch.innerText = variable + ": " + contract[variable]().toString(10);
+        }, 100
+    ));
+    //console.log(contract[variable]().toString(10));
 });

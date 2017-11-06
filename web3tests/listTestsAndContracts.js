@@ -1,2 +1,2 @@
 var contracts = ['LibreCash', 'OracleBitfinex', 'OracleBitstamp', 'OracleWEX', 'BasicBank', ];
-var tests = ['test1.js', ];
+var tests = ['BasicBank.js', ];
