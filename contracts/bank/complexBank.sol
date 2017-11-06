@@ -52,7 +52,7 @@ contract ComplexBank is Pausable {
     }
 
     // 01-emission start
-    function createBuyOrder(address beneficiary,uint256 rateLimit) public payable {
+    function createBuyOrder(address beneficiary,uint256 rateLimit) public whenNotPaused payable {
         require((msg.value > buyEther.min) && (msg.value < buyEther.max));
         OrderData memory currentOrder = OrderData({
             senderAddress:msg.sender,
@@ -64,7 +64,7 @@ contract ComplexBank is Pausable {
         addOrderToQueue(orderType.buy,currentOrder);
     }
 
-    function createSellOrder(uint256 _tokensCount, uint256 _rateLimit) public {
+    function createSellOrder(uint256 _tokensCount, uint256 _rateLimit) whenNotPaused public {
     require((_tokensCount > sellTokens.min) && (_tokensCount < sellTokens.max));
     require(_tokensCount <= libreToken.balanceOf(msg.sender));
     OrderData memory currentOrder  = OrderData({
@@ -157,7 +157,7 @@ contract ComplexBank is Pausable {
     /**
      * @dev Fill buy orders queue.
      */
-    function processBuyQueue(uint256 limit) public returns (bool) {
+    function processBuyQueue(uint256 limit) public whenNotPaused returns (bool) {
         if(limit == 0) 
             limit = buyOrders.length;
         // TODO: при нарушении данного условия контракт окажется сломан. Нарушение малореально, но всё же найти выход
@@ -220,7 +220,7 @@ contract ComplexBank is Pausable {
     /**
      * @dev Fill sell orders queue.
      */
-    function processSellQueue(uint256 limit) public returns (bool) {
+    function processSellQueue(uint256 limit) public whenNotPaused returns (bool) {
         if (limit == 0) 
             limit = sellOrders.length;
         // TODO: при нарушении данного условия контракт окажется сломан. Нарушение малореально, но всё же найти выход
@@ -248,6 +248,39 @@ contract ComplexBank is Pausable {
 
     function cancelSellOrderAdm(uint256 _orderID) public onlyOwner {
         cancelSellOrder(_orderID);
+    }
+
+    function getBuyOrders() public onlyOwner view returns (OrderData[]) {
+        return buyOrders;
+    }
+
+    function getSellOrders() public onlyOwner view returns (OrderData[]) {
+        return sellOrders;
+    }
+
+    function getSellOrdersCount() public onlyOwner view returns(uint256) {
+        uint256 count = 0;
+        for(uint i = 0; i < sellOrders.length; i++) {
+            if(sellOrders[i].recipientAddress != 0x0) 
+                count++;
+        }
+        return count;
+    }
+
+    function getBuyOrdersCount() public onlyOwner view returns(uint256) {
+        uint256 count = 0;
+        for(uint i = 0; i < sellOrders.length; i++) {
+            if(buyOrders[i].recipientAddress != 0x0) 
+                count++;
+        }
+        return count;
+    }
+
+    /**
+     * @dev Gets current token address.
+     */
+    function getToken() public view returns (address) {
+        return tokenAddress;
     }
 
     
@@ -464,6 +497,7 @@ contract ComplexBank is Pausable {
     }
     
     // TODO - rewrote method, append to google docs
+    // TODO: Прикрутить использование метода. Сейчас не используется
     function processWaitingOracles() public {
         for (uint i = 0; i < oracleAddresses.length; i++) {
             if (oracles[oracleAddresses[i]].enabled) {
