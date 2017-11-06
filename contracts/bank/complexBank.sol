@@ -24,7 +24,7 @@ contract ComplexBank is Pausable {
     using SafeMath for uint256;
     address tokenAddress;
     token libreToken;
-
+    // TODO; Check that all evetns used and delete unused
     event TokensBought(address _beneficiar, uint256 tokensAmount, uint256 cryptoAmount);
     event TokensSold(address _beneficiar, uint256 tokensAmount, uint256 cryptoAmount);
     event UINTLog(string description, uint256 data);
@@ -33,6 +33,10 @@ contract ComplexBank is Pausable {
     event LogBuy(address clientAddress, uint256 tokenAmount, uint256 cryptoAmount, uint256 buyPrice);
     event LogSell(address clientAddress, uint256 tokenAmount, uint256 cryptoAmount, uint256 sellPrice);
     event OrderQueueGeneral(string description);
+    event RateBuyLimitOverflow(uint256 cryptoFiatRateBuy, uint256 maxRate, uint256 cryptoAmount);
+    event RateSellLimitOverflow(uint256 cryptoFiatRateBuy, uint256 maxRate, uint256 tokenAmount);
+    event CouldntCancelOrder(bool ifBuy, uint256 orderID);
+    
     struct Limit {
         uint256 min;
         uint256 max;
@@ -48,7 +52,7 @@ contract ComplexBank is Pausable {
     }
 
     // 01-emission start
-    function createBuyOrder(address beneficiary,uint256 rateLimit) public {
+    function createBuyOrder(address beneficiary,uint256 rateLimit) public payable {
         require((msg.value > buyEther.min) && (msg.value < buyEther.max));
         OrderData memory currentOrder = OrderData({
             senderAddress:msg.sender,
@@ -89,6 +93,8 @@ contract ComplexBank is Pausable {
 
     OrderData[] buyOrders; // очередь ордеров на покупку
     OrderData[] sellOrders; // очередь ордеров на покупку
+    uint256 buyOrderIndex = 0; // Хранит последний обработанный ордер
+    uint256 sellOrderIndex = 0;// Хранит последний обработанный ордер
 
     function addOrderToQueue(orderType typeOrder, OrderData order) internal {
         if (typeOrder == orderType.buy) {
@@ -120,13 +126,122 @@ contract ComplexBank is Pausable {
         return true;
     }
 
-    //TODO: добавить обработку очереди по N ордеров
+    /**
+     * @dev Fills buy order from queue.
+     * @param _orderID The order ID.
+     */
+    function processBuyOrder(uint256 _orderID) internal returns (bool) {
+        if (buyOrders[_orderID].senderAddress == 0x0) {
+            return true; // ордер удалён, идём дальше
+        }
 
+        uint256 cryptoAmount = buyOrders[_orderID].orderAmount;
+        uint256 tokensAmount = cryptoAmount.mul(cryptoFiatRateBuy).div(100);
+        address recipientAddress = buyOrders[_orderID].recipientAddress;
+        uint256 maxRate = buyOrders[_orderID].rateLimit;
+
+        if ((maxRate != 0) && (cryptoFiatRateBuy < maxRate)) {
+            RateBuyLimitOverflow(cryptoFiatRateBuy, maxRate, cryptoAmount); // TODO: Delete it after tests
+            if (!cancelBuyOrder(_orderID)) {
+                CouldntCancelOrder(true, _orderID);
+            }
+            return true; // go next orders
+        }
+        libreToken.mint(recipientAddress, tokensAmount);
+        LogBuy(recipientAddress, tokensAmount, cryptoAmount, cryptoFiatRateBuy);
+        return true;
+    }
+
+
+    //TODO: добавить обработку очереди по N ордеров
+    /**
+     * @dev Fill buy orders queue.
+     */
+    function processBuyQueue(uint256 limit) public returns (bool) {
+        if(limit == 0) 
+            limit = buyOrders.length;
+        // TODO: при нарушении данного условия контракт окажется сломан. Нарушение малореально, но всё же найти выход
+        for (uint i = buyOrderIndex; i < buyOrders.length; i++) {
+                // Если попали на удаленный\несуществующий ордер - переходим к следующему
+                if (!processBuyOrder(i)) { // TODO: внутри processBuyOrder нет ни одной ветки которая приводит к этому условию
+                    buyOrderIndex = i;
+                    OrderQueueGeneral("Очередь ордеров на покупку очищена не до конца");
+                    return false;
+                } 
+            delete(buyOrders[i]); // в solidity массив не сдвигается, тут будет нулевой элемент
+        } // for
+        // дешёвая "очистка" массива
+        buyOrderIndex = 0;
+        OrderQueueGeneral("Очередь ордеров на покупку очищена");
+        return true;
+    }
+
+    /**
+     * @dev Fills sell order from queue.
+     * @param _orderID The order ID.
+     */
+    function processSellOrder(uint256 _orderID) internal returns (bool) {
+        if (sellOrders[_orderID].senderAddress == 0x0) {
+            return true; // ордер удалён, можно продолжать разгребать
+        }
+        
+        address recipientAddress = sellOrders[_orderID].recipientAddress;
+        address senderAddress = sellOrders[_orderID].senderAddress;
+        uint256 tokensAmount = sellOrders[_orderID].orderAmount;
+        uint256 cryptoAmount = tokensAmount.div(cryptoFiatRateSell).mul(100);
+        uint256 minRate = sellOrders[_orderID].rateLimit;
+
+        if ((minRate != 0) && (cryptoFiatRateSell > minRate)) {
+            RateBuyLimitOverflow(cryptoFiatRateBuy, minRate, cryptoAmount);
+            if (!cancelSellOrder(_orderID)) {
+                CouldntCancelOrder(false, _orderID); // TODO: Maybe delete after tests
+            }
+            return true; // go next orders
+        }
+        if (this.balance < cryptoAmount) {  // checks if the bank has enough Ethers to send
+            tokensAmount = this.balance.mul(cryptoFiatRateBuy).div(100);
+            // слкдующую строчку продумать
+            // dn: Тщательно перепроверить на логические и прочие ошибки, иначе нас могут ограбить
+            libreToken.mint(senderAddress, sellOrders[_orderID].orderAmount.sub(tokensAmount)); // TODO: Проверить не может ли здесь быть исключения
+            cryptoAmount = this.balance;
+        } else {
+            tokensAmount = sellOrders[_orderID].orderAmount;
+            cryptoAmount = tokensAmount.div(cryptoFiatRateSell).mul(100);
+        }
+        // dn: тщательно перепроверить эту строчку
+        if (!recipientAddress.send(cryptoAmount)) { 
+            libreToken.mint(senderAddress, tokensAmount); // so as burned at sellTokens
+            return true;                                         
+        } 
+        LogSell(recipientAddress, tokensAmount, cryptoAmount, cryptoFiatRateBuy);
+        return true;
+    }
+
+    /**
+     * @dev Fill sell orders queue.
+     */
+    function processSellQueue(uint256 limit) public returns (bool) {
+        if (limit == 0) 
+            limit = sellOrders.length;
+        // TODO: при нарушении данного условия контракт окажется сломан. Нарушение малореально, но всё же найти выход
+        for (uint i = sellOrderIndex; i < limit; i++) {
+            if (!processSellOrder(i)) { // TODO: Удалить, нет веток которые возвращают false
+                sellOrderIndex = i;
+                OrderQueueGeneral("Очередь ордеров на продажу очищена не до конца");
+                return false;
+            } 
+            delete(sellOrders[i]); // в solidity массив не сдвигается, тут будет нулевой элемент
+        } // for
+        // дешёвая "очистка" массива
+        sellOrderIndex = 0;
+        OrderQueueGeneral("Очередь ордеров на продажу очищена");
+        return true;
+    }
     // 02-queue end
 
 
     // admin start
-    // C идеологической точки зрения давать такие привилегии админу может быть неправиьно
+    // C идеологической точки зрения давать такие привилегии админу может быть неправильно
     function cancelBuyOrderAdm(uint256 _orderID) public onlyOwner {
         cancelBuyOrder(_orderID);
     }
@@ -187,7 +302,9 @@ contract ComplexBank is Pausable {
     uint256 timeUpdateRequest = 0;
     uint constant MAX_ORACLE_RATING = 10000;
     
-    function numWaitingOracles() view returns (uint256) {
+
+    // TODO: Change visiblity after tests
+    function numWaitingOracles() public view returns (uint256) {
         uint256 numOracles = 0;
         for(uint i = 0; i < oracleAddresses.length; i++) {
             if ( oracles[oracleAddresses[i]].queryId != 0x0  ) 
@@ -447,7 +564,12 @@ contract ComplexBank is Pausable {
     function totalTokenCount() public view returns (uint256) {
         return libreToken.getTokensAmount();
     }
-
+    /**
+     * @dev Returns total tokens price in Wei.
+    */
+    function totalTokensPrice() public view returns (uint256) {
+        return totalTokenCount().mul(cryptoFiatRateSell);
+    }
     // system methods end
 
 
