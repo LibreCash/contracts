@@ -58,6 +58,7 @@
 			
 			function attachScript(src) {
 				let attachingScript = document.createElement('script');
+				attachingScript.async = false;
 				attachingScript.setAttribute('src', src);
 				document.head.appendChild(attachingScript);
 			}

@@ -1,4 +1,6 @@
-monitor = ['numWaitingOracles', 'sellFee', 'buyFee'];
+monitor = ['getEnabledOracleCount', 'getWaitingOracleCount', 'getOracleCount', 'sellFee', 'buyFee',
+           'cryptoFiatRate', 'cryptoFiatRateBuy', 'cryptoFiatRateSell', //'getBuyOrders', 'getSellOrders',
+           'currencyUpdateTime', 'totalTokenCount'];
 
 async function main() {
     contract = web3.eth.contract(JSON.parse(contractABI)).at(contractAddress); 
@@ -6,13 +8,15 @@ async function main() {
 }
 
 async function testFee() {  
-    var buyFee = await contract.buyFee.call();
-    console.log(buyFee.toNumber());
-    var setBuyFeeTXAddr = await contract.setBuyFee(500);
-    var setBuyFeeTXMined = await web3.eth.getTransactionReceiptMined(setBuyFeeTXAddr);
-    console.log(web3.eth.getTransactionReceipt(setBuyFeeTXAddr));
-    var buyFee = await contract.buyFee.call();
-    console.log(buyFee.toNumber());
+    var setBuyFeeAddr = await contract.setBuyFee(500);
+    var setBuyFeeMined = await web3.eth.getTransactionReceiptMined(setBuyFeeAddr);
+    console.log(web3.eth.getTransactionReceipt(setBuyFeeAddr));
+}
+
+async function testRequestUpdateRates() {
+    var requestUpdateRatesAddr = await contract.requestUpdateRates({gas: 200000});
+    var requestUpdateRatesMined = await web3.eth.getTransactionReceiptMined(requestUpdateRatesAddr);
+    console.log(web3.eth.getTransactionReceipt(requestUpdateRatesAddr));
 }
 
 main();

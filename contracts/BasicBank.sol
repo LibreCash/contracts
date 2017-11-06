@@ -351,14 +351,12 @@ contract BasicBank is UsingMultiOracles, Pausable {
      * @dev Touches oracles asking them to get new rates.
      */
     function requestUpdateRates() public notPaused {
-        require (numEnabledOracles >= MIN_ENABLED_ORACLES);
-        numWaitingOracles = 0;
+        require (getEnabledOracleCount() >= MIN_ENABLED_ORACLES);
         for (uint i = 0; i < oracleAddresses.length; i++) {
             if ((oracles[oracleAddresses[i]].enabled) && (oracles[oracleAddresses[i]].queryId == bytes32(""))) {
                 bytes32 queryId = oracleInterface(oracleAddresses[i]).updateRate();
                 OracleTouched(oracleAddresses[i], oracles[oracleAddresses[i]].name);
                 oracles[oracleAddresses[i]].queryId = queryId;
-                numWaitingOracles++;
             }
             timeUpdateRequested = now;
         } // foreach oracles
@@ -369,10 +367,8 @@ contract BasicBank is UsingMultiOracles, Pausable {
      * @dev Touches oracles asking them to get new rates.
      */
     function calculateRatesWithSpread() public notPaused {
-        require (numWaitingOracles <= MIN_WAITING_ORACLES);
-        UINTLog("оракулов ждёт", numWaitingOracles);
-        require (numEnabledOracles-numWaitingOracles >= MIN_ENABLED_NOT_WAITING_ORACLES);
-        UINTLog("вкл. оракулов не ждёт", numWaitingOracles);
+        require (getWaitingOracleCount() <= MIN_WAITING_ORACLES);
+        require (getEnabledOracleCount() - getWaitingOracleCount() >= MIN_ENABLED_NOT_WAITING_ORACLES);
         uint256 numReadyOracles = 0;
         uint256 minimalRate = MAX_UINT256;
         uint256 maximalRate = 0;
@@ -407,12 +403,10 @@ contract BasicBank is UsingMultiOracles, Pausable {
         if (oracles[msg.sender].queryId == bytes32("")) {
             TextLog("Oracle not waiting");
         } else {
-           // all ok, we waited for it
-           numWaitingOracles--;
            // maybe we should check for existance of structure oracles[_address]? to think about it
            oracles[msg.sender].cryptoFiatRate = _rate;
            oracles[msg.sender].updateTime = _time;
-           oracles[msg.sender].queryId = 0x0;
+           oracles[msg.sender].queryId = bytes32(""); // сделать не ждущим
            /*if (numWaitingOracles == 0) { // Добавить второе условие (будильник Ethereum)
                 calculateRate();
                 fillSellQueue();
@@ -432,7 +426,6 @@ contract BasicBank is UsingMultiOracles, Pausable {
                     if (oracles[oracleAddresses[i]].updateTime < now - 10 minutes) {
                         oracles[oracleAddresses[i]].cryptoFiatRate = 0; // быть неактуальным
                         oracles[oracleAddresses[i]].queryId = bytes32(""); // но не ждать
-                        numWaitingOracles.sub(1);
                     } else {
                         revert(); // не даём завершить, пока есть ждущие менее 10 минут оракулы
                     }

@@ -7,7 +7,7 @@ interface oracleInterface {
     function updateRate() payable public returns (bytes32);
     function getName() constant public returns (bytes32);
     function setBank(address _bankAddress) public;
-    function hasReceivedRate() public returns (bool);
+    function hasReceivedRate() public view returns (bool);
 }
 
 
@@ -43,7 +43,7 @@ contract UsingMultiOracles is PriceFeesLimits {
     event LowOraclesNumberAlert (string description);
 
     uint constant MAX_ORACLE_RATING = 10000;
-    uint contant MIN_ORACLE_BALANCE = 200 finney;
+    uint constant MIN_ORACLE_BALANCE = 200 finney;
 
     struct OracleData {
         bytes32 name;
@@ -58,12 +58,6 @@ contract UsingMultiOracles is PriceFeesLimits {
 
     mapping (address=>OracleData) oracles;
     address[] oracleAddresses;
-
-
-    uint256 public numWaitingOracles;
-    uint256 public numEnabledOracles;
-    // maybe we should add weightWaitingOracles - sum of rating of waiting oracles
-
 
     /**
      * @dev Gets oracle count.
@@ -117,7 +111,6 @@ contract UsingMultiOracles is PriceFeesLimits {
         // listPointer - индекс массива oracleAddresses с адресом оракула. Надо для удаления
         oracles[_address].listPointer = oracleAddresses.push(_address) - 1;
         currentOracleInterface.setBank(address(this));
-        numEnabledOracles++;
         OracleAdded(_address, oracleName);
     }
 
@@ -130,9 +123,6 @@ contract UsingMultiOracles is PriceFeesLimits {
         require(oracles[_address].enabled);
         oracles[_address].enabled = false;
         OracleDisabled(_address, oracles[_address].name);
-        if (numEnabledOracles!=0) {
-            numEnabledOracles--;
-        }
     }
 
     /**
@@ -144,7 +134,6 @@ contract UsingMultiOracles is PriceFeesLimits {
         require(!oracles[_address].enabled);
         oracles[_address].enabled = true;
         OracleEnabled(_address, oracles[_address].name);
-        numEnabledOracles++;
     }
 
     /**
@@ -154,13 +143,6 @@ contract UsingMultiOracles is PriceFeesLimits {
     function deleteOracle(address _address) public onlyOwner {
         require(isOracle(_address));
         OracleDeleted(_address, oracles[_address].name);
-        // может быть не стоит удалять ждущие? обсудить - Дима
-        if (oracles[_address].queryId != bytes32("")) {
-            numWaitingOracles--;
-        }
-        if (oracles[_address].enabled) {
-            numEnabledOracles--;
-        }
         // так. из мэппинга оракулов по адресу получаем индекс в массиве оракулов с адресом оракула
         uint indexToDelete = oracles[_address].listPointer;
         // теперь получаем адрес последнего оракула из массива адресов
