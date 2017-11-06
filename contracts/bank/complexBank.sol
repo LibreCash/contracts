@@ -40,7 +40,7 @@ contract ComplexBank is Pausable {
 
     // Limits start
     Limit public buyEther = Limit(0,99999 * 1 ether);
-    Limit public sellTokens = Limit(0,99999);
+    Limit public sellTokens = Limit(0,99999 * 1 ether);
     // Limits end
 
     function ComplexBank() {
@@ -184,7 +184,7 @@ contract ComplexBank is Pausable {
     uint256 public cryptoFiatRate;
     uint256 public buyFee = 0;
     uint256 public sellFee = 0;
-
+    uint256 timeUpdateRequest = 0;
     uint constant MAX_ORACLE_RATING = 10000;
     
     function numWaitingOracles() view returns (uint256) {
@@ -206,13 +206,11 @@ contract ComplexBank is Pausable {
     }
 
 
-    uint256 timeUpdateRequest = 0;
-
     function getOracleCount() public view returns (uint) {
         return oracleAddresses.length;
     }
 
-    function isOracle(address _oracle) returns (bool) {
+    function isOracle(address _oracle) internal returns (bool) {
         for (uint i = 0; i < oracleAddresses.length; i++) {
             if ( oracleAddresses[i] == _oracle ) 
                 return true;
@@ -383,7 +381,8 @@ contract ComplexBank is Pausable {
         
         for (uint i = 0; i < oracleAddresses.length; i++) {
             OracleData memory currentOracle = oracles[oracleAddresses[i]];
-            if((currentOracle.cryptoFiatRate == 0)) continue;
+            if((currentOracle.cryptoFiatRate == 0)) 
+                continue;
             // TODO: данные хранятся и в оракуле и в эмиссионном контракте
             if ((currentOracle.enabled) && (currentOracle.queryId == bytes32(""))) {
                 minimalRate = Math.min256(currentOracle.cryptoFiatRate,minimalRate);    
@@ -408,7 +407,7 @@ contract ComplexBank is Pausable {
         // TODO: Добавить проверки
     }   
     // TODO: change to internal after tests
-    function targetRateViolance(uint256 newCryptoFiatRate) public constant returns(uint256){
+    function targetRateViolance(uint256 newCryptoFiatRate) public view returns(uint256) {
         uint256 maxRate = Math.max256(cryptoFiatRate,newCryptoFiatRate);
         uint256 minRate = Math.min256(cryptoFiatRate,newCryptoFiatRate);
         return percent(maxRate,minRate,2);
