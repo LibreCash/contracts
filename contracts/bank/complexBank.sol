@@ -78,6 +78,10 @@ contract ComplexBank is Pausable {
     libreToken.burn(msg.sender, _tokensCount);
     SellOrderCreated(_tokensCount); // TODO: maybe add beneficiary?
     }
+
+    function () whenNotPaused payable external {
+        createBuyOrder(msg.sender, 0); // 0 - без ценовых ограничений
+    }
     // 01-emission end
 
     // 02-queue start
