@@ -80,18 +80,18 @@ contract OracleBase is Ownable, usingOraclize {
     /**
      * @dev Sends query to oraclize.
      */
-    function updateRate() internal onlyBank returns (bytes32) {
+    function updateRate() external onlyBank returns (bytes32) {
         // для тестов отдельно оракула закомментировать след. строку
         require (msg.sender == bankAddress);
         // для тестов отдельно оракула закомментировать след. строку
         require (now > lastResultTimestamp + MIN_UPDATE_TIME);
         receivedRate = false;
         if (oraclize_getPrice("URL") > this.balance) {
-            //NewOraclizeQuery("Oraclize query was NOT sent, please add some ETH to cover for the query fee");
+            NewOraclizeQuery("Oraclize query was NOT sent, please add some ETH to cover for the query fee");
             return 0;
         } else {
             bytes32 queryId = oraclize_query(0, oracleConfig.datasource, oracleConfig.arguments);
-            //NewOraclizeQuery("Oraclize query was sent, standing by for the answer...");
+            NewOraclizeQuery("Oraclize query was sent, standing by for the answer...");
             validIds[queryId] = true;
             return queryId;
         }
