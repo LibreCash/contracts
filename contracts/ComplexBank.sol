@@ -1,8 +1,8 @@
 pragma solidity ^0.4.10;
 
-import "../zeppelin/math/SafeMath.sol";
-import "../zeppelin/math/Math.sol";
-import "../zeppelin/lifecycle/Pausable.sol";
+import "./zeppelin/math/SafeMath.sol";
+import "./zeppelin/math/Math.sol";
+import "./zeppelin/lifecycle/Pausable.sol";
 
 interface token {
     function balanceOf(address _owner) public returns (uint256);
@@ -273,7 +273,7 @@ contract ComplexBank is Pausable {
 
     function getBuyOrdersCount() public onlyOwner view returns(uint256) {
         uint256 count = 0;
-        for(uint i = 0; i < sellOrders.length; i++) {
+        for(uint i = 0; i < buyOrders.length; i++) {
             if(buyOrders[i].recipientAddress != 0x0) 
                 count++;
         }
@@ -577,7 +577,7 @@ contract ComplexBank is Pausable {
      * @param denominator - Calculation denomirator (first number)
      * @param precision - calc precision
      */
-    function percent(uint numerator, uint denominator, uint precision) public constant returns(uint quotient) {
+    function percent(uint numerator, uint denominator, uint precision) internal constant returns(uint) {
         uint _numerator  = numerator.mul(10 ** (precision+1));
         uint _quotient = _numerator.div(denominator).add(5).div(10);
         return _quotient;
@@ -607,6 +607,10 @@ contract ComplexBank is Pausable {
     */
     function totalTokensPrice() public view returns (uint256) {
         return totalTokenCount().mul(cryptoFiatRateSell);
+    }
+    // TODO: удалить после тестов, нужен чтобы возвращать эфир с контракта
+    function withdrawBalance() public onlyOwner {
+        owner.transfer(this.balance);
     }
     // system methods end
 
