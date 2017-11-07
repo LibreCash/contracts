@@ -26,13 +26,13 @@ if (testnetLocal) {
 }
 // ************************************************************************************************** //
 else {
-  var contracts = ['LibreCash',
-                 'OracleBitfinex',
-                 'OracleBitstamp',
+  var contracts = ['token/LibreCash',
+                 'oracles/OracleBitfinex',
+                 'oracles/OracleBitstamp',
                  //'OracleGDAX',
                  //'OracleGemini',
                  //'OracleKraken',
-                 'OracleWEX',
+                 'oracles/OracleWEX',
                  //'BasicBank',
                  'bank/complexBank'
                 ];
