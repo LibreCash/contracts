@@ -6,6 +6,7 @@ var OracleGDAX = artifacts.require("./OracleGDAX.sol");
 var OracleGemini = artifacts.require("./OracleGemini.sol");
 var OracleKraken = artifacts.require("./OracleKraken.sol");
 var OracleWEX = artifacts.require("./OracleWEX.sol");
+var OraclePoloniex = artifacts.require("./OraclePoloniex.sol");
 
 module.exports = function(deployer) {
   deployer.deploy(LibreCoin).then(function() {
@@ -15,7 +16,8 @@ module.exports = function(deployer) {
       var bankAddress = LibreBank.address;
       //console.log("!!!bank:" + bankAddress);
 
-      deployer.deploy(OracleBitfinex, bankAddress);
+      deployer.deploy(OraclePoloniex, bankAddress);
+      //deployer.deploy(OracleBitfinex, bankAddress);
       //deployer.deploy(OracleBitstamp, bankAddress);    
       //deployer.deploy(OracleGDAX, bankAddress);
       //deployer.deploy(OracleGemini, bankAddress);    
