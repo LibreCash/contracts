@@ -161,6 +161,12 @@ contract ComplexBank is Pausable {
     /**
      * @dev Fill buy orders queue.
      */
+
+    // Алиас для обработки очереди без лимита
+    function processBuyQueue() public whenNotPaused returns (bool) {
+        return processBuyQueue(0);
+    }
+
     function processBuyQueue(uint256 limit) public whenNotPaused returns (bool) {
         if(limit == 0) 
             limit = buyOrders.length;
@@ -254,12 +260,12 @@ contract ComplexBank is Pausable {
         cancelSellOrder(_orderID);
     }
 
-    function getBuyOrders() public onlyOwner view returns (OrderData[]) {
-        return buyOrders;
+    function getBuyOrders(uint number) public onlyOwner view returns (OrderData) {
+        return buyOrders[number];
     }
 
-    function getSellOrders() public onlyOwner view returns (OrderData[]) {
-        return sellOrders;
+    function getSellOrders(uint number) public onlyOwner view returns (OrderData) {
+        return sellOrders[number];
     }
 
     function getSellOrdersCount() public onlyOwner view returns(uint256) {
@@ -460,12 +466,13 @@ contract ComplexBank is Pausable {
     }
 
     function fundOracles(uint256 sumToFund) public payable onlyOwner {
+        uint oracleFund = sumToFund.div(numEnabledOracles());
         for (uint256 i = 0; i < oracleAddresses.length; i++) {
             if (oracles[oracleAddresses[i]].enabled == false) 
                 continue; // Ignore disabled oracles
 
-            if (oracleAddresses[i].balance < sumToFund) {
-               oracleAddresses[i].transfer(sumToFund - oracleAddresses[i].balance);
+            if (oracleAddresses[i].balance < oracleFund) {
+               oracleAddresses[i].transfer(oracleFund - oracleAddresses[i].balance);
             }
         } // foreach oracles
     }
