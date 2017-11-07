@@ -273,7 +273,7 @@ contract ComplexBank is Pausable {
 
     function getBuyOrdersCount() public onlyOwner view returns(uint256) {
         uint256 count = 0;
-        for(uint i = 0; i < sellOrders.length; i++) {
+        for(uint i = 0; i < buyOrders.length; i++) {
             if(buyOrders[i].recipientAddress != 0x0) 
                 count++;
         }
