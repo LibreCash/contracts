@@ -1,6 +1,6 @@
 pragma solidity ^0.4.10;
 
-import "../oraclizeAPI_0.4.sol";
+import "../oracles/oraclizeAPI_0.4.sol";
 import "../zeppelin/ownership/Ownable.sol";
 
 interface bankInterface {

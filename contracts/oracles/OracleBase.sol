@@ -1,7 +1,7 @@
 pragma solidity ^0.4.10;
 
 import "./oraclizeAPI_0.4.sol";
-import "./zeppelin/ownership/Ownable.sol";
+import "../zeppelin/ownership/Ownable.sol";
 
 interface bankInterface {
     // TODO: research events in interfaces (TypeError: Member "OraclizeStatus" not found or not visible after argument-dependent lookup in contract bankInterface)
@@ -109,6 +109,14 @@ contract OracleBase is Ownable, usingOraclize {
         delete(validIds[myid]);
         lastResultTimestamp = now;
         bank.oraclesCallback(rate, now);
+    }
+
+    /**
+    * @dev Oraclize default callback without the proof set.
+    */
+   function __callback(bytes32 myid, string result) public {
+       bytes memory proof  = new bytes(1);
+       __callback(myid,result,proof);
     }
 
     /**
