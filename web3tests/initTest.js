@@ -1,6 +1,6 @@
 var allTestFunctions = [];
-for(var i in this) {
-	if(((typeof this[i]).toString() == "function") && (this[i].toString().indexOf("native") == -1)) {
+for (var i in this) {
+	if (((typeof this[i]).toString() == "function") && (this[i].toString().indexOf("native") == -1)) {
         if (this[i].name.substr(0, 4) == "test") {
             allTestFunctions.push(this[i].name);
         }
@@ -15,9 +15,10 @@ allTestFunctions.forEach(function(testFunction) {
     buttonTestFunction.innerText = testFunction;
     divFunctionList.appendChild(buttonTestFunction);
     buttonTestFunction.onclick = function() {
+        console.log('START ' + testFunction);
         buttonTestFunction.classList.remove('btn-basic');
         buttonTestFunction.classList.add('btn-warning');
-        window[testFunction](); // асинхронный же метод, решить как ждать
+        window[testFunction].apply(null); // асинхронный же метод, решить как ждать
         buttonTestFunction.classList.remove('btn-warning');
         buttonTestFunction.classList.add('btn-success');
     }
