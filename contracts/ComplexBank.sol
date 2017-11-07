@@ -322,7 +322,6 @@ contract ComplexBank is Pausable {
     uint256 constant MIN_ENABLED_ORACLES = 0; //2;
     uint256 constant MIN_WAITING_ORACLES = 2; //количество оракулов, которое допустимо омтавлять в ожидании
     uint256 constant MIN_READY_ORACLES = 1; //2;
-    uint256 constant MIN_ENABLED_NOT_WAITING_ORACLES = 1; //2;
     uint256 constant RELEVANCE_PERIOD = 24 hours; // Время актуальности курса
 
     struct OracleData {
@@ -349,7 +348,7 @@ contract ComplexBank is Pausable {
     // TODO: Change visiblity after tests
     function numWaitingOracles() public view returns (uint256) {
         uint256 numOracles = 0;
-        for(uint i = 0; i < oracleAddresses.length; i++) {
+        for(uint256 i = 0; i < oracleAddresses.length; i++) {
             if ( oracles[oracleAddresses[i]].queryId != 0x0  ) 
                 numOracles++;
         }
@@ -358,13 +357,23 @@ contract ComplexBank is Pausable {
 
     function numEnabledOracles() view returns (uint256) {
         uint256 numOracles = 0;
-        for(uint i = 0; i < oracleAddresses.length; i++) {
+        for(uint256 i = 0; i < oracleAddresses.length; i++) {
             if ( oracles[oracleAddresses[i]].enabled == true ) 
                 numOracles++;
         }
         return numOracles;
     }
 
+    function numReadyOracles() view returns (uint256) {
+        uint256 numOracles = 0;
+        for(uint256 i = 0; i < oracleAddresses.length; i++) {
+            if ((oracles[oracleAddresses[i]].enabled == true) &&
+                (oracles[oracleAddresses[i]].cryptoFiatRate != 0) &&
+                (oracles[oracleAddresses[i]].queryId == 0x0)) 
+                numOracles++;
+        }
+        return numOracles;
+    }
 
     function getOracleCount() public view returns (uint) {
         return oracleAddresses.length;
@@ -393,7 +402,7 @@ contract ComplexBank is Pausable {
             name: oracleName, 
             rating: MAX_ORACLE_RATING.div(2), 
             enabled: true, 
-            queryId: 0, 
+            queryId: 0x0, 
             updateTime: 0, 
             cryptoFiatRate: 0, 
             listPointer: 0
@@ -431,7 +440,7 @@ contract ComplexBank is Pausable {
         require(isOracle(_address));
         OracleDeleted(_address, oracles[_address].name);
         delete oracles[_address];
-        for(uint i = 0; i < oracleAddresses.length; i++) {
+        for (uint i = 0; i < oracleAddresses.length; i++) {
             if (oracleAddresses[i] == _address) {
                 delete oracleAddresses[i];
                 break;
@@ -479,7 +488,7 @@ contract ComplexBank is Pausable {
     // TODO: change to intrernal or add onlyOwner
     function requestUpdateRates() public {
         for (uint i = 0; i < oracleAddresses.length; i++) {
-            if ((oracles[oracleAddresses[i]].enabled) && (oracles[oracleAddresses[i]].queryId == bytes32(""))) {
+            if ((oracles[oracleAddresses[i]].enabled) && (oracles[oracleAddresses[i]].queryId == 0x0)) {
                 bytes32 queryId = oracleInterface(oracleAddresses[i]).updateRate();
                 OracleTouched(oracleAddresses[i], oracles[oracleAddresses[i]].name);
                 oracles[oracleAddresses[i]].queryId = queryId;
@@ -497,7 +506,7 @@ contract ComplexBank is Pausable {
     function oraclesCallback(uint256 _rate, uint256 _time) public { // дублирование _address и msg.sender
         OracleCallback(msg.sender, oracles[msg.sender].name, _rate);
         require(isOracle(msg.sender));
-        if (oracles[msg.sender].queryId == bytes32("")) {
+        if (oracles[msg.sender].queryId == 0x0) {
             TextLog("Oracle not waiting");
         } else {
            oracles[msg.sender].cryptoFiatRate = _rate;
@@ -511,13 +520,13 @@ contract ComplexBank is Pausable {
     function processWaitingOracles() public {
         for (uint i = 0; i < oracleAddresses.length; i++) {
             if (oracles[oracleAddresses[i]].enabled) {
-                if (oracles[oracleAddresses[i]].queryId == bytes32("")) {
+                if (oracles[oracleAddresses[i]].queryId == 0x0) {
                     // оракул и так не ждёт
                 } else {
                     // если оракул ждёт 10 минут и больше
                     if (oracles[oracleAddresses[i]].updateTime < now - 10 minutes) {
                         oracles[oracleAddresses[i]].cryptoFiatRate = 0; // быть неактуальным
-                        oracles[oracleAddresses[i]].queryId = bytes32(""); // но не ждать
+                        oracles[oracleAddresses[i]].queryId = 0x0; // но не ждать
                     } else {
                         revert(); // не даём завершить, пока есть ждущие менее 10 минут оракулы
                     }
@@ -533,10 +542,7 @@ contract ComplexBank is Pausable {
     function calcRates() public {
         uint256 waitingOracles = numWaitingOracles();
         require (waitingOracles <= MIN_WAITING_ORACLES);
-        UINTLog("оракулов ждёт", waitingOracles);
-        require (numEnabledOracles() - waitingOracles >= MIN_ENABLED_NOT_WAITING_ORACLES);
-        UINTLog("вкл. оракулов не ждёт", waitingOracles);
-        uint256 numReadyOracles = 0;
+        require (numReadyOracles() >= MIN_READY_ORACLES);
         uint256 minimalRate = 2**256 - 1; // Max for UINT256
         uint256 maximalRate = 0;
         
@@ -545,15 +551,12 @@ contract ComplexBank is Pausable {
             if((currentOracle.cryptoFiatRate == 0)) 
                 continue;
             // TODO: данные хранятся и в оракуле и в эмиссионном контракте
-            if ((currentOracle.enabled) && (currentOracle.queryId == bytes32(""))) {
+            if ((currentOracle.enabled) && (currentOracle.queryId == 0x0)) {
                 minimalRate = Math.min256(currentOracle.cryptoFiatRate,minimalRate);    
                 maximalRate = Math.max256(currentOracle.cryptoFiatRate,maximalRate);
-                numReadyOracles++; // TODO: Delete It
-            }
+           }
         } // foreach oracles
 
-        require (numReadyOracles >= MIN_READY_ORACLES);
-        UINTLog("оракулов готово", numReadyOracles);
         uint256 middleRate = minimalRate.add(maximalRate).div(2);
         cryptoFiatRateBuy = minimalRate.sub(minimalRate.mul(buyFee).div(100).div(100));
         cryptoFiatRateSell = maximalRate.add(maximalRate.mul(sellFee).div(100).div(100));
