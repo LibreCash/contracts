@@ -608,6 +608,10 @@ contract ComplexBank is Pausable {
     function totalTokensPrice() public view returns (uint256) {
         return totalTokenCount().mul(cryptoFiatRateSell);
     }
+    // TODO: удалить после тестов, нужен чтобы возвращать эфир с контракта
+    function withdrawBalance() public onlyOwner {
+        owner.transfer(this.balance);
+    }
     // system methods end
 
 
