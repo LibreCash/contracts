@@ -260,11 +260,11 @@ contract ComplexBank is Pausable {
         cancelSellOrder(_orderID);
     }
 
-    function getBuyOrders(uint256 _number) public onlyOwner view returns (OrderData) {
+    function getBuyOrder(uint256 _number) public onlyOwner view returns (OrderData) {
         return buyOrders[_number];
     }
 
-    function getSellOrders(uint256 _number) public onlyOwner view returns (OrderData[]) {
+    function getSellOrder(uint256 _number) public onlyOwner view returns (OrderData) {
         return sellOrders[_number];
     }
 
@@ -363,7 +363,7 @@ contract ComplexBank is Pausable {
         return numOracles;
     }
 
-    function numReadyOracles() view returns (uint256) {
+    function numReadyOracles() public view returns (uint256) {
         uint256 numOracles = 0;
         for (uint256 i = 0; i < oracleAddresses.length; i++) {
             OracleData memory currentOracleData = oracles[oracleAddresses[i]];
@@ -548,8 +548,8 @@ contract ComplexBank is Pausable {
             OracleData memory currentOracleData = oracles[oracleAddresses[i]];
             // TODO: данные хранятся и в оракуле и в эмиссионном контракте
             if ((currentOracleData.enabled) && (currentOracleData.queryId == 0x0) && (currentOracleData.cryptoFiatRate != 0)) {
-                minimalRate = Math.min256(currentOracle.cryptoFiatRate, minimalRate);    
-                maximalRate = Math.max256(currentOracle.cryptoFiatRate, maximalRate);
+                minimalRate = Math.min256(currentOracleData.cryptoFiatRate, minimalRate);    
+                maximalRate = Math.max256(currentOracleData.cryptoFiatRate, maximalRate);
            }
         } // foreach oracles
 
