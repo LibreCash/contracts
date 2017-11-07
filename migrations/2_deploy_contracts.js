@@ -69,7 +69,7 @@ else {
     if (contractName == "LibreCash") {
       tokenAddress = instance.address;
     }
-    if (contractName == "bank/complexBank") {
+    if (contractName == "complexBank") {
       oracleAddresses.forEach(function(oracleAddress) {
         instance.addOracle(oracleAddress);
       });
@@ -81,7 +81,7 @@ else {
   function finalizeDeploy() {
     var directory = "web3tests/";
     var fileName = "listTestsAndContracts.js";
-    var jsDataContracts = "var contracts = [{0}];\n";
+    var jsDataContracts = "var contracts = [{0}];\r\n";
     var listOfContracts = "";
     contracts.forEach(function(contractName) {
       listOfContracts += "'{0}', ".replace("{0}", contractName);
@@ -108,7 +108,6 @@ else {
     }
     var directory = "web3tests/data/";
     var fileName = contractName + ".js";
-    console.log(directory + fileName);
     var stream = fs.createWriteStream(directory + fileName);
     stream.once('open', function(fd) {
       let contractData = {
