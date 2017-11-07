@@ -52,32 +52,81 @@ contract ComplexBank is Pausable {
     }
 
     // 01-emission start
-    function createBuyOrder(address beneficiary, uint256 rateLimit) public whenNotPaused payable {
+
+    /**
+     * @dev Creates buy order.
+     * @param _address Beneficiar.
+     * @param _rateLimit Max affordable buying rate, 0 to allow all.
+     */
+    function createBuyOrder(address _address, uint256 _rateLimit) payable public whenNotPaused {
         require((msg.value > buyEther.min) && (msg.value < buyEther.max));
-        OrderData memory currentOrder = OrderData({
+        require(_address != 0x0);
+        if (buyOrderLast == buyOrders.length) {
+            buyOrders.length += 1;
+        }
+        buyOrders[buyOrderLast++] = OrderData({
             senderAddress: msg.sender,
-            recipientAddress: beneficiary, 
-            orderAmount: msg.value, 
-            orderTimestamp: now, 
-            rateLimit: rateLimit
+            recipientAddress: _address,
+            orderAmount: msg.value,
+            orderTimestamp: now,
+            rateLimit: _rateLimit
         });
-        addOrderToQueue(orderType.buy, currentOrder);
+        BuyOrderCreated(msg.value);
     }
 
-    function createSellOrder(uint256 _tokensCount, uint256 _rateLimit) whenNotPaused public {
-    require((_tokensCount > sellTokens.min) && (_tokensCount < sellTokens.max));
-    require(_tokensCount <= libreToken.balanceOf(msg.sender));
-    OrderData memory currentOrder = OrderData({
-        senderAddress: msg.sender,
-        recipientAddress: msg.sender, 
-        orderAmount: _tokensCount, 
-        orderTimestamp: now, 
-        rateLimit: _rateLimit
-    });
-    addOrderToQueue(orderType.sell, currentOrder);
-    libreToken.burn(msg.sender, _tokensCount);
-    SellOrderCreated(_tokensCount); // TODO: maybe add beneficiary?
+    /**
+     * @dev Creates buy order.
+     * @param _rateLimit Max affordable buying rate, 0 to allow all.
+     */
+    function createBuyOrder(uint256 _rateLimit) payable public {
+        createBuyOrder(msg.sender, _rateLimit);
     }
+
+    /**
+     * @dev Creates sell order.
+     * @param _address Beneficiar.
+     * @param _tokensCount Amount of tokens to sell.
+     * @param _rateLimit Min affordable selling rate, 0 to allow all.
+     */
+    function createSellOrder(address _address, uint256 _tokensCount, uint256 _rateLimit) public whenNotPaused {
+        require((_tokensCount > sellTokens.min) && (_tokensCount < sellTokens.max));
+        require(_address != 0x0);
+        address tokenOwner = msg.sender;
+        require(_tokensCount <= libreToken.balanceOf(tokenOwner));
+        if (sellOrderLast == sellOrders.length) {
+            sellOrders.length += 1;
+        }
+        sellOrders[sellOrderLast++] = OrderData({
+            senderAddress: tokenOwner,
+            recipientAddress: _address,
+            orderAmount: _tokensCount,
+            orderTimestamp: now,
+            rateLimit: _rateLimit
+        });
+        libreToken.burn(tokenOwner, _tokensCount);
+        SellOrderCreated(_tokensCount); 
+    }
+
+    /**
+     * @dev Creates sell order.
+     * @param _tokensCount Amount of tokens to sell.
+     * @param _rateLimit Min affordable selling rate, 0 to allow all.
+     */
+    function createSellOrder(uint256 _tokensCount, uint256 _rateLimit) public {
+        createSellOrder(msg.sender, _tokensCount, _rateLimit);
+    }
+
+    // TODO: подогнать под текущие функции, возможно их изменить
+    // сейчас не использовать
+    function addOrderToQueue(orderType typeOrder, OrderData order) internal {
+        if (typeOrder == orderType.buy) {
+ //           createBuyOrder(order.address, )
+            buyOrders.push(order);
+        } else {
+            sellOrders.push(order);
+        }
+    }
+   // Используется внутри в случае если не срабатывают условия ордеров 
 
     function () whenNotPaused payable external {
         createBuyOrder(msg.sender, 0); // 0 - без ценовых ограничений
@@ -99,15 +148,8 @@ contract ComplexBank is Pausable {
     OrderData[] public sellOrders; // очередь ордеров на покупку
     uint256 buyOrderIndex = 0; // Хранит последний обработанный ордер
     uint256 sellOrderIndex = 0;// Хранит последний обработанный ордер
-
-    function addOrderToQueue(orderType typeOrder, OrderData order) internal {
-        if (typeOrder == orderType.buy) {
-            buyOrders.push(order);
-        } else {
-            sellOrders.push(order);
-        }
-    }
-   // Используется внутри в случае если не срабатывают условия ордеров 
+    uint256 buyOrderLast = 0;
+    uint256 sellOrderLast = 0;
 
    function cancelBuyOrder(uint256 _orderID) private returns (bool) {
         if (buyOrders[_orderID].recipientAddress != 0x0) 
@@ -135,7 +177,7 @@ contract ComplexBank is Pausable {
      * @param _orderID The order ID.
      */
     function processBuyOrder(uint256 _orderID) internal returns (bool) {
-        if (buyOrders[_orderID].senderAddress == 0x0) {
+        if (buyOrders[_orderID].recipientAddress == 0x0) {
             return true; // ордер удалён, идём дальше
         }
 
@@ -169,9 +211,10 @@ contract ComplexBank is Pausable {
 
     function processBuyQueue(uint256 _limit) public whenNotPaused returns (bool) {
         if (_limit == 0)
-            _limit = buyOrders.length;
+            _limit = buyOrderLast;
         // TODO: при нарушении данного условия контракт окажется сломан. Нарушение малореально, но всё же найти выход
-        for (uint i = buyOrderIndex; i < buyOrders.length; i++) {
+        require (buyOrderIndex < _limit);
+        for (uint i = buyOrderIndex; i < _limit; i++) {
                 // Если попали на удаленный\несуществующий ордер - переходим к следующему
                 if (!processBuyOrder(i)) { // TODO: внутри processBuyOrder нет ни одной ветки которая приводит к этому условию
                     buyOrderIndex = i;
@@ -182,6 +225,7 @@ contract ComplexBank is Pausable {
         } // for
         // дешёвая "очистка" массива
         buyOrderIndex = 0;
+        buyOrderLast = 0;
         OrderQueueGeneral("Очередь ордеров на покупку очищена");
         return true;
     }
@@ -191,7 +235,7 @@ contract ComplexBank is Pausable {
      * @param _orderID The order ID.
      */
     function processSellOrder(uint256 _orderID) internal returns (bool) {
-        if (sellOrders[_orderID].senderAddress == 0x0) {
+        if (sellOrders[_orderID].recipientAddress == 0x0) {
             return true; // ордер удалён, можно продолжать разгребать
         }
         
@@ -232,7 +276,10 @@ contract ComplexBank is Pausable {
      */
     function processSellQueue(uint256 _limit) public whenNotPaused returns (bool) {
         if (_limit == 0) 
-            _limit = sellOrders.length;
+            _limit = sellOrderLast;
+        // TODO: при нарушении данного условия контракт окажется сломан. Нарушение малореально, но всё же найти выход
+        require (sellOrderIndex < _limit);
+        
         // TODO: при нарушении данного условия контракт окажется сломан. Нарушение малореально, но всё же найти выход
         for (uint i = sellOrderIndex; i < _limit; i++) {
             if (!processSellOrder(i)) { // TODO: Удалить, нет веток которые возвращают false
@@ -244,6 +291,7 @@ contract ComplexBank is Pausable {
         } // for
         // дешёвая "очистка" массива
         sellOrderIndex = 0;
+        sellOrderLast = 0;
         OrderQueueGeneral("Очередь ордеров на продажу очищена");
         return true;
     }
