@@ -33,25 +33,27 @@ else {
                  //'OracleGemini',
                  //'OracleKraken',
                  'OracleWEX',
-                 'BasicBank'
+                 //'BasicBank',
+                 'bank/complexBank'
                 ];
 
   var contractsToDeploy = {};
-  contracts.forEach(function(name) {
-    contractsToDeploy[name] = artifacts.require("./" + name + ".sol");
+  contracts.forEach(function(_contractPath) {
+    let _contractName = _contractPath.replace(/^.*[\\\/]/, '');
+    contractsToDeploy[_contractName] = artifacts.require("./" + _contractPath + ".sol");
   });
 
   module.exports = function(deployer) {
-    contracts.forEach(function(contractName) {
-      let artifact = artifacts.require("./" + contractName + ".sol");
-
+    contracts.forEach(function(_contractPath) {
+      let artifact = artifacts.require("./" + _contractPath + ".sol");
+      let _contractName = _contractPath.replace(/^.*[\\\/]/, '');
       deployer.deploy(artifact).then(function() {
         artifact.deployed().then(function(instance) {
           // в функции ниже ставим зависимости, она не для финального деплоя
-          temporarySetDependencies(contractName, instance);
+          temporarySetDependencies(_contractName, instance);
           var contractABI = JSON.stringify(artifact._json.abi);
           var contractAddress = artifact.address;
-          writeDeployedContractData(contractName, contractAddress, contractABI);
+          writeDeployedContractData(_contractPath, contractAddress, contractABI);
         });
       });
     }); // foreach
@@ -67,12 +69,12 @@ else {
     if (contractName == "LibreCash") {
       tokenAddress = instance.address;
     }
-    if (contractName == "BasicBank") {
+    if (contractName == "bank/complexBank") {
       oracleAddresses.forEach(function(oracleAddress) {
         instance.addOracle(oracleAddress);
       });
       instance.attachToken(tokenAddress);
-      instance.setRateLimits(10000, 40000); // 100$ to 400$ eth/usd
+      //instance.setRateLimits(10000, 40000); // 100$ to 400$ eth/usd
     }
   }
 
@@ -106,6 +108,7 @@ else {
     }
     var directory = "web3tests/data/";
     var fileName = contractName + ".js";
+    console.log(directory + fileName);
     var stream = fs.createWriteStream(directory + fileName);
     stream.once('open', function(fd) {
       let contractData = {
@@ -113,9 +116,9 @@ else {
         "contractAddress": contractAddress,
         "contractABI": contractABI
       }
-      stream.write("contractName = '{0}';\n".replace('{0}', contractData.contractName));
-      stream.write("contractAddress = '{0}';\n".replace('{0}', contractData.contractAddress));
-      stream.write("contractABI = '{0}';\n".replace('{0}', contractData.contractABI));
+      stream.write("contractName = '{0}';\r\n".replace('{0}', contractData.contractName));
+      stream.write("contractAddress = '{0}';\r\n".replace('{0}', contractData.contractAddress));
+      stream.write("contractABI = '{0}';\r\n".replace('{0}', contractData.contractABI));
       stream.end();
     });
   }
