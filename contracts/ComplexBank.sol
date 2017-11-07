@@ -43,8 +43,8 @@ contract ComplexBank is Pausable {
     }
 
     // Limits start
-    Limit public buyEther = Limit(0,99999 * 1 ether);
-    Limit public sellTokens = Limit(0,99999 * 1 ether);
+    Limit public buyEther = Limit(0, 99999 * 1 ether);
+    Limit public sellTokens = Limit(0, 99999 * 1 ether);
     // Limits end
 
     function ComplexBank() {
@@ -52,29 +52,29 @@ contract ComplexBank is Pausable {
     }
 
     // 01-emission start
-    function createBuyOrder(address beneficiary,uint256 rateLimit) public whenNotPaused payable {
+    function createBuyOrder(address beneficiary, uint256 rateLimit) public whenNotPaused payable {
         require((msg.value > buyEther.min) && (msg.value < buyEther.max));
         OrderData memory currentOrder = OrderData({
-            senderAddress:msg.sender,
+            senderAddress: msg.sender,
             recipientAddress: beneficiary, 
             orderAmount: msg.value, 
             orderTimestamp: now, 
             rateLimit: rateLimit
         });
-        addOrderToQueue(orderType.buy,currentOrder);
+        addOrderToQueue(orderType.buy, currentOrder);
     }
 
     function createSellOrder(uint256 _tokensCount, uint256 _rateLimit) whenNotPaused public {
     require((_tokensCount > sellTokens.min) && (_tokensCount < sellTokens.max));
     require(_tokensCount <= libreToken.balanceOf(msg.sender));
-    OrderData memory currentOrder  = OrderData({
-        senderAddress:msg.sender,
+    OrderData memory currentOrder = OrderData({
+        senderAddress: msg.sender,
         recipientAddress: msg.sender, 
         orderAmount: _tokensCount, 
         orderTimestamp: now, 
         rateLimit: _rateLimit
     });
-    addOrderToQueue(orderType.sell,currentOrder);
+    addOrderToQueue(orderType.sell, currentOrder);
     libreToken.burn(msg.sender, _tokensCount);
     SellOrderCreated(_tokensCount); // TODO: maybe add beneficiary?
     }
@@ -85,7 +85,7 @@ contract ComplexBank is Pausable {
     // 01-emission end
 
     // 02-queue start
-    enum orderType { buy, sell}
+    enum orderType { buy, sell }
     struct OrderData {
         address senderAddress;
         address recipientAddress;
@@ -167,9 +167,9 @@ contract ComplexBank is Pausable {
         return processBuyQueue(0);
     }
 
-    function processBuyQueue(uint256 limit) public whenNotPaused returns (bool) {
-        if(limit == 0) 
-            limit = buyOrders.length;
+    function processBuyQueue(uint256 _limit) public whenNotPaused returns (bool) {
+        if (_limit == 0)
+            _limit = buyOrders.length;
         // TODO: при нарушении данного условия контракт окажется сломан. Нарушение малореально, но всё же найти выход
         for (uint i = buyOrderIndex; i < buyOrders.length; i++) {
                 // Если попали на удаленный\несуществующий ордер - переходим к следующему
@@ -230,11 +230,11 @@ contract ComplexBank is Pausable {
     /**
      * @dev Fill sell orders queue.
      */
-    function processSellQueue(uint256 limit) public whenNotPaused returns (bool) {
-        if (limit == 0) 
-            limit = sellOrders.length;
+    function processSellQueue(uint256 _limit) public whenNotPaused returns (bool) {
+        if (_limit == 0) 
+            _limit = sellOrders.length;
         // TODO: при нарушении данного условия контракт окажется сломан. Нарушение малореально, но всё же найти выход
-        for (uint i = sellOrderIndex; i < limit; i++) {
+        for (uint i = sellOrderIndex; i < _limit; i++) {
             if (!processSellOrder(i)) { // TODO: Удалить, нет веток которые возвращают false
                 sellOrderIndex = i;
                 OrderQueueGeneral("Очередь ордеров на продажу очищена не до конца");
@@ -260,18 +260,18 @@ contract ComplexBank is Pausable {
         cancelSellOrder(_orderID);
     }
 
-    function getBuyOrders(uint number) public onlyOwner view returns (OrderData) {
-        return buyOrders[number];
+    function getBuyOrders(uint256 _number) public onlyOwner view returns (OrderData) {
+        return buyOrders[_number];
     }
 
-    function getSellOrders(uint number) public onlyOwner view returns (OrderData[]) {
-        return sellOrders;
+    function getSellOrders(uint256 _number) public onlyOwner view returns (OrderData[]) {
+        return sellOrders[_number];
     }
 
     function getSellOrdersCount() public onlyOwner view returns(uint256) {
         uint256 count = 0;
-        for(uint i = 0; i < sellOrders.length; i++) {
-            if(sellOrders[i].recipientAddress != 0x0) 
+        for (uint256 i = 0; i < sellOrders.length; i++) {
+            if (sellOrders[i].recipientAddress != 0x0) 
                 count++;
         }
         return count;
@@ -279,8 +279,8 @@ contract ComplexBank is Pausable {
 
     function getBuyOrdersCount() public onlyOwner view returns(uint256) {
         uint256 count = 0;
-        for(uint i = 0; i < buyOrders.length; i++) {
-            if(buyOrders[i].recipientAddress != 0x0) 
+        for (uint256 i = 0; i < buyOrders.length; i++) {
+            if (buyOrders[i].recipientAddress != 0x0) 
                 count++;
         }
         return count;
@@ -292,7 +292,6 @@ contract ComplexBank is Pausable {
     function getToken() public view returns (address) {
         return tokenAddress;
     }
-
     
     /**
      * @dev Attaches token contract.
@@ -348,17 +347,17 @@ contract ComplexBank is Pausable {
     // TODO: Change visiblity after tests
     function numWaitingOracles() public view returns (uint256) {
         uint256 numOracles = 0;
-        for(uint256 i = 0; i < oracleAddresses.length; i++) {
-            if ( oracles[oracleAddresses[i]].queryId != 0x0  ) 
+        for (uint256 i = 0; i < oracleAddresses.length; i++) {
+            if (oracles[oracleAddresses[i]].queryId != 0x0) 
                 numOracles++;
         }
         return numOracles;
     }
 
-    function numEnabledOracles() view returns (uint256) {
+    function numEnabledOracles() public view returns (uint256) {
         uint256 numOracles = 0;
-        for(uint256 i = 0; i < oracleAddresses.length; i++) {
-            if ( oracles[oracleAddresses[i]].enabled == true ) 
+        for (uint256 i = 0; i < oracleAddresses.length; i++) {
+            if (oracles[oracleAddresses[i]].enabled == true) 
                 numOracles++;
         }
         return numOracles;
@@ -366,10 +365,9 @@ contract ComplexBank is Pausable {
 
     function numReadyOracles() view returns (uint256) {
         uint256 numOracles = 0;
-        for(uint256 i = 0; i < oracleAddresses.length; i++) {
-            if ((oracles[oracleAddresses[i]].enabled == true) &&
-                (oracles[oracleAddresses[i]].cryptoFiatRate != 0) &&
-                (oracles[oracleAddresses[i]].queryId == 0x0)) 
+        for (uint256 i = 0; i < oracleAddresses.length; i++) {
+            OracleData memory currentOracleData = oracles[oracleAddresses[i]];
+            if ((currentOracleData.enabled) && (currentOracleData.cryptoFiatRate != 0) && (currentOracleData.queryId == 0x0)) 
                 numOracles++;
         }
         return numOracles;
@@ -380,8 +378,8 @@ contract ComplexBank is Pausable {
     }
 
     function isOracle(address _oracle) internal returns (bool) {
-        for (uint i = 0; i < oracleAddresses.length; i++) {
-            if ( oracleAddresses[i] == _oracle ) 
+        for (uint256 i = 0; i < oracleAddresses.length; i++) {
+            if (oracleAddresses[i] == _oracle) 
                 return true;
         }
         return false;
@@ -393,7 +391,7 @@ contract ComplexBank is Pausable {
      * @param _address The oracle address.
      */
     function addOracle(address _address) public onlyOwner {
-        require(_address != 0x0 && !isOracle (_address));
+        require((_address != 0x0) && (!isOracle(_address)));
         oracleInterface currentOracle = oracleInterface(_address);
         
         currentOracle.setBank(address(this));
@@ -417,7 +415,7 @@ contract ComplexBank is Pausable {
      * @param _address The oracle address.
      */
     function disableOracle(address _address) public onlyOwner {
-        require(isOracle(_address) && oracles[_address].enabled == true);
+        require((isOracle(_address)) && (oracles[_address].enabled));
         oracles[_address].enabled = false;
         OracleDisabled(_address, oracles[_address].name);
     }
@@ -427,7 +425,7 @@ contract ComplexBank is Pausable {
      * @param _address The oracle address.
      */
     function enableOracle(address _address) public onlyOwner {
-        require(isOracle(_address) && oracles[_address].enabled == false);
+        require((isOracle(_address)) && (!oracles[_address].enabled));
         oracles[_address].enabled = true;
         OracleEnabled(_address, oracles[_address].name);
     }
@@ -440,7 +438,7 @@ contract ComplexBank is Pausable {
         require(isOracle(_address));
         OracleDeleted(_address, oracles[_address].name);
         delete oracles[_address];
-        for (uint i = 0; i < oracleAddresses.length; i++) {
+        for (uint256 i = 0; i < oracleAddresses.length; i++) {
             if (oracleAddresses[i] == _address) {
                 delete oracleAddresses[i];
                 break;
@@ -462,7 +460,7 @@ contract ComplexBank is Pausable {
      * @param _rating Value of rating
      */
     function setOracleRating(address _address, uint256 _rating) internal {
-        require(isOracle(_address) && _rating > 0 && _rating <= MAX_ORACLE_RATING);
+        require((isOracle(_address)) && (_rating > 0) && (_rating <= MAX_ORACLE_RATING));
         oracles[_address].rating = _rating;
     }
 
@@ -547,13 +545,11 @@ contract ComplexBank is Pausable {
         uint256 maximalRate = 0;
         
         for (uint i = 0; i < oracleAddresses.length; i++) {
-            OracleData memory currentOracle = oracles[oracleAddresses[i]];
-            if((currentOracle.cryptoFiatRate == 0)) 
-                continue;
+            OracleData memory currentOracleData = oracles[oracleAddresses[i]];
             // TODO: данные хранятся и в оракуле и в эмиссионном контракте
-            if ((currentOracle.enabled) && (currentOracle.queryId == 0x0)) {
-                minimalRate = Math.min256(currentOracle.cryptoFiatRate,minimalRate);    
-                maximalRate = Math.max256(currentOracle.cryptoFiatRate,maximalRate);
+            if ((currentOracleData.enabled) && (currentOracleData.queryId == 0x0) && (currentOracleData.cryptoFiatRate != 0)) {
+                minimalRate = Math.min256(currentOracle.cryptoFiatRate, minimalRate);    
+                maximalRate = Math.max256(currentOracle.cryptoFiatRate, maximalRate);
            }
         } // foreach oracles
 
@@ -567,13 +563,13 @@ contract ComplexBank is Pausable {
     // 05-monitoring start
     uint256 constant TARGET_VIOLANCE_ALERT = 20000; // 200% Проценты при котором происходит уведомление
     uint256 constant STOCK_VIOLANCE_ALERT = 3000; // 30% процент разницы между биржами при котором происходит уведомление
-    function checkContract() {
+    function checkContract() public {
         // TODO: Добавить проверки
     }   
     // TODO: change to internal after tests
     function targetRateViolance(uint256 newCryptoFiatRate) public view returns(uint256) {
-        uint256 maxRate = Math.max256(cryptoFiatRate,newCryptoFiatRate);
-        uint256 minRate = Math.min256(cryptoFiatRate,newCryptoFiatRate);
+        uint256 maxRate = Math.max256(cryptoFiatRate, newCryptoFiatRate);
+        uint256 minRate = Math.min256(cryptoFiatRate, newCryptoFiatRate);
         return percent(maxRate,minRate,2);
     }
     // 05-monitoring end
@@ -587,7 +583,7 @@ contract ComplexBank is Pausable {
      * @param precision - calc precision
      */
     function percent(uint numerator, uint denominator, uint precision) internal constant returns(uint) {
-        uint _numerator  = numerator.mul(10 ** (precision+1));
+        uint _numerator = numerator.mul(10 ** (precision+1));
         uint _quotient = _numerator.div(denominator).add(5).div(10);
         return _quotient;
     }
