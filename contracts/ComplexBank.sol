@@ -264,7 +264,7 @@ contract ComplexBank is Pausable {
         return buyOrders[number];
     }
 
-    function getSellOrders(uint number) public onlyOwner view returns (OrderData) {
+    function getSellOrders(uint number) public onlyOwner view returns (OrderData[]) {
         return sellOrders[number];
     }
 
@@ -465,14 +465,13 @@ contract ComplexBank is Pausable {
         return oracles[_address].cryptoFiatRate;
     }
 
-    function fundOracles(uint256 sumToFund) public payable onlyOwner {
-        uint oracleFund = sumToFund.div(numEnabledOracles());
+    function fundOracles(uint256 fundToOracle) public payable onlyOwner {
         for (uint256 i = 0; i < oracleAddresses.length; i++) {
             if (oracles[oracleAddresses[i]].enabled == false) 
                 continue; // Ignore disabled oracles
 
-            if (oracleAddresses[i].balance < oracleFund) {
-               oracleAddresses[i].transfer(oracleFund - oracleAddresses[i].balance);
+            if (oracleAddresses[i].balance < fundToOracle) {
+               oracleAddresses[i].transfer(fundToOracle - oracleAddresses[i].balance);
             }
         } // foreach oracles
     }
