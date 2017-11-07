@@ -94,9 +94,9 @@ contract ComplexBank is Pausable {
         uint256 rateLimit;
     }
 
-
-    OrderData[] buyOrders; // очередь ордеров на покупку
-    OrderData[] sellOrders; // очередь ордеров на покупку
+    // TODO: Убрать public после тестов. Необходимо для отображения ордеров.
+    OrderData[] public buyOrders; // очередь ордеров на покупку
+    OrderData[] public sellOrders; // очередь ордеров на покупку
     uint256 buyOrderIndex = 0; // Хранит последний обработанный ордер
     uint256 sellOrderIndex = 0;// Хранит последний обработанный ордер
 
@@ -161,6 +161,12 @@ contract ComplexBank is Pausable {
     /**
      * @dev Fill buy orders queue.
      */
+
+    // Алиас для обработки очереди без лимита
+    function processBuyQueue() public whenNotPaused returns (bool) {
+        return processBuyQueue(0);
+    }
+
     function processBuyQueue(uint256 limit) public whenNotPaused returns (bool) {
         if(limit == 0) 
             limit = buyOrders.length;
@@ -254,11 +260,11 @@ contract ComplexBank is Pausable {
         cancelSellOrder(_orderID);
     }
 
-    function getBuyOrders() public onlyOwner view returns (OrderData[]) {
-        return buyOrders;
+    function getBuyOrders(uint number) public onlyOwner view returns (OrderData) {
+        return buyOrders[number];
     }
 
-    function getSellOrders() public onlyOwner view returns (OrderData[]) {
+    function getSellOrders(uint number) public onlyOwner view returns (OrderData[]) {
         return sellOrders;
     }
 
@@ -459,13 +465,13 @@ contract ComplexBank is Pausable {
         return oracles[_address].cryptoFiatRate;
     }
 
-    function fundOracles(uint256 sumToFund) public payable onlyOwner {
+    function fundOracles(uint256 fundToOracle) public payable onlyOwner {
         for (uint256 i = 0; i < oracleAddresses.length; i++) {
             if (oracles[oracleAddresses[i]].enabled == false) 
                 continue; // Ignore disabled oracles
 
-            if (oracleAddresses[i].balance < sumToFund) {
-               oracleAddresses[i].transfer(sumToFund - oracleAddresses[i].balance);
+            if (oracleAddresses[i].balance < fundToOracle) {
+               oracleAddresses[i].transfer(fundToOracle - oracleAddresses[i].balance);
             }
         } // foreach oracles
     }
