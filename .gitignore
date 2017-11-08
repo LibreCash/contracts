@@ -1,4 +1,6 @@
 # Created by https://www.gitignore.io/api/node
+# Build Data Files
+build/data/*.txt
 # Visual Studio Code
 .vscode
 
@@ -36,8 +38,9 @@ bower_components
 
 # Compiled binary addons (http://nodejs.org/api/addons.html)
 build/Release
-
+build/data
 build/contracts
+todo.txt
 
 # Dependency directories
 node_modules/
