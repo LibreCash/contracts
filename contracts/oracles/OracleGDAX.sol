@@ -12,7 +12,7 @@ contract OracleGDAX is OracleBase {
     bytes32 constant ORACLE_NAME = "GDAX Oraclize Async";
     bytes16 constant ORACLE_TYPE = "ETHUSD";
     string constant ORACLE_DATASOURCE = "URL";
-    string constant ORACLE_ARGUMENTS = "json(https://api.gdax.com/products/ETH-USD/ticker).ask";
+    string constant ORACLE_ARGUMENTS = "json(https://api.gdax.com/products/ETH-USD/ticker).price";
     
     /**
      * @dev Constructor.

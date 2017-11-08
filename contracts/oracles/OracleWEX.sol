@@ -12,7 +12,7 @@ contract OracleWEX is OracleBase {
     bytes32 constant ORACLE_NAME = "WEX Oraclize Async";
     bytes16 constant ORACLE_TYPE = "ETHUSD";
     string constant ORACLE_DATASOURCE = "URL";
-    string constant ORACLE_ARGUMENTS = "json(https://wex.nz/api/3/ticker/eth_usd).eth_usd.buy";
+    string constant ORACLE_ARGUMENTS = "json(https://wex.nz/api/3/ticker/eth_usd).eth_usd.last";
 
     /**
      * @dev Constructor.

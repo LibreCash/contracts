@@ -6,8 +6,9 @@ var contracts = ['token/LibreCash',
                 'oracles/OracleBitfinex',
                 'oracles/OracleBitstamp',
                 'oracles/OracleWEX',
+                'oracles/OraclePoloniex',
                 //'BasicBank',
-                'bank/complexBank'
+                'bank/ComplexBank'
               ];
 
 var contractsToDeploy = {};

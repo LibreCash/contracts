@@ -12,7 +12,7 @@ contract OracleBitstamp is OracleBase {
     bytes32 constant ORACLE_NAME = "Bitstamp Oraclize Async";
     bytes16 constant ORACLE_TYPE = "ETHUSD";
     string constant ORACLE_DATASOURCE = "URL";
-    string constant ORACLE_ARGUMENTS = "json(https://www.bitstamp.net/api/v2/ticker/ethusd).ask";
+    string constant ORACLE_ARGUMENTS = "json(https://www.bitstamp.net/api/v2/ticker/ethusd).last";
     
     /**
      * @dev Constructor.

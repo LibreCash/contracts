@@ -12,7 +12,7 @@ contract OracleGemini is OracleBase {
     bytes32 constant ORACLE_NAME = "Gemini Oraclize Async";
     bytes16 constant ORACLE_TYPE = "ETHUSD";
     string constant ORACLE_DATASOURCE = "URL";
-    string constant ORACLE_ARGUMENTS = "json(https://api.gemini.com/v1/pubticker/ethusd).ask";
+    string constant ORACLE_ARGUMENTS = "json(https://api.gemini.com/v1/pubticker/ethusd).last";
     
     /**
      * @dev Constructor.

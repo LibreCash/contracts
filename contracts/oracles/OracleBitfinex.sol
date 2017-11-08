@@ -12,7 +12,7 @@ contract OracleBitfinex is OracleBase {
     bytes32 constant ORACLE_NAME = "Bitfinex Oraclize Async";
     bytes16 constant ORACLE_TYPE = "ETHUSD";
     string constant ORACLE_DATASOURCE = "URL";
-    string constant ORACLE_ARGUMENTS = "json(https://api.bitfinex.com/v1/pubticker/ethusd).mid";
+    string constant ORACLE_ARGUMENTS = "json(https://api.bitfinex.com/v1/pubticker/ethusd).last_price";
     
     /**
      * @dev Constructor.
