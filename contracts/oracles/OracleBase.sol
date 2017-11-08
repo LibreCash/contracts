@@ -2,19 +2,16 @@ pragma solidity ^0.4.10;
 
 import "./oraclizeAPI_0.4.sol";
 import "../zeppelin/ownership/Ownable.sol";
+import "../interfaces/I_Bank.sol";
+import "../interfaces/I_Oracle.sol";
 
-interface bankInterface {
-    // TODO: research events in interfaces (TypeError: Member "OraclizeStatus" not found or not visible after argument-dependent lookup in contract bankInterface)
-    //event OraclizeStatus(address indexed _address, bytes32 oraclesName, string description);
-    function oraclesCallback(uint256 value, uint256 timestamp) public;
-}
 
 /**
  * @title Base contract for oracles.
  *
  * @dev Base contract for oracles. Not abstract.
  */
-contract OracleBase is Ownable, usingOraclize {
+contract OracleBase is Ownable, usingOraclize, OracleI {
     event NewOraclizeQuery(string description);
     event NewPriceTicker(bytes32 oracleName, uint256 price, uint256 timestamp);
     event NewPriceTicker(string price);
@@ -35,7 +32,7 @@ contract OracleBase is Ownable, usingOraclize {
     mapping(bytes32=>bool) validIds; // ensure that each query response is processed only once
     address public bankAddress;
     uint public rate;
-    bankInterface bank;
+    BankI bank;
     bool public receivedRate = false; // флаг, нужен для автоматизированных тестов
     uint256 MIN_UPDATE_TIME = 5 minutes;
     OracleConfig internal oracleConfig; // заполняется конструктором потомка константами из него же
@@ -66,7 +63,7 @@ contract OracleBase is Ownable, usingOraclize {
      */
     function setBank(address _bankAddress) public {
         bankAddress = _bankAddress;
-        bank = bankInterface(_bankAddress);
+        bank = BankI(_bankAddress);
     }
 
     // for test

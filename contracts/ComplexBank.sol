@@ -3,27 +3,17 @@ pragma solidity ^0.4.10;
 import "./zeppelin/math/SafeMath.sol";
 import "./zeppelin/math/Math.sol";
 import "./zeppelin/lifecycle/Pausable.sol";
-
-interface token {
-    function balanceOf(address _owner) public returns (uint256);
-    function mint(address _to, uint256 _amount) public;
-    function getTokensAmount() public returns(uint256);
-    function burn(address _burner, uint256 _value) public;
-    function setBankAddress(address _bankAddress) public;
-}
-
-interface oracleInterface {
-    function updateRate() payable public returns (bytes32);
-    function getName() constant public returns (bytes32);
-    function setBank(address _bankAddress) public;
-    function hasReceivedRate() public returns (bool);
-}
+import "./interfaces/I_LibreToken.sol";
+import "./interfaces/I_Oracle.sol";
+import "./interfaces/I_Bank.sol";
 
 
-contract ComplexBank is Pausable {
+
+contract ComplexBank is Pausable,BankI {
     using SafeMath for uint256;
     address tokenAddress;
-    token libreToken;
+    LibreTokenI libreToken;
+    
     // TODO; Check that all evetns used and delete unused
     event TokensBought(address _beneficiar, uint256 tokensAmount, uint256 cryptoAmount);
     event TokensSold(address _beneficiar, uint256 tokensAmount, uint256 cryptoAmount);
@@ -347,7 +337,7 @@ contract ComplexBank is Pausable {
      */
     function attachToken(address _tokenAddress) public onlyOwner {
         tokenAddress = _tokenAddress;
-        libreToken = token(tokenAddress);
+        libreToken = LibreTokenI(tokenAddress);
         libreToken.setBankAddress(address(this));
     }
 
@@ -440,7 +430,7 @@ contract ComplexBank is Pausable {
      */
     function addOracle(address _address) public onlyOwner {
         require((_address != 0x0) && (!isOracle(_address)));
-        oracleInterface currentOracle = oracleInterface(_address);
+        OracleI currentOracle = OracleI(_address);
         
         currentOracle.setBank(address(this));
         bytes32 oracleName = currentOracle.getName();
@@ -535,7 +525,7 @@ contract ComplexBank is Pausable {
     function requestUpdateRates() public {
         for (uint i = 0; i < oracleAddresses.length; i++) {
             if ((oracles[oracleAddresses[i]].enabled) && (oracles[oracleAddresses[i]].queryId == 0x0)) {
-                bytes32 queryId = oracleInterface(oracleAddresses[i]).updateRate();
+                bytes32 queryId = OracleI(oracleAddresses[i]).updateRate();
                 OracleTouched(oracleAddresses[i], oracles[oracleAddresses[i]].name);
                 oracles[oracleAddresses[i]].queryId = queryId;
             }
