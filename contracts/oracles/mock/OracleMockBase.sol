@@ -1,17 +1,39 @@
 pragma solidity ^0.4.10;
 
 import "../../zeppelin/ownership/Ownable.sol";
-import "../OracleBase.sol";
+import "../../interfaces/I_Bank.sol";
+import "../../interfaces/I_Oracle.sol";
 
 /**
  * @title Base contract for mocked oracles for testing in private nodes.
  *
  * @dev Base contract for oracles. Not abstract.
  */
-contract OracleMockBase is OracleBase {
+contract OracleMockBase is Ownable {
+
     bytes32 public oracleName = "Mocked Base Oracle";
     bytes16 public oracleType = "Mocked Undefined";
     uint rate = 100;
+    event NewOraclizeQuery(string description);
+    event NewPriceTicker(bytes32 oracleName, uint256 price, uint256 timestamp);
+    event NewPriceTicker(string price);
+    event Log(string description);
+
+    struct OracleConfig {
+        string datasource;
+        string arguments;
+    }
+
+    string public description; // либо избавиться, либо в байты переделать
+    uint256 public lastResultTimestamp;
+    uint256 public updateCost;
+    mapping(bytes32=>bool) validIds; // ensure that each query response is processed only once
+    address public bankAddress;
+    BankI bank;
+    bool public receivedRate = false; // флаг, нужен для автоматизированных тестов
+    uint256 MIN_UPDATE_TIME = 5 minutes;
+    OracleConfig internal oracleConfig; // заполняется конструктором потомка константами из него же
+
     modifier onlyBank() {
         require(msg.sender == bankAddress);
         _;
@@ -60,14 +82,14 @@ contract OracleMockBase is OracleBase {
     /**
     * @dev default callback with the proof set.
     */
-   function __callback(bytes32 myid, string result, bytes proof) public {
+   function __callback(bytes32, string, bytes) public {
         // Do nothing
     }
 
     /**
     * @dev Oraclize default callback without the proof set.
     */
-   function __callback(bytes32 myid, string result) public {
+   function __callback(bytes32, string) public {
        // Do nothing
     }
 
