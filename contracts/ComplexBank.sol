@@ -232,7 +232,7 @@ contract ComplexBank is Pausable,BankI {
         address recipientAddress = sellOrders[_orderID].recipientAddress;
         address senderAddress = sellOrders[_orderID].senderAddress;
         uint256 tokensAmount = sellOrders[_orderID].orderAmount;
-        uint256 cryptoAmount = tokensAmount.div(cryptoFiatRateSell).mul(100);
+        uint256 cryptoAmount = tokensAmount.mul(100).div(cryptoFiatRateSell);
         uint256 minRate = sellOrders[_orderID].rateLimit;
 
         if ((minRate != 0) && (cryptoFiatRateSell > minRate)) {
@@ -250,7 +250,7 @@ contract ComplexBank is Pausable,BankI {
             cryptoAmount = this.balance;
         } else {
             tokensAmount = sellOrders[_orderID].orderAmount;
-            cryptoAmount = tokensAmount.div(cryptoFiatRateSell).mul(100);
+            cryptoAmount = tokensAmount.mul(100).div(cryptoFiatRateSell);
         }
         // dn: тщательно перепроверить эту строчку
         if (!recipientAddress.send(cryptoAmount)) { 
