@@ -3,6 +3,7 @@
 build/data/*.txt
 # Visual Studio Code
 .vscode
+web3tests/data/*.js
 
 ### Node ###
 # Logs
