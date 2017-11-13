@@ -298,12 +298,16 @@ contract ComplexBank is Pausable,BankI {
         cancelSellOrder(_orderID);
     }
 
-    function getBuyOrder(uint256 _number) public onlyOwner view returns (OrderData) {
-        return buyOrders[_number];
+    function getBuyOrder(uint256 i) public onlyOwner view returns (address, address, uint256, uint256, uint256) {
+        return (buyOrders[i].senderAddress, buyOrders[i].recipientAddress,
+                buyOrders[i].orderAmount, buyOrders[i].orderTimestamp,
+                buyOrders[i].rateLimit);
     }
 
-    function getSellOrder(uint256 _number) public onlyOwner view returns (OrderData) {
-        return sellOrders[_number];
+    function getSellOrder(uint256 i) public onlyOwner view returns (address, address, uint256, uint256, uint256) {
+        return (sellOrders[i].senderAddress, sellOrders[i].recipientAddress,
+                sellOrders[i].orderAmount, sellOrders[i].orderTimestamp,
+                sellOrders[i].rateLimit);
     }
 
     function getSellOrdersCount() public onlyOwner view returns(uint256) {
