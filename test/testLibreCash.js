@@ -2,8 +2,8 @@ var LibreCash = artifacts.require("LibreCash");
 
 contract('LibreCash', async function(accounts) {
     var owner = accounts[0];
-    var acc1 = accounts[1];
-    var acc2 = accounts[2];
+    var acc1  = accounts[1];
+    var acc2  = accounts[2];
 
     contract('#setBankAddress', function() {
 
@@ -37,34 +37,35 @@ contract('LibreCash', async function(accounts) {
 
         beforeEach(async function() {
             let cash = await LibreCash.deployed();
-            await cash.setBankAddress(acc1);
+            await cash.setBankAddress(owner);
         });
 
-        it("minting bank", async function() {
+        it("tokens amount", async function() {
             let cash = await LibreCash.deployed();
             let amount = 100;
             
-            let befor = await cash.getTokensAmount();
-            return true;
+            let before = await cash.getTokensAmount();
+            await cash.mint(owner, amount);
+            let after = parseInt(await cash.getTokensAmount.call());
+
+            assert.equal(before + amount, after, "minting didn't happen");
+        });
+
+        it("minting to account", async function() {
+            let cash = await LibreCash.deployed();
+            let amount = 50;
+
+            let before = parseInt(await cash.balanceOf(acc1));
             await cash.mint(acc1, amount);
-            return true;
-            let after = await cash.getTokensAmount.call();
-            let accAmmount = await cash.balanceOf(acc1);
-            console.log(after);
-    
-            assert.equal(befor + amount, after, "minig didn't happen");
-            //assert.equal(amount, accAmmount, "minig don't added");
+            let after = parseInt(await cash.balanceOf(acc1));
+
+            assert.equal(before + amount, after, "minting don't added to account");
         });
     
         it("Other dont have permission to minting", async function() {
             let cash = await LibreCash.deployed();
-    
-            let bankAddress = await cash.bankAddress.call();
-            let acc2 = accounts[1];
-            let acc3 = accounts[2];
-            if (bankAddress === acc2) {
-                acc2 = accounts[1];
-            }
+            await cash.setBankAddress(acc1);
+
             try {
                 await cash.mint(acc2, 10);
             } catch(e) {
