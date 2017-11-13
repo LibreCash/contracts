@@ -24,7 +24,7 @@ contract ComplexBank is Pausable,BankI {
     event LogSell(address clientAddress, uint256 tokenAmount, uint256 cryptoAmount, uint256 sellPrice);
     event OrderQueueGeneral(string description);
     event RateBuyLimitOverflow(uint256 cryptoFiatRateBuy, uint256 maxRate, uint256 cryptoAmount);
-    event RateSellLimitOverflow(uint256 cryptoFiatRateBuy, uint256 maxRate, uint256 tokenAmount);
+    event RateSellLimitOverflow(uint256 cryptoFiatRateSell, uint256 maxRate, uint256 tokenAmount);
     event CouldntCancelOrder(bool ifBuy, uint256 orderID);
     
     struct Limit {
@@ -236,14 +236,14 @@ contract ComplexBank is Pausable,BankI {
         uint256 minRate = sellOrders[_orderID].rateLimit;
 
         if ((minRate != 0) && (cryptoFiatRateSell > minRate)) {
-            RateBuyLimitOverflow(cryptoFiatRateBuy, minRate, cryptoAmount);
+            RateSellLimitOverflow(cryptoFiatRateSell, minRate, cryptoAmount);
             if (!cancelSellOrder(_orderID)) {
                 CouldntCancelOrder(false, _orderID); // TODO: Maybe delete after tests
             }
             return true; // go next orders
         }
         if (this.balance < cryptoAmount) {  // checks if the bank has enough Ethers to send
-            tokensAmount = this.balance.mul(cryptoFiatRateBuy).div(100);
+            tokensAmount = this.balance.mul(cryptoFiatRateSell).div(100);
             // слкдующую строчку продумать
             // dn: Тщательно перепроверить на логические и прочие ошибки, иначе нас могут ограбить
             libreToken.mint(senderAddress, sellOrders[_orderID].orderAmount.sub(tokensAmount)); // TODO: Проверить не может ли здесь быть исключения
