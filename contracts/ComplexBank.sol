@@ -457,9 +457,7 @@ contract ComplexBank is Pausable,BankI {
         if (firstOracle == 0x0) firstOracle = _address;
         else {
             address cur = firstOracle;
-            for (; oracles[cur].next != 0x0; cur = oracles[cur].next) {
-                
-            }
+            for (; oracles[cur].next != 0x0; cur = oracles[cur].next) {}
             oracles[cur].next = _address;
         }
 
