@@ -200,19 +200,21 @@ contract ComplexBank is Pausable,BankI {
     }
 
     function processBuyQueue(uint256 _limit) public whenNotPaused returns (bool) {
-        if (_limit == 0)
+        require(cryptoFiatRateBuy != 0); // возможно еще надо добавить && libreToken != address(0x0) 
+
+        if (_limit == 0 || _limit > buyOrderLast)
             _limit = buyOrderLast;
-        // TODO: при нарушении данного условия контракт окажется сломан. Нарушение малореально, но всё же найти выход
-        require (buyOrderIndex < _limit);
+        
         for (uint i = buyOrderIndex; i < _limit; i++) {
                 // Если попали на удаленный\несуществующий ордер - переходим к следующему
                 if (!processBuyOrder(i)) { // TODO: внутри processBuyOrder нет ни одной ветки которая приводит к этому условию
                     buyOrderIndex = i;
                     OrderQueueGeneral("Очередь ордеров на покупку очищена не до конца");
                     return false;
-                } 
+                }
             delete(buyOrders[i]); // в solidity массив не сдвигается, тут будет нулевой элемент
         } // for
+
         // дешёвая "очистка" массива
         buyOrderIndex = 0;
         buyOrderLast = 0;
@@ -265,11 +267,11 @@ contract ComplexBank is Pausable,BankI {
      * @dev Fill sell orders queue.
      */
     function processSellQueue(uint256 _limit) public whenNotPaused returns (bool) {
-        if (_limit == 0) 
+        require(cryptoFiatRateBuy != 0); // возможно еще надо добавить && libreToken != address(0x0) 
+
+        if (_limit == 0 || _limit > sellOrderLast) 
             _limit = sellOrderLast;
-        // TODO: при нарушении данного условия контракт окажется сломан. Нарушение малореально, но всё же найти выход
-        require (sellOrderIndex < _limit);
-        
+                
         // TODO: при нарушении данного условия контракт окажется сломан. Нарушение малореально, но всё же найти выход
         for (uint i = sellOrderIndex; i < _limit; i++) {
             if (!processSellOrder(i)) { // TODO: Удалить, нет веток которые возвращают false
@@ -299,12 +301,14 @@ contract ComplexBank is Pausable,BankI {
     }
 
     function getBuyOrder(uint256 i) public onlyOwner view returns (address, address, uint256, uint256, uint256) {
+        require(buyOrderLast > 0 && buyOrderLast >= i && buyOrderIndex <= i);
         return (buyOrders[i].senderAddress, buyOrders[i].recipientAddress,
                 buyOrders[i].orderAmount, buyOrders[i].orderTimestamp,
                 buyOrders[i].rateLimit);
     }
 
     function getSellOrder(uint256 i) public onlyOwner view returns (address, address, uint256, uint256, uint256) {
+        require(sellOrderLast > 0 && sellOrderLast >= i && sellOrderIndex <= i);
         return (sellOrders[i].senderAddress, sellOrders[i].recipientAddress,
                 sellOrders[i].orderAmount, sellOrders[i].orderTimestamp,
                 sellOrders[i].rateLimit);
@@ -340,6 +344,7 @@ contract ComplexBank is Pausable,BankI {
      * @param _tokenAddress The token address.
      */
     function attachToken(address _tokenAddress) public onlyOwner {
+        require(_tokenAddress != address(0x0));
         tokenAddress = _tokenAddress;
         libreToken = LibreTokenI(tokenAddress);
         libreToken.setBankAddress(address(this));
