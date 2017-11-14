@@ -1,4 +1,5 @@
 var ComplexBank = artifacts.require("ComplexBank");
+var LibreCash = artifacts.require("LibreCash");
 
 var oraclefiles = [
     "OracleMockLiza",
@@ -15,12 +16,114 @@ contract('ComplexBank', function(accounts) {
     var acc1  = accounts[1];
     var acc2  = accounts[2];
 
-    contract("BuyOrders", function() {
-        it("get 0 order", async function() {
+    contract("BuyOrders", async function() {
+
+        before('init', async function() {
+            let bank = await ComplexBank.deployed();
+            let cash = await LibreCash.deployed();
+            await bank.attachToken(cash.address);
+            await bank.addOracle(oracles[0].address);
+            await bank.addOracle(oracles[1].address);
+            //console.log(parseInt(await bank.numEnabledOracles()));
+            //console.log(parseInt(await bank.numWaitingOracles()));
+            //console.log(await bank.getOracleRate(oracles[0].address));
+
+            //await bank.requestUpdateRates();
+            //console.log(await bank.numReadyOracles());
+            //await bank.calcRates();
+        });
+
+        beforeEach("clear orders", async function() {
+            let bank = await ComplexBank.deployed();
+            
+            try {
+                await bank.unpause();
+            } catch(e) {}
+            try {
+                await bank.processBuyQueue(0);
+            } catch(e) {
+                console.log(e);
+            }
+        });
+
+        it("add buyOrders", async function() {
+            let bank = await ComplexBank.deployed();
+            
+            let before = parseInt(await bank.getBuyOrdersCount.call());
+            await bank.sendTransaction({from: acc1, value: 5});
+            let after = parseInt(await bank.getBuyOrdersCount.call());
+            let result = await bank.getBuyOrder(before);
+            
+            assert.equal(before + 1, after, "don't add buyOrders, count orders not equal");
+            assert.equal(acc1, result[0], "don't add buyOrders, address not equal");
+        });
+
+        it("add buyOrders with rate", async function() {
             let bank = await ComplexBank.deployed();
 
-            //let result = await bank.getBuyOrder(0);
-            //console.log(result);
+            let before = parseInt(await bank.getBuyOrdersCount.call());
+            await bank.createBuyOrder(acc1, 10, {from: owner, value: 6});
+            let after = parseInt(await bank.getBuyOrdersCount.call());
+            let result = await bank.getBuyOrder(before);
+            
+            assert.equal(before + 1, after, "don't add buyOrders with rate, count orders not equal");
+            assert.isTrue( (result[0] == owner) && (result[1] == acc1) && 
+                            (result[2] == 6) && (result[4] == 10), "don't add buyOrders with rate, dont correct order")
+        });
+
+        it("pause send to buyOrder", async function(){
+            let bank = await ComplexBank.deployed();
+
+            await bank.pause();
+            let before = parseInt(web3.eth.getBalance(owner));
+            try {
+                await bank.sendTransaction({from: acc1, value: 7});
+            } catch(e) {
+                let after = parseInt(web3.eth.getBalance(owner));
+                return assert.equal(before, after, "don't pause send to buyOrder, balances before and after not equal");
+            }
+            
+            throw new Error("Dont pause send to buyOrder!");
+        });
+
+        it("pause createBuyOrder", async function(){
+            let bank = await ComplexBank.deployed();
+
+            await bank.pause();
+            let before = parseInt(web3.eth.getBalance(owner));
+            try {
+                await bank.createBuyOrder(acc1, 10, {from: owner, value: 6});
+            } catch(e) {
+                let after = parseInt(web3.eth.getBalance(owner));
+                return assert.equal(before, after, "don't pause createBuyOrder, balances before and after not equal");
+            }
+            
+            throw new Error("Dont pause createBuyOrder!");
+        });
+    });
+    
+    contract("Sell Orders", function() {
+
+        beforeEach("clear orders", async function() {
+            let bank = await ComplexBank.deployed();
+
+            try {
+                //console.log(
+                    await bank.processSellQueue(0);//);
+            } catch(e) {}
+        });
+
+        it("add sellOrders", async function() {
+            let bank = await ComplexBank.deployed();
+            let cash = await LibreCash.deployed();
+            
+            console.log(await cash.balanceOf(owner));
+            //let before = parseInt(await bank.getSellOrdersCount.call());
+            //await bank.send(5);
+            //let after = parseInt(await bank.getSellOrdersCount.call());
+            //let result = await bank.getSellOrder(before);
+            
+            //assert.isTrue((before + 1 == after) && (owner == result[0]), "don't add SellOrders");
             return true;
         });
     });
