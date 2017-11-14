@@ -207,6 +207,62 @@ contract('ComplexBank', function(accounts) {
             
             throw new Error("Enable Oracle, when enabled");
         });
+
+        it("Don't add Oracle if not owner", async function() {
+            let bank = await ComplexBank.deployed();
+            let oracle1 = await oracles[0].deployed();
+
+            try {
+                await bank.addOracle(oracle1.address,{from: acc1});
+            } catch(e) {
+                return true;
+            }
+            
+            throw new Error("Add Oracle if not owner!");
+        });
+
+        it("Don't remove Oracle if not owner", async function() {
+            let bank = await ComplexBank.deployed();
+            let oracle1 = await oracles[0].deployed();
+
+            await bank.addOracle(oracle1.address);
+            try {
+                await bank.deleteOracle(oracle1.address,{from: acc1});
+            } catch(e) {
+                return true;
+            }
+            
+            throw new Error("Remove Oracle if not owner!");
+        });
+
+        it("Don't enable Oracle if not owner", async function() {
+            let bank = await ComplexBank.deployed();
+            let oracle1 = await oracles[0].deployed();
+
+            await bank.addOracle(oracle1.address);
+            await bank.disableOracle(oracle1.address);
+            try {
+                await bank.enableOracle(oracle1.address,{from: acc1});
+            } catch(e) {
+                return true;
+            }
+            
+            throw new Error("Enable Oracle if not owner!");
+        });
+
+        it("Don't disable Oracle if not owner", async function() {
+            let bank = await ComplexBank.deployed();
+            let oracle1 = await oracles[0].deployed();
+
+            await bank.addOracle(oracle1.address);
+            try {
+                await bank.disableOracle(oracle1.address,{from: acc1});
+            } catch(e) {
+                return true;
+            }
+            
+            throw new Error("Disable Oracle if not owner!");
+        });
     });
 
 });
