@@ -24,7 +24,7 @@ contract ComplexBank is Pausable,BankI {
     event LogSell(address clientAddress, uint256 tokenAmount, uint256 cryptoAmount, uint256 sellPrice);
     event OrderQueueGeneral(string description);
     event RateBuyLimitOverflow(uint256 cryptoFiatRateBuy, uint256 maxRate, uint256 cryptoAmount);
-    event RateSellLimitOverflow(uint256 cryptoFiatRateBuy, uint256 maxRate, uint256 tokenAmount);
+    event RateSellLimitOverflow(uint256 cryptoFiatRateSell, uint256 maxRate, uint256 tokenAmount);
     event CouldntCancelOrder(bool ifBuy, uint256 orderID);
     
     struct Limit {
@@ -236,14 +236,14 @@ contract ComplexBank is Pausable,BankI {
         uint256 minRate = sellOrders[_orderID].rateLimit;
 
         if ((minRate != 0) && (cryptoFiatRateSell > minRate)) {
-            RateBuyLimitOverflow(cryptoFiatRateBuy, minRate, cryptoAmount);
+            RateSellLimitOverflow(cryptoFiatRateSell, minRate, cryptoAmount);
             if (!cancelSellOrder(_orderID)) {
                 CouldntCancelOrder(false, _orderID); // TODO: Maybe delete after tests
             }
             return true; // go next orders
         }
         if (this.balance < cryptoAmount) {  // checks if the bank has enough Ethers to send
-            tokensAmount = this.balance.mul(cryptoFiatRateBuy).div(100);
+            tokensAmount = this.balance.mul(cryptoFiatRateSell).div(100);
             // слкдующую строчку продумать
             // dn: Тщательно перепроверить на логические и прочие ошибки, иначе нас могут ограбить
             libreToken.mint(senderAddress, sellOrders[_orderID].orderAmount.sub(tokensAmount)); // TODO: Проверить не может ли здесь быть исключения
@@ -372,11 +372,14 @@ contract ComplexBank is Pausable,BankI {
         bytes32 queryId;
         uint256 updateTime; // time of callback
         uint256 cryptoFiatRate; // exchange rate
-        uint listPointer; // чтобы знать по какому индексу удалять из массива oracleAddresses
+        address next; // логичнее было сделать отдельную структуру, но для экономии пусть будет так!
     }
 
-    mapping (address=>OracleData) oracles;
-    address[] oracleAddresses;
+    mapping (address => OracleData) oracles;
+    uint256 countOracles;
+    address firstOracle = 0x0;
+    //address lastOracle = 0x0;
+
     uint256 public cryptoFiatRateBuy;
     uint256 public cryptoFiatRateSell;
     uint256 public cryptoFiatRate;
@@ -389,43 +392,45 @@ contract ComplexBank is Pausable,BankI {
     // TODO: Change visiblity after tests
     function numWaitingOracles() public view returns (uint256) {
         uint256 numOracles = 0;
-        for (uint256 i = 0; i < oracleAddresses.length; i++) {
-            if (oracles[oracleAddresses[i]].queryId != 0x0) 
+
+        for (address current = firstOracle; current != 0x0; current = oracles[current].next) {
+            if (oracles[current].queryId != 0x0)
                 numOracles++;
         }
+        
         return numOracles;
     }
 
     function numEnabledOracles() public view returns (uint256) {
         uint256 numOracles = 0;
-        for (uint256 i = 0; i < oracleAddresses.length; i++) {
-            if (oracles[oracleAddresses[i]].enabled == true) 
+
+        for (address current = firstOracle; current != 0x0; current = oracles[current].next) {
+            if (oracles[current].enabled == true)
                 numOracles++;
         }
+        
         return numOracles;
     }
 
     function numReadyOracles() public view returns (uint256) {
         uint256 numOracles = 0;
-        for (uint256 i = 0; i < oracleAddresses.length; i++) {
-            OracleData memory currentOracleData = oracles[oracleAddresses[i]];
+
+        for (address current = firstOracle; current != 0x0; current = oracles[current].next) {
+            OracleData memory currentOracleData = oracles[current];
             if ((currentOracleData.enabled) && (currentOracleData.cryptoFiatRate != 0) && (currentOracleData.queryId == 0x0)) 
                 numOracles++;
         }
+        
         return numOracles;
     }
 
     function getOracleCount() public view returns (uint) {
-        return oracleAddresses.length;
+        return countOracles;
     }
 
     function isOracle(address _oracle) internal returns (bool) {
-        for (uint256 i = 0; i < oracleAddresses.length; i++) {
-            if (oracleAddresses[i] == _oracle) 
-                return true;
-        }
-        return false;
-        // TODO: rewrote to use mapping() instead cycle
+        if (oracles[_oracle].name != 0) return true;
+        else return false;
     }
     
     /**
@@ -439,16 +444,24 @@ contract ComplexBank is Pausable,BankI {
         currentOracle.setBank(address(this));
         bytes32 oracleName = currentOracle.getName();
         OracleData memory newOracle = OracleData({
-            name: oracleName, 
-            rating: MAX_ORACLE_RATING.div(2), 
-            enabled: true, 
-            queryId: 0x0, 
-            updateTime: 0, 
-            cryptoFiatRate: 0, 
-            listPointer: 0
+            name: oracleName,
+            rating: MAX_ORACLE_RATING.div(2),
+            enabled: true,
+            queryId: 0x0,
+            updateTime: 0,
+            cryptoFiatRate: 0,
+            next: 0x0
         });
+
         oracles[_address] = newOracle;
-        oracleAddresses.push(_address);
+        if (firstOracle == 0x0) firstOracle = _address;
+        else {
+            address cur = firstOracle;
+            for (; oracles[cur].next != 0x0; cur = oracles[cur].next) {}
+            oracles[cur].next = _address;
+        }
+
+        countOracles++;
         OracleAdded(_address, oracleName);
     }
 
@@ -479,13 +492,15 @@ contract ComplexBank is Pausable,BankI {
     function deleteOracle(address _address) public onlyOwner {
         require(isOracle(_address));
         OracleDeleted(_address, oracles[_address].name);
+        if (firstOracle == _address) firstOracle = oracles[_address].next;
+        else {
+            address prev = firstOracle;
+            for (; oracles[prev].next != _address; prev = oracles[prev].next) {}
+            oracles[prev].next = oracles[_address].next;
+        }
+        
         delete oracles[_address];
-        for (uint256 i = 0; i < oracleAddresses.length; i++) {
-            if (oracleAddresses[i] == _address) {
-                delete oracleAddresses[i];
-                break;
-            }
-        } // TODO: rewrote without cycle
+        countOracles --;
     }
     
     /**
@@ -515,23 +530,23 @@ contract ComplexBank is Pausable,BankI {
     }
 
     function fundOracles(uint256 fundToOracle) public payable onlyOwner {
-        for (uint256 i = 0; i < oracleAddresses.length; i++) {
-            if (oracles[oracleAddresses[i]].enabled == false) 
+        for (address cur = firstOracle; cur != 0x0; cur = oracles[cur].next) {
+            if (oracles[cur].enabled == false) 
                 continue; // Ignore disabled oracles
 
-            if (oracleAddresses[i].balance < fundToOracle) {
-               oracleAddresses[i].transfer(fundToOracle - oracleAddresses[i].balance);
+            if (cur.balance < fundToOracle) {
+               cur.transfer(fundToOracle - cur.balance);
             }
-        } // foreach oracles
+        }
     }
 
     // TODO: change to intrernal or add onlyOwner
     function requestUpdateRates() public {
-        for (uint i = 0; i < oracleAddresses.length; i++) {
-            if ((oracles[oracleAddresses[i]].enabled) && (oracles[oracleAddresses[i]].queryId == 0x0)) {
-                bytes32 queryId = OracleI(oracleAddresses[i]).updateRate();
-                OracleTouched(oracleAddresses[i], oracles[oracleAddresses[i]].name);
-                oracles[oracleAddresses[i]].queryId = queryId;
+        for (address cur = firstOracle; cur != 0x0; cur = oracles[cur].next) {
+            if ((oracles[cur].enabled) && (oracles[cur].queryId == 0x0)) {
+                bytes32 queryId = OracleI(cur).updateRate();
+                OracleTouched(cur, oracles[cur].name);
+                oracles[cur].queryId = queryId;
             }
             timeUpdateRequest = now;
         } // foreach oracles
@@ -558,15 +573,15 @@ contract ComplexBank is Pausable,BankI {
     // TODO - rewrote method, append to google docs
     // TODO: Прикрутить использование метода. Сейчас не используется
     function processWaitingOracles() public {
-        for (uint i = 0; i < oracleAddresses.length; i++) {
-            if (oracles[oracleAddresses[i]].enabled) {
-                if (oracles[oracleAddresses[i]].queryId == 0x0) {
+        for (address cur = firstOracle; cur != 0x0; cur = oracles[cur].next) {
+            if (oracles[cur].enabled) {
+                if (oracles[cur].queryId == 0x0) {
                     // оракул и так не ждёт
                 } else {
                     // если оракул ждёт 10 минут и больше
-                    if (oracles[oracleAddresses[i]].updateTime < now - 10 minutes) {
-                        oracles[oracleAddresses[i]].cryptoFiatRate = 0; // быть неактуальным
-                        oracles[oracleAddresses[i]].queryId = 0x0; // но не ждать
+                    if (oracles[cur].updateTime < now - 10 minutes) {
+                        oracles[cur].cryptoFiatRate = 0; // быть неактуальным
+                        oracles[cur].queryId = 0x0; // но не ждать
                     } else {
                         revert(); // не даём завершить, пока есть ждущие менее 10 минут оракулы
                     }
@@ -586,8 +601,8 @@ contract ComplexBank is Pausable,BankI {
         uint256 minimalRate = 2**256 - 1; // Max for UINT256
         uint256 maximalRate = 0;
         
-        for (uint i = 0; i < oracleAddresses.length; i++) {
-            OracleData memory currentOracleData = oracles[oracleAddresses[i]];
+        for (address cur = firstOracle; cur != 0x0; cur = oracles[cur].next) {
+            OracleData memory currentOracleData = oracles[cur];
             // TODO: данные хранятся и в оракуле и в эмиссионном контракте
             if ((currentOracleData.enabled) && (currentOracleData.queryId == 0x0) && (currentOracleData.cryptoFiatRate != 0)) {
                 minimalRate = Math.min256(currentOracleData.cryptoFiatRate, minimalRate);    
@@ -596,8 +611,8 @@ contract ComplexBank is Pausable,BankI {
         } // foreach oracles
 
         uint256 middleRate = minimalRate.add(maximalRate).div(2);
-        cryptoFiatRateBuy = minimalRate.sub(minimalRate.mul(buyFee).div(100).div(100));
-        cryptoFiatRateSell = maximalRate.add(maximalRate.mul(sellFee).div(100).div(100));
+        cryptoFiatRateSell = minimalRate.sub(minimalRate.mul(buyFee).div(100).div(100));
+        cryptoFiatRateBuy = maximalRate.add(maximalRate.mul(sellFee).div(100).div(100));
         cryptoFiatRate = middleRate;
     }
     // 04-spread calc end
