@@ -144,7 +144,7 @@ contract ComplexBank is Pausable,BankI {
    function cancelBuyOrder(uint256 _orderID) private returns (bool) {
         if (buyOrders[_orderID].recipientAddress != 0x0) 
             return false;
-        bool sent = buyOrders[_orderID].recipientAddress.send(buyOrders[_orderID].orderAmount);
+        bool sent = buyOrders[_orderID].senderAddress.send(buyOrders[_orderID].orderAmount);
         if (sent) {
             buyOrders[_orderID].recipientAddress = 0x0;
         } else {
@@ -291,11 +291,13 @@ contract ComplexBank is Pausable,BankI {
     // admin start
     // C идеологической точки зрения давать такие привилегии админу может быть неправильно
     function cancelBuyOrderAdm(uint256 _orderID) public onlyOwner {
-        cancelBuyOrder(_orderID);
+        if (!cancelBuyOrder(_orderID))
+            revert();
     }
 
     function cancelSellOrderAdm(uint256 _orderID) public onlyOwner {
-        cancelSellOrder(_orderID);
+        if (!cancelSellOrder(_orderID))
+            revert();
     }
 
     function getBuyOrder(uint256 i) public onlyOwner view returns (address, address, uint256, uint256, uint256) {
