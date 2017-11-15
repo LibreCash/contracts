@@ -566,12 +566,10 @@ contract ComplexBank is Pausable,BankI {
     
     // TODO - rewrote method, append to google docs
     // TODO: Прикрутить использование метода. Сейчас не используется
-    function processWaitingOracles() public {
+    function processWaitingOracles() internal {
         for (address cur = firstOracle; cur != 0x0; cur = oracles[cur].next) {
             if (oracles[cur].enabled) {
-                if (oracles[cur].queryId == 0x0) {
-                    // оракул и так не ждёт
-                } else {
+                if (oracles[cur].queryId != 0x0) {
                     // если оракул ждёт 10 минут и больше
                     if (oracles[cur].updateTime < now - 10 minutes) {
                         oracles[cur].cryptoFiatRate = 0; // быть неактуальным
@@ -589,6 +587,7 @@ contract ComplexBank is Pausable,BankI {
 
     // 04-spread calc start 
     function calcRates() public {
+        processWaitingOracles(); // выкинет если есть оракулы, ждущие менее 10 минут
         require (numReadyOracles() >= MIN_READY_ORACLES);
         uint256 minimalRate = 2**256 - 1; // Max for UINT256
         uint256 maximalRate = 0;
