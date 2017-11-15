@@ -105,7 +105,6 @@ contract OracleBase is Ownable, usingOraclize, OracleI {
         receivedRate = true;
         NewPriceTicker(result);
         rate = Helpers.parseIntRound(result, 2); // save it in storage as $ cents
-        NewPriceTicker("With old function",parseInt(result,2),now);
         NewPriceTicker(result);
         delete(validIds[myid]);
         lastResultTimestamp = now;
