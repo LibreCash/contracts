@@ -144,7 +144,7 @@ contract ComplexBank is Pausable,BankI {
    function cancelBuyOrder(uint256 _orderID) private returns (bool) {
         if (buyOrders[_orderID].recipientAddress != 0x0) 
             return false;
-        bool sent = buyOrders[_orderID].recipientAddress.send(buyOrders[_orderID].orderAmount);
+        bool sent = buyOrders[_orderID].senderAddress.send(buyOrders[_orderID].orderAmount);
         if (sent) {
             buyOrders[_orderID].recipientAddress = 0x0;
         } else {
@@ -176,7 +176,7 @@ contract ComplexBank is Pausable,BankI {
         address recipientAddress = buyOrders[_orderID].recipientAddress;
         uint256 maxRate = buyOrders[_orderID].rateLimit;
 
-        if ((maxRate != 0) && (cryptoFiatRateBuy < maxRate)) {
+        if ((maxRate != 0) && (cryptoFiatRateBuy > maxRate)) {
             RateBuyLimitOverflow(cryptoFiatRateBuy, maxRate, cryptoAmount); // TODO: Delete it after tests
             if (!cancelBuyOrder(_orderID)) {
                 CouldntCancelOrder(true, _orderID);
@@ -237,7 +237,7 @@ contract ComplexBank is Pausable,BankI {
         uint256 cryptoAmount = tokensAmount.mul(100).div(cryptoFiatRateSell);
         uint256 minRate = sellOrders[_orderID].rateLimit;
 
-        if ((minRate != 0) && (cryptoFiatRateSell > minRate)) {
+        if ((minRate != 0) && (cryptoFiatRateSell < minRate)) {
             RateSellLimitOverflow(cryptoFiatRateSell, minRate, cryptoAmount);
             if (!cancelSellOrder(_orderID)) {
                 CouldntCancelOrder(false, _orderID); // TODO: Maybe delete after tests
@@ -267,7 +267,7 @@ contract ComplexBank is Pausable,BankI {
      * @dev Fill sell orders queue.
      */
     function processSellQueue(uint256 _limit) public whenNotPaused returns (bool) {
-        require(cryptoFiatRateBuy != 0); // возможно еще надо добавить && libreToken != address(0x0) 
+        require(cryptoFiatRateSell != 0);
 
         if (_limit == 0 || _limit > sellOrderLast) 
             _limit = sellOrderLast;
@@ -293,11 +293,13 @@ contract ComplexBank is Pausable,BankI {
     // admin start
     // C идеологической точки зрения давать такие привилегии админу может быть неправильно
     function cancelBuyOrderAdm(uint256 _orderID) public onlyOwner {
-        cancelBuyOrder(_orderID);
+        if (!cancelBuyOrder(_orderID))
+            revert();
     }
 
     function cancelSellOrderAdm(uint256 _orderID) public onlyOwner {
-        cancelSellOrder(_orderID);
+        if (!cancelSellOrder(_orderID))
+            revert();
     }
 
     function getBuyOrder(uint256 i) public onlyOwner view returns (address, address, uint256, uint256, uint256) {
@@ -344,7 +346,6 @@ contract ComplexBank is Pausable,BankI {
      * @param _tokenAddress The token address.
      */
     function attachToken(address _tokenAddress) public onlyOwner {
-        require(_tokenAddress != address(0x0));
         tokenAddress = _tokenAddress;
         libreToken = LibreTokenI(tokenAddress);
         libreToken.setBankAddress(address(this));
