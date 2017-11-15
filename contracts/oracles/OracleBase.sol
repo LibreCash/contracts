@@ -2,8 +2,10 @@ pragma solidity ^0.4.10;
 
 import "./oraclizeAPI_0.4.sol";
 import "../zeppelin/ownership/Ownable.sol";
+import "../library/Helpers.sol";
 import "../interfaces/I_Bank.sol";
 import "../interfaces/I_Oracle.sol";
+
 
 
 /**
@@ -86,7 +88,8 @@ contract OracleBase is Ownable, usingOraclize, OracleI {
         require(validIds[myid]);
         require(msg.sender == oraclize_cbAddress());
         NewPriceTicker(result);
-        rate = parseInt(result, 2); // save it in storage as $ cents
+        rate = Helpers.parseIntRound(result, 2); // save it in storage as $ cents
+        NewPriceTicker(result);
         delete(validIds[myid]);
         lastResultTimestamp = now;
         bank.oraclesCallback(rate, now);
