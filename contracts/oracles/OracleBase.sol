@@ -24,16 +24,12 @@ contract OracleBase is Ownable, usingOraclize, OracleI {
 
     bytes32 public oracleName = "Base Oracle";
     bytes16 public oracleType = "Undefined";
-    string public description; // либо избавиться, либо в байты переделать
-    //uint256 public lastResult; // по сути это rate
     uint256 public lastResultTimestamp;
     uint256 public updateCost;
-    //address public owner; // убрать со след. коммитом, по идее это не нужно
     mapping(bytes32=>bool) validIds; // ensure that each query response is processed only once
     address public bankAddress;
     uint public rate;
     BankI bank;
-    bool public receivedRate = false; // флаг, нужен для автоматизированных тестов
     uint256 MIN_UPDATE_TIME = 5 minutes;
     OracleConfig internal oracleConfig; // заполняется конструктором потомка константами из него же
 
@@ -46,22 +42,14 @@ contract OracleBase is Ownable, usingOraclize, OracleI {
      * @dev Constructor.
      */
     function OracleBase() public {
-        //owner = msg.sender; // убрать со след. коммитом, по идее это не нужно
         oraclize_setProof(proofType_TLSNotary | proofStorage_IPFS);
-    }
-
-    /**
-     * @dev Returns if oraclize callback is received. Is needed for automated tests only.
-     */
-    function hasReceivedRate() public view returns (bool) {
-        return receivedRate;
     }
 
     /**
      * @dev Sets bank address.
      * @param _bankAddress Description.
      */
-    function setBank(address _bankAddress) public {
+    function setBank(address _bankAddress) public onlyOwner {
         bankAddress = _bankAddress;
         bank = BankI(_bankAddress);
     }
@@ -79,10 +67,7 @@ contract OracleBase is Ownable, usingOraclize, OracleI {
      */
     function updateRate() external onlyBank returns (bytes32) {
         // для тестов отдельно оракула закомментировать след. строку
-        require (msg.sender == bankAddress);
-        // для тестов отдельно оракула закомментировать след. строку
         require (now > lastResultTimestamp + MIN_UPDATE_TIME);
-        receivedRate = false;
         if (oraclize_getPrice("URL") > this.balance) {
             NewOraclizeQuery("Oraclize query was NOT sent, please add some ETH to cover for the query fee");
             return 0;
@@ -100,7 +85,6 @@ contract OracleBase is Ownable, usingOraclize, OracleI {
    function __callback(bytes32 myid, string result, bytes proof) public {
         require(validIds[myid]);
         require(msg.sender == oraclize_cbAddress());
-        receivedRate = true;
         NewPriceTicker(result);
         rate = parseInt(result, 2); // save it in storage as $ cents
         delete(validIds[myid]);
@@ -112,8 +96,8 @@ contract OracleBase is Ownable, usingOraclize, OracleI {
     * @dev Oraclize default callback without the proof set.
     */
    function __callback(bytes32 myid, string result) public {
-       bytes memory proof  = new bytes(1);
-       __callback(myid,result,proof);
+       bytes memory proof = new bytes(1);
+       __callback(myid, result, proof);
     }
 
     /**
@@ -139,7 +123,7 @@ contract OracleBase is Ownable, usingOraclize, OracleI {
     }
 
     /**
-     * @dev Shall receive ETH for oraclize queries.
+     * @dev Shall receive crypto for oraclize queries.
      */
     function () payable external { }
 }
