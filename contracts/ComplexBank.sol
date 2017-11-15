@@ -267,7 +267,7 @@ contract ComplexBank is Pausable,BankI {
      * @dev Fill sell orders queue.
      */
     function processSellQueue(uint256 _limit) public whenNotPaused returns (bool) {
-        require(cryptoFiatRateBuy != 0); // возможно еще надо добавить && libreToken != address(0x0) 
+        require(cryptoFiatRateSell != 0);
 
         if (_limit == 0 || _limit > sellOrderLast) 
             _limit = sellOrderLast;
@@ -344,7 +344,6 @@ contract ComplexBank is Pausable,BankI {
      * @param _tokenAddress The token address.
      */
     function attachToken(address _tokenAddress) public onlyOwner {
-        require(_tokenAddress != address(0x0));
         tokenAddress = _tokenAddress;
         libreToken = LibreTokenI(tokenAddress);
         libreToken.setBankAddress(address(this));
