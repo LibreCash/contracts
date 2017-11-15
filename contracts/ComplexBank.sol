@@ -176,7 +176,7 @@ contract ComplexBank is Pausable,BankI {
         address recipientAddress = buyOrders[_orderID].recipientAddress;
         uint256 maxRate = buyOrders[_orderID].rateLimit;
 
-        if ((maxRate != 0) && (cryptoFiatRateBuy < maxRate)) {
+        if ((maxRate != 0) && (cryptoFiatRateBuy > maxRate)) {
             RateBuyLimitOverflow(cryptoFiatRateBuy, maxRate, cryptoAmount); // TODO: Delete it after tests
             if (!cancelBuyOrder(_orderID)) {
                 CouldntCancelOrder(true, _orderID);
@@ -237,7 +237,7 @@ contract ComplexBank is Pausable,BankI {
         uint256 cryptoAmount = tokensAmount.mul(100).div(cryptoFiatRateSell);
         uint256 minRate = sellOrders[_orderID].rateLimit;
 
-        if ((minRate != 0) && (cryptoFiatRateSell > minRate)) {
+        if ((minRate != 0) && (cryptoFiatRateSell < minRate)) {
             RateSellLimitOverflow(cryptoFiatRateSell, minRate, cryptoAmount);
             if (!cancelSellOrder(_orderID)) {
                 CouldntCancelOrder(false, _orderID); // TODO: Maybe delete after tests
