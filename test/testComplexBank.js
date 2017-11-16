@@ -113,6 +113,22 @@ contract('ComplexBank', function(accounts) {
             assert.equal(before + amount, after, "Don't mint cash");
         });
 
+        it("mint with rate", async function() {
+            let bank = await ComplexBank.deployed();
+            let cash = await LibreCash.deployed();
+
+            let tokenBefore = parseInt(await cash.balanceOf(owner));
+            let before = parseInt(web3.eth.getBalance(owner));
+            await bank.createBuyOrder(acc1, 10, {from: owner, value: web3.toWei(3,'ether')});
+            await bank.processBuyQueue(0);
+            let after = parseInt(web3.eth.getBalance(owner));
+
+            let price = web3.eth.gasPrice * web3.eth.gasPrice.e;
+            let etherLimit = web3.eth.getBlock("latest").gasLimit * price;
+
+            assert.isTrue((before - after) <= etherLimit, "Don't mint cash with rate");
+        });
+
     });
     
     contract("Sell Orders", function() {
@@ -129,6 +145,10 @@ contract('ComplexBank', function(accounts) {
 
         beforeEach("clear orders", async function() {
             let bank = await ComplexBank.deployed();
+
+            try {
+                await bank.unpause();
+            } catch(e) {}
 
             try {
                 //console.log(
@@ -159,14 +179,6 @@ contract('ComplexBank', function(accounts) {
         });
 
         it("add sellOrders when paused", async function() {
-            after(async function() {
-                let bank = await ComplexBank.deployed();
-
-                try {
-                    await bank.unpause();
-                } catch(e) {}
-            });
-
             let bank = await ComplexBank.deployed();
 
             await bank.pause();
@@ -211,6 +223,25 @@ contract('ComplexBank', function(accounts) {
             assert.equal(tokenAfter , tokenBefore/2, "Don't burn token");
             assert.equal(tokenBefore/2, etherAfter - etherBefore, "Don't send ether!");
         });
+
+        it("burn with ratelimit", async function() {
+            let bank = await ComplexBank.deployed();
+            let cash = await LibreCash.deployed();
+
+            let before = parseInt(await cash.balanceOf(owner));
+
+            await bank.createSellOrder(acc1, before/2, 110);
+            await bank.processSellQueue(0);
+
+            let after = parseInt(web3.eth.getBalance(owner));
+
+            let price = web3.eth.gasPrice * web3.eth.gasPrice.e;
+            let etherLimit = web3.eth.getBlock("latest").gasLimit * price;
+
+            assert.isTrue((before - after) <= etherLimit, "Don't burn cash with ratelimit");
+        });
+
+    });
 
     });
 
