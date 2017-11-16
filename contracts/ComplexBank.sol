@@ -142,7 +142,7 @@ contract ComplexBank is Pausable,BankI {
     uint256 sellOrderLast = 0;
 
    function cancelBuyOrder(uint256 _orderID) private returns (bool) {
-        if (buyOrders[_orderID].recipientAddress != 0x0) 
+        if (buyOrders[_orderID].recipientAddress == 0x0) 
             return false;
         bool sent = buyOrders[_orderID].recipientAddress.send(buyOrders[_orderID].orderAmount);
         if (sent) {
