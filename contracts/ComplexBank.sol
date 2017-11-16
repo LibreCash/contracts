@@ -409,7 +409,7 @@ contract ComplexBank is Pausable,BankI {
         for (address current = firstOracle; current != 0x0; current = oracles[current].next) {
             OracleData memory currentOracleData = oracles[current];
             OracleI currentOracle = OracleI(current);
-            if ((currentOracleData.enabled) && (currentOracle.getRate() != 0) && (currentOracle.getQueryId() == 0x0)) 
+            if ((currentOracleData.enabled) && (currentOracle.rate() != 0) && (currentOracle.queryId() == 0x0)) 
                 numOracles++;
         }
         
@@ -433,7 +433,7 @@ contract ComplexBank is Pausable,BankI {
         require((_address != 0x0) && (!isOracle(_address)));
         OracleI currentOracle = OracleI(_address);
         
-        bytes32 oracleName = currentOracle.getName();
+        bytes32 oracleName = currentOracle.name();
         OracleData memory newOracle = OracleData({
             name: oracleName,
             rating: MAX_ORACLE_RATING.div(2),
@@ -526,7 +526,7 @@ contract ComplexBank is Pausable,BankI {
         for (address cur = firstOracle; cur != 0x0; cur = oracles[cur].next) {
             if (oracles[cur].enabled) {
                 OracleI currentOracle = OracleI(cur);
-                if (currentOracle.getQueryId() == 0x0) {
+                if (currentOracle.queryId() == 0x0) {
                     bool updateRateReturned = currentOracle.updateRate();
                     if (updateRateReturned)
                         OracleTouched(cur, oracles[cur].name);
@@ -545,9 +545,9 @@ contract ComplexBank is Pausable,BankI {
         for (address cur = firstOracle; cur != 0x0; cur = oracles[cur].next) {
             if (oracles[cur].enabled) {
                 OracleI currentOracle = OracleI(cur);
-                if (currentOracle.getQueryId() != 0x0) {
+                if (currentOracle.queryId() != 0x0) {
                     // если оракул ждёт 10 минут и больше
-                    if (currentOracle.getUpdateTime() < now - 10 minutes) {
+                    if (currentOracle.updateTime() < now - 10 minutes) {
                         currentOracle.clearState(); // но не ждать
                     } else {
                         revert(); // не даём завершить, пока есть ждущие менее 10 минут оракулы
@@ -571,8 +571,8 @@ contract ComplexBank is Pausable,BankI {
             OracleData memory currentOracleData = oracles[cur];
             OracleI currentOracle = OracleI(cur);
             // TODO: данные хранятся и в оракуле и в эмиссионном контракте
-            uint256 _rate = currentOracle.getRate();
-            if ((currentOracleData.enabled) && (currentOracle.getQueryId() == 0x0) && (_rate != 0)) {
+            uint256 _rate = currentOracle.rate();
+            if ((currentOracleData.enabled) && (currentOracle.queryId() == 0x0) && (_rate != 0)) {
                 minimalRate = Math.min256(_rate, minimalRate);    
                 maximalRate = Math.max256(_rate, maximalRate);
            }

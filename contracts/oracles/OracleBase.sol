@@ -30,8 +30,8 @@ contract OracleBase is Ownable, usingOraclize, OracleI {
     uint256 public updateCost;
     mapping(bytes32=>bool) validIds; // ensure that each query response is processed only once
     address public bankAddress;
-    uint256 internal rate;
-    bytes32 internal queryId;
+    uint256 public rate;
+    bytes32 public queryId;
  //   BankI bank;
     uint256 MIN_UPDATE_TIME = 5 minutes;
     OracleConfig internal oracleConfig; // заполняется конструктором потомка константами из него же
@@ -46,20 +46,6 @@ contract OracleBase is Ownable, usingOraclize, OracleI {
      */
     function OracleBase() public {
         oraclize_setProof(proofType_TLSNotary | proofStorage_IPFS);
-    }
-
-    /**
-     * Returns rate.
-     */
-    function getRate() public returns (uint256) {
-        return rate;
-    }
-
-    /**
-     * Returns queryId.
-     */
-    function getQueryId() public returns (bytes32) {
-        return queryId;
     }
 
     /**
@@ -138,18 +124,6 @@ contract OracleBase is Ownable, usingOraclize, OracleI {
     }
 
     /**
-     * @dev Returns the oracle name.
-     */
-    function getName() constant public returns (bytes32) {
-        return oracleName;
-    }
-
-    /**
-     * @dev Returns the oracle type.
-     */
-    function getType() constant public returns (bytes16) {
-        return oracleType;
-    }
 
     /**
      * @dev Shall receive crypto for oraclize queries.
