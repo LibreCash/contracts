@@ -363,6 +363,7 @@ contract ComplexBank is Pausable,BankI {
     event OracleDisabled(address indexed _address, bytes32 name);
     event OracleDeleted(address indexed _address, bytes32 name);
     event OracleTouched(address indexed _address, bytes32 name);
+    event OracleNotTouched(address indexed _address, bytes32 name);
     event OracleCallback(address indexed _address, bytes32 name, uint256 result);
     event TextLog(string data);
 
@@ -374,9 +375,6 @@ contract ComplexBank is Pausable,BankI {
         bytes32 name;
         uint256 rating;
         bool enabled;
-        bytes32 queryId;
-        uint256 updateTime; // time of callback
-        uint256 cryptoFiatRate; // exchange rate
         address next; // логичнее было сделать отдельную структуру, но для экономии пусть будет так!
     }
 
@@ -408,10 +406,10 @@ contract ComplexBank is Pausable,BankI {
 
     function numReadyOracles() public view returns (uint256) {
         uint256 numOracles = 0;
-
         for (address current = firstOracle; current != 0x0; current = oracles[current].next) {
             OracleData memory currentOracleData = oracles[current];
-            if ((currentOracleData.enabled) && (currentOracleData.cryptoFiatRate != 0) && (currentOracleData.queryId == 0x0)) 
+            OracleI currentOracle = OracleI(current);
+            if ((currentOracleData.enabled) && (currentOracle.getRate() != 0) && (currentOracle.getQueryId() == 0x0)) 
                 numOracles++;
         }
         
@@ -435,20 +433,17 @@ contract ComplexBank is Pausable,BankI {
         require((_address != 0x0) && (!isOracle(_address)));
         OracleI currentOracle = OracleI(_address);
         
-        currentOracle.setBank(address(this));
         bytes32 oracleName = currentOracle.getName();
         OracleData memory newOracle = OracleData({
             name: oracleName,
             rating: MAX_ORACLE_RATING.div(2),
             enabled: true,
-            queryId: 0x0,
-            updateTime: 0,
-            cryptoFiatRate: 0,
             next: 0x0
         });
 
         oracles[_address] = newOracle;
-        if (firstOracle == 0x0) firstOracle = _address;
+        if (firstOracle == 0x0)
+            firstOracle = _address;
         else {
             address cur = firstOracle;
             for (; oracles[cur].next != 0x0; cur = oracles[cur].next) {}
@@ -515,14 +510,6 @@ contract ComplexBank is Pausable,BankI {
         oracles[_address].rating = _rating;
     }
 
-    /**
-     * @dev Gets oracle crypto-fiat rate.
-     * @param _address The oracle address.
-     */
-    function getOracleRate(address _address) internal view returns(uint256) {
-        return oracles[_address].cryptoFiatRate;
-    }
-
     function fundOracles(uint256 fundToOracle) public payable onlyOwner {
         for (address cur = firstOracle; cur != 0x0; cur = oracles[cur].next) {
             if (oracles[cur].enabled == false) 
@@ -537,43 +524,31 @@ contract ComplexBank is Pausable,BankI {
     // TODO: change to intrernal or add onlyOwner
     function requestUpdateRates() public {
         for (address cur = firstOracle; cur != 0x0; cur = oracles[cur].next) {
-            if ((oracles[cur].enabled) && (oracles[cur].queryId == 0x0)) {
-                bytes32 queryId = OracleI(cur).updateRate();
-                OracleTouched(cur, oracles[cur].name);
-                oracles[cur].queryId = queryId;
+            if (oracles[cur].enabled) {
+                OracleI currentOracle = OracleI(cur);
+                if (currentOracle.getQueryId() == 0x0) {
+                    bool updateRateReturned = currentOracle.updateRate();
+                    if (updateRateReturned)
+                        OracleTouched(cur, oracles[cur].name);
+                    else
+                        OracleNotTouched(cur, oracles[cur].name);
+                }
             }
             timeUpdateRequest = now;
         } // foreach oracles
         OraclesTouched("Запущено обновление курсов");
     }
 
-    /**
-     * @dev The callback from oracles.
-     * @param _rate The oracle ETH/USD rate.
-     * @param _time Update time sent from oracle.
-     */
-    function oraclesCallback(uint256 _rate, uint256 _time) public { // дублирование _address и msg.sender
-        OracleCallback(msg.sender, oracles[msg.sender].name, _rate);
-        require(isOracle(msg.sender));
-        if (oracles[msg.sender].queryId == 0x0) {
-            TextLog("Oracle not waiting");
-        } else {
-           oracles[msg.sender].cryptoFiatRate = _rate;
-           oracles[msg.sender].updateTime = _time;
-           oracles[msg.sender].queryId = 0x0;
-        }
-    }
-    
     // TODO - rewrote method, append to google docs
     // TODO: Прикрутить использование метода. Сейчас не используется
     function processWaitingOracles() internal {
         for (address cur = firstOracle; cur != 0x0; cur = oracles[cur].next) {
             if (oracles[cur].enabled) {
-                if (oracles[cur].queryId != 0x0) {
+                OracleI currentOracle = OracleI(cur);
+                if (currentOracle.getQueryId() != 0x0) {
                     // если оракул ждёт 10 минут и больше
-                    if (oracles[cur].updateTime < now - 10 minutes) {
-                        oracles[cur].cryptoFiatRate = 0; // быть неактуальным
-                        oracles[cur].queryId = 0x0; // но не ждать
+                    if (currentOracle.getUpdateTime() < now - 10 minutes) {
+                        currentOracle.clearState(); // но не ждать
                     } else {
                         revert(); // не даём завершить, пока есть ждущие менее 10 минут оракулы
                     }
@@ -594,10 +569,12 @@ contract ComplexBank is Pausable,BankI {
         
         for (address cur = firstOracle; cur != 0x0; cur = oracles[cur].next) {
             OracleData memory currentOracleData = oracles[cur];
+            OracleI currentOracle = OracleI(cur);
             // TODO: данные хранятся и в оракуле и в эмиссионном контракте
-            if ((currentOracleData.enabled) && (currentOracleData.queryId == 0x0) && (currentOracleData.cryptoFiatRate != 0)) {
-                minimalRate = Math.min256(currentOracleData.cryptoFiatRate, minimalRate);    
-                maximalRate = Math.max256(currentOracleData.cryptoFiatRate, maximalRate);
+            uint256 _rate = currentOracle.getRate();
+            if ((currentOracleData.enabled) && (currentOracle.getQueryId() == 0x0) && (_rate != 0)) {
+                minimalRate = Math.min256(_rate, minimalRate);    
+                maximalRate = Math.max256(_rate, maximalRate);
            }
         } // foreach oracles
 
