@@ -367,7 +367,6 @@ contract ComplexBank is Pausable,BankI {
     event TextLog(string data);
 
     uint256 constant MIN_ENABLED_ORACLES = 0; //2;
-    uint256 constant MIN_WAITING_ORACLES = 2; //количество оракулов, которое допустимо омтавлять в ожидании
     uint256 constant MIN_READY_ORACLES = 1; //2;
     uint256 constant RELEVANCE_PERIOD = 24 hours; // Время актуальности курса
 
@@ -396,17 +395,6 @@ contract ComplexBank is Pausable,BankI {
     
 
     // TODO: Change visiblity after tests
-    function numWaitingOracles() public view returns (uint256) {
-        uint256 numOracles = 0;
-
-        for (address current = firstOracle; current != 0x0; current = oracles[current].next) {
-            if (oracles[current].queryId != 0x0)
-                numOracles++;
-        }
-        
-        return numOracles;
-    }
-
     function numEnabledOracles() public view returns (uint256) {
         uint256 numOracles = 0;
 
@@ -578,12 +566,10 @@ contract ComplexBank is Pausable,BankI {
     
     // TODO - rewrote method, append to google docs
     // TODO: Прикрутить использование метода. Сейчас не используется
-    function processWaitingOracles() public {
+    function processWaitingOracles() internal {
         for (address cur = firstOracle; cur != 0x0; cur = oracles[cur].next) {
             if (oracles[cur].enabled) {
-                if (oracles[cur].queryId == 0x0) {
-                    // оракул и так не ждёт
-                } else {
+                if (oracles[cur].queryId != 0x0) {
                     // если оракул ждёт 10 минут и больше
                     if (oracles[cur].updateTime < now - 10 minutes) {
                         oracles[cur].cryptoFiatRate = 0; // быть неактуальным
@@ -601,8 +587,7 @@ contract ComplexBank is Pausable,BankI {
 
     // 04-spread calc start 
     function calcRates() public {
-        uint256 waitingOracles = numWaitingOracles();
-        require (waitingOracles <= MIN_WAITING_ORACLES);
+        processWaitingOracles(); // выкинет если есть оракулы, ждущие менее 10 минут
         require (numReadyOracles() >= MIN_READY_ORACLES);
         uint256 minimalRate = 2**256 - 1; // Max for UINT256
         uint256 maximalRate = 0;
