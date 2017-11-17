@@ -71,7 +71,7 @@ contract OracleMockBase is Ownable {
         // для тестов отдельно оракула закомментировать след. строку
         require (now > lastResultTimestamp + MIN_UPDATE_TIME);
         lastResultTimestamp = now;
-        bank.oraclesCallback(rate, now);
+        //bank.oraclesCallback(rate, now);
     }
 
     

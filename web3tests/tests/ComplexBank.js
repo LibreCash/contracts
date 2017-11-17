@@ -1,4 +1,4 @@
-monitor = ['getBuyOrdersCount', 'getSellOrdersCount', 'getToken', 'numWaitingOracles', 'numEnabledOracles', 'numReadyOracles', 'getOracleCount',
+monitor = ['getBuyOrdersCount', 'getSellOrdersCount', 'getToken', 'numEnabledOracles', 'numReadyOracles', 'getOracleCount',
            'buyFee', 'sellFee', 'cryptoFiatRate', 'cryptoFiatRateBuy', 'cryptoFiatRateSell',
            //'getBuyOrder(1)', 'getSellOrder(1)'
         ];
