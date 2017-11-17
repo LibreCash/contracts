@@ -423,12 +423,12 @@ contract ComplexBank is Pausable,BankI {
         return countOracles;
     }
 
-    function isOracle(address _oracle) internal returns (bool) {
-        if (oracles[_oracle].name != 0) {
-            return true;
-        } else {
-            return false;
+    function oracleExists(address _oracle) internal returns (bool) {
+        for (address current = firstOracle; current != 0x0; current = oracles[current].next) {
+            if (current == _oracle) 
+                return true;
         }
+        return false;
     }
     
     /**
@@ -436,7 +436,7 @@ contract ComplexBank is Pausable,BankI {
      * @param _address The oracle address.
      */
     function addOracle(address _address) public onlyOwner {
-        require((_address != 0x0) && (!isOracle(_address)));
+        require((_address != 0x0) && (!oracleExists(_address)));
         OracleI currentOracle = OracleI(_address);
         
         currentOracle.setBank(address(this));
@@ -469,7 +469,7 @@ contract ComplexBank is Pausable,BankI {
      * @param _address The oracle address.
      */
     function disableOracle(address _address) public onlyOwner {
-        require((isOracle(_address)) && (oracles[_address].enabled));
+        require((oracleExists(_address)) && (oracles[_address].enabled));
         oracles[_address].enabled = false;
         OracleDisabled(_address, oracles[_address].name);
     }
@@ -479,7 +479,7 @@ contract ComplexBank is Pausable,BankI {
      * @param _address The oracle address.
      */
     function enableOracle(address _address) public onlyOwner {
-        require((isOracle(_address)) && (!oracles[_address].enabled));
+        require((oracleExists(_address)) && (!oracles[_address].enabled));
         oracles[_address].enabled = true;
         OracleEnabled(_address, oracles[_address].name);
     }
@@ -489,7 +489,7 @@ contract ComplexBank is Pausable,BankI {
      * @param _address The oracle address.
      */
     function deleteOracle(address _address) public onlyOwner {
-        require(isOracle(_address));
+        require(oracleExists(_address));
         OracleDeleted(_address, oracles[_address].name);
         if (firstOracle == _address) {
             firstOracle = oracles[_address].next;
@@ -517,7 +517,7 @@ contract ComplexBank is Pausable,BankI {
      * @param _rating Value of rating
      */
     function setOracleRating(address _address, uint256 _rating) internal {
-        require((isOracle(_address)) && (_rating > 0) && (_rating <= MAX_ORACLE_RATING));
+        require((oracleExists(_address)) && (_rating > 0) && (_rating <= MAX_ORACLE_RATING));
         oracles[_address].rating = _rating;
     }
 
@@ -560,7 +560,7 @@ contract ComplexBank is Pausable,BankI {
      */
     function oraclesCallback(uint256 _rate, uint256 _time) public { // дублирование _address и msg.sender
         OracleCallback(msg.sender, oracles[msg.sender].name, _rate);
-        require(isOracle(msg.sender));
+        require(oracleExists(msg.sender));
         if (oracles[msg.sender].queryId == 0x0) {
             TextLog("Oracle not waiting");
         } else {
