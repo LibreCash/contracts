@@ -150,6 +150,7 @@ contract ComplexBank is Pausable,BankI {
         } else {
             return false;
         }
+        return true;
     }
     
    // Используется внутри в случае если не срабатывают условия ордеров 
@@ -380,9 +381,9 @@ contract ComplexBank is Pausable,BankI {
         address next; // логичнее было сделать отдельную структуру, но для экономии пусть будет так!
     }
 
-    mapping (address => OracleData) oracles;
+    mapping (address => OracleData) public oracles;
     uint256 countOracles;
-    address firstOracle = 0x0;
+    address public firstOracle = 0x0;
     //address lastOracle = 0x0;
 
     uint256 public cryptoFiatRateBuy;
@@ -423,8 +424,11 @@ contract ComplexBank is Pausable,BankI {
     }
 
     function isOracle(address _oracle) internal returns (bool) {
-        if (oracles[_oracle].name != 0) return true;
-        else return false;
+        if (oracles[_oracle].name != 0) {
+            return true;
+        } else {
+            return false;
+        }
     }
     
     /**
@@ -448,8 +452,9 @@ contract ComplexBank is Pausable,BankI {
         });
 
         oracles[_address] = newOracle;
-        if (firstOracle == 0x0) firstOracle = _address;
-        else {
+        if (firstOracle == 0x0) {
+            firstOracle = _address;
+        } else {
             address cur = firstOracle;
             for (; oracles[cur].next != 0x0; cur = oracles[cur].next) {}
             oracles[cur].next = _address;
@@ -486,8 +491,9 @@ contract ComplexBank is Pausable,BankI {
     function deleteOracle(address _address) public onlyOwner {
         require(isOracle(_address));
         OracleDeleted(_address, oracles[_address].name);
-        if (firstOracle == _address) firstOracle = oracles[_address].next;
-        else {
+        if (firstOracle == _address) {
+            firstOracle = oracles[_address].next;
+        } else {
             address prev = firstOracle;
             for (; oracles[prev].next != _address; prev = oracles[prev].next) {}
             oracles[prev].next = oracles[_address].next;

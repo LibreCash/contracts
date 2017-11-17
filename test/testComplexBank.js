@@ -243,12 +243,11 @@ contract('ComplexBank', function(accounts) {
 
     });
 
-    });
-
     contract("Oracles", function() {
         beforeEach(async function() {
             let bank = await ComplexBank.deployed();
             oracles.forEach( async function(oracle) {
+                oracle.deployed();
                 try {
                     await bank.deleteOracle(oracle.address);
                 } catch(e) {}
@@ -263,7 +262,12 @@ contract('ComplexBank', function(accounts) {
             await bank.addOracle(oracle1.address);
             let after = parseInt(await bank.getOracleCount.call());
 
+            let oracleData = await bank.oracles.call(oracle1.address);
+            let nameOracle = await oracle1.getName();
+
             assert.equal(before + 1 , after, "don't added Oracle");
+            assert.equal(oracleData[0], nameOracle, "don't set name for added oracle");
+            assert.equal(oracleData[2], true, "don't enable added Oracle");
         });
 
         it("remove Oracle", async function() {
