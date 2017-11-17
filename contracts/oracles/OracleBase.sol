@@ -26,12 +26,13 @@ contract OracleBase is Ownable, usingOraclize, OracleI {
 
     bytes32 public oracleName = "Base Oracle";
     bytes16 public oracleType = "Undefined";
-    uint256 public lastResultTimestamp;
+    uint256 public updateTime;
     uint256 public updateCost;
     mapping(bytes32=>bool) validIds; // ensure that each query response is processed only once
     address public bankAddress;
-    uint public rate;
-    BankI bank;
+    uint256 public rate;
+    bytes32 public queryId;
+ //   BankI bank;
     uint256 MIN_UPDATE_TIME = 5 minutes;
     OracleConfig internal oracleConfig; // заполняется конструктором потомка константами из него же
 
@@ -48,12 +49,23 @@ contract OracleBase is Ownable, usingOraclize, OracleI {
     }
 
     /**
+     * Clears queryId and rate.
+     */
+    function clearState() public onlyBank {
+        queryId = 0x0;
+        rate = 0;
+    }
+
+    function getUpdateTime() public returns (uint256) {
+        return updateTime;
+    }
+
+    /**
      * @dev Sets bank address.
      * @param _bankAddress Description.
      */
     function setBank(address _bankAddress) public onlyOwner {
         bankAddress = _bankAddress;
-        bank = BankI(_bankAddress);
     }
 
     // for test
@@ -67,17 +79,17 @@ contract OracleBase is Ownable, usingOraclize, OracleI {
     /**
      * @dev Sends query to oraclize.
      */
-    function updateRate() external onlyBank returns (bytes32) {
+    function updateRate() external onlyBank returns (bool) {
         // для тестов отдельно оракула закомментировать след. строку
-        require (now > lastResultTimestamp + MIN_UPDATE_TIME);
+        require (now > updateTime + MIN_UPDATE_TIME);
         if (oraclize_getPrice("URL") > this.balance) {
             NewOraclizeQuery("Oraclize query was NOT sent, please add some ETH to cover for the query fee");
-            return 0;
+            return false;
         } else {
-            bytes32 queryId = oraclize_query(0, oracleConfig.datasource, oracleConfig.arguments);
+            queryId = oraclize_query(0, oracleConfig.datasource, oracleConfig.arguments);
             NewOraclizeQuery("Oraclize query was sent, standing by for the answer...");
             validIds[queryId] = true;
-            return queryId;
+            return true;
         }
     }
 
@@ -91,8 +103,8 @@ contract OracleBase is Ownable, usingOraclize, OracleI {
         rate = Helpers.parseIntRound(result, 2); // save it in storage as $ cents
         NewPriceTicker(result);
         delete(validIds[myid]);
-        lastResultTimestamp = now;
-        bank.oraclesCallback(rate, now);
+        updateTime = now;
+        queryId = 0x0;
     }
 
     /**
@@ -112,18 +124,6 @@ contract OracleBase is Ownable, usingOraclize, OracleI {
     }
 
     /**
-     * @dev Returns the oracle name.
-     */
-    function getName() constant public returns (bytes32) {
-        return oracleName;
-    }
-
-    /**
-     * @dev Returns the oracle type.
-     */
-    function getType() constant public returns (bytes16) {
-        return oracleType;
-    }
 
     /**
      * @dev Shall receive crypto for oraclize queries.
