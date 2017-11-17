@@ -106,25 +106,12 @@ contract ComplexBank is Pausable,BankI {
         createSellOrder(msg.sender, _tokensCount, _rateLimit);
     }
 
-    // TODO: подогнать под текущие функции, возможно их изменить
-    // сейчас не использовать
-    function addOrderToQueue(orderType typeOrder, OrderData order) internal {
-        if (typeOrder == orderType.buy) {
- //           createBuyOrder(order.address, )
-            buyOrders.push(order);
-        } else {
-            sellOrders.push(order);
-        }
-    }
-   // Используется внутри в случае если не срабатывают условия ордеров 
-
     function () whenNotPaused payable external {
         createBuyOrder(msg.sender, 0); // 0 - без ценовых ограничений
     }
     // 01-emission end
 
     // 02-queue start
-    enum orderType { buy, sell }
     struct OrderData {
         address senderAddress;
         address recipientAddress;
@@ -143,19 +130,20 @@ contract ComplexBank is Pausable,BankI {
 
    function cancelBuyOrder(uint256 _orderID) private returns (bool) {
         if (buyOrders[_orderID].recipientAddress == 0x0) 
-            return false;
-        bool sent = buyOrders[_orderID].senderAddress.send(buyOrders[_orderID].orderAmount);
-        if (sent) {
-            buyOrders[_orderID].recipientAddress = 0x0;
-        } else {
-            return false;
+            return true;
+
+        if ( (this.balance < buyOrders[_orderID].orderAmount) || 
+            !(buyOrders[_orderID].senderAddress.send(buyOrders[_orderID].orderAmount)) ) {
+                return false;
         }
+
+        buyOrders[_orderID].recipientAddress = 0x0;
         return true;
     }
     
    // Используется внутри в случае если не срабатывают условия ордеров 
    function cancelSellOrder(uint256 _orderID) private returns(bool) {
-        if (sellOrders[_orderID].recipientAddress == 0x0) { 
+        if (sellOrders[_orderID].recipientAddress == 0x0) {
             return false;
         }
         libreToken.mint(sellOrders[_orderID].senderAddress, sellOrders[_orderID].orderAmount);
@@ -181,10 +169,12 @@ contract ComplexBank is Pausable,BankI {
             RateBuyLimitOverflow(cryptoFiatRateBuy, maxRate, cryptoAmount); // TODO: Delete it after tests
             if (!cancelBuyOrder(_orderID)) {
                 CouldntCancelOrder(true, _orderID);
+                return false;
             }
             return true; // go next orders
         }
         libreToken.mint(recipientAddress, tokensAmount);
+        buyOrders[_orderID].recipientAddress = 0x0;
         LogBuy(recipientAddress, tokensAmount, cryptoAmount, cryptoFiatRateBuy);
         return true;
     }
@@ -206,19 +196,24 @@ contract ComplexBank is Pausable,BankI {
         if (_limit == 0 || _limit > buyOrderLast)
             _limit = buyOrderLast;
         
+        uint firstOrder = 0;
+        buyOrderLast = 0;
+
         for (uint i = buyOrderIndex; i < _limit; i++) {
-                // Если попали на удаленный\несуществующий ордер - переходим к следующему
-                if (!processBuyOrder(i)) { // TODO: внутри processBuyOrder нет ни одной ветки которая приводит к этому условию
-                    buyOrderIndex = i;
+            // Если попали на удаленный\несуществующий ордер - переходим к следующему
+            if (!processBuyOrder(i) ) // false когда нужно вернуть, но не получилось!
+                if(firstOrder == 0) {
+                    firstOrder = i;
                     OrderQueueGeneral("Очередь ордеров на покупку очищена не до конца");
-                    return false;
                 }
-            delete(buyOrders[i]); // в solidity массив не сдвигается, тут будет нулевой элемент
+                buyOrderLast = i;
+            }
+            //delete(buyOrders[i]); // в solidity массив не сдвигается, тут будет нулевой элемент
         } // for
 
         // дешёвая "очистка" массива
-        buyOrderIndex = 0;
-        buyOrderLast = 0;
+        buyOrderIndex = firstOrder;
+        //buyOrderLast = lastOrder;
         OrderQueueGeneral("Очередь ордеров на покупку очищена");
         return true;
     }
