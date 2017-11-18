@@ -213,7 +213,11 @@ contract ComplexBank is Pausable,BankI {
 
         for (uint i = buyOrderIndex; i < _limit; i++) {
             // Если попали на удаленный\несуществующий ордер - переходим к следующему
+<<<<<<< HEAD
             if (!processBuyOrder(i)) { // false когда нужно вернуть, но не получилось!
+=======
+            if (!processBuyOrder(i) ) { // false когда нужно вернуть, но не получилось!
+>>>>>>> remotes/origin/dev
                 if(firstOrder == 0) {
                     firstOrder = i;
                     OrderQueueGeneral("Очередь ордеров на покупку очищена не до конца");
