@@ -106,12 +106,25 @@ contract ComplexBank is Pausable,BankI {
         createSellOrder(msg.sender, _tokensCount, _rateLimit);
     }
 
+    // TODO: подогнать под текущие функции, возможно их изменить
+    // сейчас не использовать
+    function addOrderToQueue(orderType typeOrder, OrderData order) internal {
+        if (typeOrder == orderType.buy) {
+ //           createBuyOrder(order.address, )
+            buyOrders.push(order);
+        } else {
+            sellOrders.push(order);
+        }
+    }
+   // Используется внутри в случае если не срабатывают условия ордеров 
+
     function () whenNotPaused payable external {
         createBuyOrder(msg.sender, 0); // 0 - без ценовых ограничений
     }
     // 01-emission end
 
     // 02-queue start
+    enum orderType { buy, sell }
     struct OrderData {
         address senderAddress;
         address recipientAddress;
@@ -130,20 +143,19 @@ contract ComplexBank is Pausable,BankI {
 
    function cancelBuyOrder(uint256 _orderID) private returns (bool) {
         if (buyOrders[_orderID].recipientAddress == 0x0) 
-            return true;
-
-        if ( (this.balance < buyOrders[_orderID].orderAmount) || 
-            !(buyOrders[_orderID].senderAddress.send(buyOrders[_orderID].orderAmount)) ) {
-                return false;
+            return false;
+        bool sent = buyOrders[_orderID].senderAddress.send(buyOrders[_orderID].orderAmount);
+        if (sent) {
+            buyOrders[_orderID].recipientAddress = 0x0;
+        } else {
+            return false;
         }
-
-        buyOrders[_orderID].recipientAddress = 0x0;
         return true;
     }
     
    // Используется внутри в случае если не срабатывают условия ордеров 
    function cancelSellOrder(uint256 _orderID) private returns(bool) {
-        if (sellOrders[_orderID].recipientAddress == 0x0) {
+        if (sellOrders[_orderID].recipientAddress == 0x0) { 
             return false;
         }
         libreToken.mint(sellOrders[_orderID].senderAddress, sellOrders[_orderID].orderAmount);
