@@ -121,6 +121,38 @@ contract ComplexBank is Pausable,BankI {
     function () whenNotPaused payable external {
         createBuyOrder(msg.sender, 0); // 0 - без ценовых ограничений
     }
+
+    /**
+     * @dev Sets min buy sum (in Wei).
+     * @param minBuyInWei - min buy sum in Wei.
+     */
+    function setMinBuyLimit(uint minBuyInWei) public onlyOwner {
+        buyEther.min = minBuyInWei;
+    }
+
+    /**
+     * @dev Sets max buy sum (in Wei).
+     * @param maxBuyInWei - max buy sum in Wei.
+     */
+    function setMaxBuyLimit(uint maxBuyInWei) public onlyOwner {
+        buyEther.max = maxBuyInWei;
+    }
+
+    /**
+     * @dev Sets min sell tokens amount.
+     * @param minSellTokens - min sell tokens.
+     */
+    function setMinSellLimit(uint minSellTokens) public onlyOwner {
+        sellTokens.min = minSellTokens;
+    }
+    /**
+     * @dev Sets max sell tokens amount.
+     * @param maxSellTokens - max sell tokens.
+     */
+    function setMaxSellLimit(uint maxSellTokens) public onlyOwner {
+        sellTokens.max = maxSellTokens;
+    }
+
     // 01-emission end
 
     // 02-queue start
@@ -135,7 +167,7 @@ contract ComplexBank is Pausable,BankI {
 
     // TODO: Убрать public после тестов. Необходимо для отображения ордеров.
     OrderData[] public buyOrders; // очередь ордеров на покупку
-    OrderData[] public sellOrders; // очередь ордеров на покупку
+    OrderData[] public 12ders; // очередь ордеров на покупку
     uint256 buyOrderIndex = 0; // Хранит последний обработанный ордер
     uint256 sellOrderIndex = 0;// Хранит последний обработанный ордер
     uint256 buyOrderLast = 0;
