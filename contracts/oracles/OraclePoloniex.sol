@@ -14,6 +14,5 @@ contract OraclePoloniex is OracleBase {
         oracleType = ORACLE_TYPE;
         oracleConfig = OracleConfig({datasource: ORACLE_DATASOURCE, arguments: ORACLE_ARGUMENTS});
         bankAddress = _bankAddress;
-        updateCosts();
     }
 }
