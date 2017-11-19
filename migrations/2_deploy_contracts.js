@@ -19,7 +19,8 @@ module.exports = async function(deployer, network) {
       ['oracles/mock/OracleMockLiza',
        'oracles/mock/OracleMockSasha',
        'oracles/mock/OracleMockKlara',
-       //'oracles/mock/OracleMockRandom'
+       //'oracles/mock/OracleMockRandom',
+       'oracles/mock/OracleMockTest'
       ]);
   }
 
