@@ -35,7 +35,7 @@ module.exports = async function(deployer, network) {
     await deployer.deploy(artifact);
     let 
       instance = await artifact.deployed(),
-      contractABI = JSON.stringify(artifact._json.abi),
+      contractABI = artifact._json.abi,
       contractAddress = artifact.address;
 
       writeDeployedContractData(_contractPath, contractAddress, contractABI);
