@@ -444,7 +444,7 @@ contract ComplexBank is Pausable,BankI {
         require((_address != 0x0) && (!oracleExists(_address)));
         OracleI currentOracle = OracleI(_address);
         
-        bytes32 oracleName = currentOracle.name();
+        bytes32 oracleName = currentOracle.oracleName();
         OracleData memory newOracle = OracleData({
             name: oracleName,
             rating: MAX_ORACLE_RATING.div(2),
