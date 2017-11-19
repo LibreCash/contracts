@@ -560,7 +560,7 @@ contract ComplexBank is Pausable,BankI {
                 continue; // Ignore disabled oracles
 
             if (cur.balance < fundToOracle) {
-               cur.transfer(fundToOracle - cur.balance);
+               cur.transfer(fundToOracle.sub(cur.balance));
             }
         }
     }
