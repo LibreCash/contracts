@@ -39,7 +39,6 @@ module.exports = async function(deployer, network) {
 
       writeDeployedContractData(_contractPath, contractAddress, contractABI);
   })); // foreach
-  finalizeDeployFiles(contracts);
   await finalizeDeployDependencies(contractsToDeploy);
 };
 
@@ -78,43 +77,14 @@ function search(string,substring) {
     return string.toLowerCase().indexOf(substring) != -1;
 }
 
-function finalizeDeployFiles(contracts) {
-  var directory = "web3tests/";
-  var fileName = "listTestsAndContracts.js";
-  var jsDataContracts = "var contracts = [{0}];\r\n";
-  var listOfContracts = "";
-  contracts.forEach(function(contractPath) {
-    let contractName = path.posix.basename(contractPath); // делаем всё в одной папке
-    listOfContracts += "'{0}', ".replace("{0}", contractName);
-  });
-
-  var jsDataTests = "var tests = [{0}];";
-  var listOfTests = "";
-  fs.readdirSync(directory + "tests/").forEach(_fileName => {
-    listOfTests += "'{0}', ".replace("{0}", _fileName);
-  })
-  var stream = fs.createWriteStream(directory + fileName);
-  stream.once('open', function(fd) {
-    stream.write(jsDataContracts.replace("{0}", listOfContracts));
-    stream.write(jsDataTests.replace("{0}", listOfTests));
-    stream.end();
-  });
-}
-
 function writeDeployedContractData(contractPath, contractAddress, contractABI) {
-  var directory = "web3tests/data/";
-  let contractName = path.posix.basename(contractPath); // делаем всё в одной папке
-  var fileName = contractName + ".js";
-  var stream = fs.createWriteStream(directory + fileName);
-  stream.once('open', function(fd) {
-    let contractData = {
-      "contractName": contractName,
-      "contractAddress": contractAddress,
-      "contractABI": contractABI
-    }
-    stream.write("contractName = '{0}';\r\n".replace('{0}', contractData.contractName));
-    stream.write("contractAddress = '{0}';\r\n".replace('{0}', contractData.contractAddress));
-    stream.write("contractABI = '{0}';\r\n".replace('{0}', contractData.contractABI));
-    stream.end();
-  });
+  let 
+      dir = "build/data/",
+      contractName = path.posix.basename(contractPath),
+      contractData = {
+        contractName,
+        contractAddress,
+        contractABI
+      };
+  fs.writeFileSync(`${dir}/${contractName}.json`,JSON.stringify(contractData));    
 }
