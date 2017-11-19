@@ -167,7 +167,7 @@ contract ComplexBank is Pausable,BankI {
 
     // TODO: Убрать public после тестов. Необходимо для отображения ордеров.
     OrderData[] public buyOrders; // очередь ордеров на покупку
-    OrderData[] public 12ders; // очередь ордеров на покупку
+    OrderData[] public sellOrders; // очередь ордеров на покупку
     uint256 buyOrderIndex = 0; // Хранит последний обработанный ордер
     uint256 sellOrderIndex = 0;// Хранит последний обработанный ордер
     uint256 buyOrderLast = 0;
