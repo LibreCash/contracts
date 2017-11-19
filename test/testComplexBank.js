@@ -488,5 +488,53 @@ contract('ComplexBank', function(accounts) {
             throw new Error("Disable Oracle if not owner!");
         });
     });
-
+    contract("Limits setting", function() {
+        before("reset limit to zero",async function(){
+            let bank = await ComplexBank.deployed();
+            await bank.setMinBuyLimit(0);
+            await bank.setMaxBuyLimit(0);
+            await bank.setMinSellLimit(0);
+            await bank.setMaxSellLimit(0);
+        })
+        it("Limits equals zero",async function(){
+            let bank = await ComplexBank.deployed();
+            let limits = {
+                buyLimits: await bank.buyEther.call(),
+                sellLimits: await bank.sellTokens.call()
+            }
+            assert.equal(limits.buyLimits[0],0,"Min buy limit is zero");
+            assert.equal(limits.buyLimits[1],0,"Max buy limit is zero");
+            assert.equal(limits.buyLimits[0],0,"Min sell limit is zero");
+            assert.equal(limits.buyLimits[1],0,"Max sell limit is zero");
+            return true;
+        })
+        it("Min buy limit sets properly",async function(){
+            let limitAmount = 123456;
+            let bank = await ComplexBank.deployed();
+            await bank.setMinBuyLimit(limitAmount);
+            let minBuyLimit = (await bank.buyEther.call())[0];
+            assert.equal(minBuyLimit,limitAmount,"Min buy limit set properly");
+        })
+        it("Max buy limit sets properly",async function(){
+            let limitAmount = 654321;
+            let bank = await ComplexBank.deployed();
+            await bank.setMaxBuyLimit(limitAmount);
+            let maxBuyLimit = (await bank.buyEther.call())[1];
+            assert.equal(maxBuyLimit,limitAmount,"Max buy limit set properly");
+        })
+        it("Min sell limit sets properly",async function(){
+            let limitAmount = 201733;
+            let bank = await ComplexBank.deployed();
+            await bank.setMinSellLimit(limitAmount);
+            let minSellLimit = (await bank.sellTokens.call())[0];
+            assert.equal(minSellLimit,limitAmount,"Min sell tokens set properly");
+        })
+        it("Max sell limit sets properly",async function(){
+            let limitAmount = 21224533;
+            let bank = await ComplexBank.deployed();
+            await bank.setMaxSellLimit(limitAmount);
+            let maxSellLimit = (await bank.sellTokens.call())[1];
+            assert.equal(maxSellLimit,limitAmount,"Min sell tokens set properly");
+        })
+    });
 });
