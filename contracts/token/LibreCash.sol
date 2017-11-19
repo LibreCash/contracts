@@ -1,37 +1,37 @@
 pragma solidity ^0.4.10;
 
-import "../zeppelin/token/PausableToken.sol";
-import "../zeppelin/token/MintableToken.sol";
+import "../zeppelin/token/StandardToken.sol";
 
 /**
  * @title LibreCash token contract.
  *
  * @dev ERC20 token contract.
  */
-contract LibreCash is MintableToken, PausableToken {
+contract LibreCash is StandardToken {
     string public version = "0.1.1";
     string public constant name = "LibreCash Token";
     string public constant symbol = "LCT";
     uint32 public constant decimals = 18;
     address public bankAddress;
-
+    
+    event Mint(address indexed to, uint256 amount);
     event Burn(address indexed burner, uint256 value);
+    event BankSet(address bankAddres);
 
     modifier onlyBank() {
         require(msg.sender == bankAddress);
         _;
     }
 
-//    function LibreCash() public { }
-
     /**
      * @dev Sets new bank address.
      * @param _bankAddress The bank address.
      * no onlyOwner for tests
      */
-    function setBankAddress(address _bankAddress) /*onlyOwner*/ public /*private*/ {
+    function setBankAddress(address _bankAddress) /*onlyOwner*/ public {
         require(_bankAddress != 0x0);
         bankAddress = _bankAddress;
+        BankSet(_bankAddress);
     }
 
     /**
@@ -39,11 +39,11 @@ contract LibreCash is MintableToken, PausableToken {
      * @param _to The address.
      * @param _amount The amount.
      */
-    function mint(address _to, uint256 _amount) canMint onlyBank public returns (bool) {
+    function mint(address _to, uint256 _amount) onlyBank public returns (bool) {
         totalSupply = totalSupply.add(_amount);
         balances[_to] = balances[_to].add(_amount);
         Mint(_to, _amount);
-        Transfer(0x0, _to, _amount);
+        Transfer(address(this), _to, _amount);
         return true;
     }
 
@@ -65,7 +65,6 @@ contract LibreCash is MintableToken, PausableToken {
         Burn(_burner, _value);
     }
 
-    // комментарий скорее для себя: не понял, разобраться. Дима
     /**
     * @dev Reject all ERC23 compatible tokens
     * @param from_ address The address that is transferring the tokens
