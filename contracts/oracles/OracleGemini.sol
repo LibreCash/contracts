@@ -17,10 +17,9 @@ contract OracleGemini is OracleBase {
     /**
      * @dev Constructor.
      */
-    function OracleGemini(address _bankAddress) public {
+    function OracleGemini(address _bankAddress) OracleBase(_bankAddress) public {
         oracleName = ORACLE_NAME;
         oracleType = ORACLE_TYPE;
         oracleConfig = OracleConfig({datasource: ORACLE_DATASOURCE, arguments: ORACLE_ARGUMENTS});
-        bankAddress = _bankAddress;
     }
 }

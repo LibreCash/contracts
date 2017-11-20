@@ -17,10 +17,9 @@ contract OracleKraken is OracleBase {
     /**
      * @dev Constructor.
      */
-    function OracleKraken(address _bankAddress) public {
+    function OracleKraken(address _bankAddress) OracleBase(_bankAddress) public {
         oracleName = ORACLE_NAME;
         oracleType = ORACLE_TYPE;
         oracleConfig = OracleConfig({datasource: ORACLE_DATASOURCE, arguments: ORACLE_ARGUMENTS});
-        bankAddress = _bankAddress;
     }
 }

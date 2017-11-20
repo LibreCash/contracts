@@ -17,7 +17,7 @@ contract LibreCash is StandardToken, Ownable {
     
     event Mint(address indexed to, uint256 amount);
     event Burn(address indexed burner, uint256 value);
-    event BankSet(address bankAddres);
+    event BankSet(address bankAddress);
 
     modifier onlyBank() {
         require(msg.sender == bankAddress);
