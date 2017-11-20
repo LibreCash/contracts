@@ -51,10 +51,10 @@ contract ComplexBank is Pausable,BankI {
     function createBuyOrder(address _address, uint256 _rateLimit) payable public whenNotPaused {
         require((msg.value > buyEther.min) && (msg.value < buyEther.max));
         require(_address != 0x0);
-        if (buyOrderLast == buyOrders.length) {
+        if (buyNextOrder == buyOrders.length) {
             buyOrders.length += 1;
         }
-        buyOrders[buyOrderLast++] = OrderData({
+        buyOrders[buyNextOrder++] = OrderData({
             senderAddress: msg.sender,
             recipientAddress: _address,
             orderAmount: msg.value,
@@ -83,10 +83,10 @@ contract ComplexBank is Pausable,BankI {
         require(_address != 0x0);
         address tokenOwner = msg.sender;
         require(_tokensCount <= libreToken.balanceOf(tokenOwner));
-        if (sellOrderLast == sellOrders.length) {
+        if (sellNextOrder == sellOrders.length) {
             sellOrders.length += 1;
         }
-        sellOrders[sellOrderLast++] = OrderData({
+        sellOrders[sellNextOrder++] = OrderData({
             senderAddress: tokenOwner,
             recipientAddress: _address,
             orderAmount: _tokensCount,
@@ -165,23 +165,32 @@ contract ComplexBank is Pausable,BankI {
         uint256 rateLimit;
     }
 
-    // TODO: Убрать public после тестов. Необходимо для отображения ордеров.
     OrderData[] public buyOrders; // очередь ордеров на покупку
-    OrderData[] public sellOrders; // очередь ордеров на покупку
-    uint256 buyOrderIndex = 0; // Хранит последний обработанный ордер
-    uint256 sellOrderIndex = 0;// Хранит последний обработанный ордер
-    uint256 buyOrderLast = 0;
-    uint256 sellOrderLast = 0;
+    OrderData[] public sellOrders; // очередь ордеров на продажу
+    uint256 buyOrderIndex = 0; // Хранит первый номер ордера
+    uint256 sellOrderIndex = 0;
+    uint256 buyNextOrder = 0; // Хранит следующий за последним номер ордера
+    uint256 sellNextOrder = 0;
 
-   function cancelBuyOrder(uint256 _orderID) private returns (bool) {
-        if (buyOrders[_orderID].recipientAddress == 0x0) 
+    mapping (address => uint256) balanceEther; // возврат средств
+
+    function getEther() public {
+        require(this.balance >= balanceEther[msg.sender]);
+        if (msg.sender.send(balanceEther[msg.sender]))
+            balanceEther[msg.sender] = 0;
+    }
+
+    function getBalanceEther() constant returns (uint256) {
+        return balanceEther[msg.sender];
+    }
+
+    function cancelBuyOrder(uint256 _orderID) private returns (bool) {
+        if (buyOrders[_orderID].recipientAddress == 0x0)
             return false;
-        bool sent = buyOrders[_orderID].senderAddress.send(buyOrders[_orderID].orderAmount);
-        if (sent) {
-            buyOrders[_orderID].recipientAddress = 0x0;
-        } else {
-            return false;
-        }
+
+        balanceEther[buyOrders[_orderID].senderAddress] = balanceEther[buyOrders[_orderID].senderAddress].add(buyOrders[_orderID].orderAmount);
+        buyOrders[_orderID].recipientAddress = 0x0;
+
         return true;
     }
     
@@ -190,6 +199,7 @@ contract ComplexBank is Pausable,BankI {
         if (sellOrders[_orderID].recipientAddress == 0x0) { 
             return false;
         }
+
         libreToken.mint(sellOrders[_orderID].senderAddress, sellOrders[_orderID].orderAmount);
         sellOrders[_orderID].recipientAddress = 0x0;
         return true;
@@ -211,15 +221,12 @@ contract ComplexBank is Pausable,BankI {
 
         if ((maxRate != 0) && (cryptoFiatRateBuy > maxRate)) {
             RateBuyLimitOverflow(cryptoFiatRateBuy, maxRate, cryptoAmount); // TODO: Delete it after tests
-            if (!cancelBuyOrder(_orderID)) {
-                CouldntCancelOrder(true, _orderID);
-                return false;
-            }
-            return true; // go next orders
+            cancelBuyOrder(_orderID);
+        } else {
+            libreToken.mint(recipientAddress, tokensAmount);
+            buyOrders[_orderID].recipientAddress = 0x0;
+            LogBuy(recipientAddress, tokensAmount, cryptoAmount, cryptoFiatRateBuy);
         }
-        libreToken.mint(recipientAddress, tokensAmount);
-        buyOrders[_orderID].recipientAddress = 0x0;
-        LogBuy(recipientAddress, tokensAmount, cryptoAmount, cryptoFiatRateBuy);
         return true;
     }
 
@@ -235,30 +242,26 @@ contract ComplexBank is Pausable,BankI {
     }
 
     function processBuyQueue(uint256 _limit) public whenNotPaused returns (bool) {
-        require(cryptoFiatRateBuy != 0); // возможно еще надо добавить && libreToken != address(0x0) 
+        require(cryptoFiatRateBuy != 0); 
 
-        if (_limit == 0 || _limit > buyOrderLast)
-            _limit = buyOrderLast;
-        
-        uint firstOrder = 0;
-        buyOrderLast = 0;
+        if (_limit == 0 || (buyOrderIndex + _limit) > buyNextOrder)
+            _limit = buyNextOrder;
+        else
+            _limit += buyOrderIndex;
 
         for (uint i = buyOrderIndex; i < _limit; i++) {
-            // Если попали на удаленный\несуществующий ордер - переходим к следующему
-            if (!processBuyOrder(i) ) { // false когда нужно вернуть, но не получилось!
-                if(firstOrder == 0) {
-                    firstOrder = i;
-                    OrderQueueGeneral("Очередь ордеров на покупку очищена не до конца");
-                }
-                buyOrderLast = i;
-            }
-            //delete(buyOrders[i]); // в solidity массив не сдвигается, тут будет нулевой элемент
-        } // for
+            processBuyOrder(i);
+        }
 
-        // дешёвая "очистка" массива
-        buyOrderIndex = firstOrder;
-        //buyOrderLast = lastOrder;
-        OrderQueueGeneral("Очередь ордеров на покупку очищена");
+        if (_limit == buyNextOrder) {
+            buyOrderIndex = 0;
+            buyNextOrder = 0;
+            OrderQueueGeneral("Очередь ордеров на покупку очищена");
+        } else {
+            buyOrderIndex = _limit;
+            OrderQueueGeneral("Очередь ордеров на покупку очищена не до конца");
+        }
+        
         return true;
     }
 
@@ -279,27 +282,12 @@ contract ComplexBank is Pausable,BankI {
 
         if ((minRate != 0) && (cryptoFiatRateSell < minRate)) {
             RateSellLimitOverflow(cryptoFiatRateSell, minRate, cryptoAmount);
-            if (!cancelSellOrder(_orderID)) {
-                CouldntCancelOrder(false, _orderID); // TODO: Maybe delete after tests
-            }
-            return true; // go next orders
-        }
-        if (this.balance < cryptoAmount) {  // checks if the bank has enough Ethers to send
-            tokensAmount = this.balance.mul(cryptoFiatRateSell).div(100);
-            // слкдующую строчку продумать
-            // dn: Тщательно перепроверить на логические и прочие ошибки, иначе нас могут ограбить
-            libreToken.mint(senderAddress, sellOrders[_orderID].orderAmount.sub(tokensAmount)); // TODO: Проверить не может ли здесь быть исключения
-            cryptoAmount = this.balance;
+            cancelSellOrder(_orderID);
+            libreToken.mint(senderAddress, tokensAmount);
         } else {
-            tokensAmount = sellOrders[_orderID].orderAmount;
-            cryptoAmount = tokensAmount.mul(100).div(cryptoFiatRateSell);
-        }
-        // dn: тщательно перепроверить эту строчку
-        if (!recipientAddress.send(cryptoAmount)) { 
-            libreToken.mint(senderAddress, tokensAmount); // so as burned at sellTokens
-            return true;                                         
-        } 
-        LogSell(recipientAddress, tokensAmount, cryptoAmount, cryptoFiatRateBuy);
+            balanceEther[senderAddress] = balanceEther[senderAddress].add(cryptoAmount);
+            LogSell(recipientAddress, tokensAmount, cryptoAmount, cryptoFiatRateBuy);
+        }      
         return true;
     }
 
@@ -309,22 +297,25 @@ contract ComplexBank is Pausable,BankI {
     function processSellQueue(uint256 _limit) public whenNotPaused returns (bool) {
         require(cryptoFiatRateSell != 0);
 
-        if (_limit == 0 || _limit > sellOrderLast) 
-            _limit = sellOrderLast;
+        if (_limit == 0 || (sellOrderIndex + _limit) > sellNextOrder) 
+            _limit = sellNextOrder;
+        else
+            _limit += sellOrderIndex;
                 
         // TODO: при нарушении данного условия контракт окажется сломан. Нарушение малореально, но всё же найти выход
         for (uint i = sellOrderIndex; i < _limit; i++) {
-            if (!processSellOrder(i)) { // TODO: Удалить, нет веток которые возвращают false
-                sellOrderIndex = i;
-                OrderQueueGeneral("Очередь ордеров на продажу очищена не до конца");
-                return false;
-            } 
-            delete(sellOrders[i]); // в solidity массив не сдвигается, тут будет нулевой элемент
-        } // for
-        // дешёвая "очистка" массива
-        sellOrderIndex = 0;
-        sellOrderLast = 0;
-        OrderQueueGeneral("Очередь ордеров на продажу очищена");
+            processSellOrder(i);
+        }
+
+        if (_limit == sellNextOrder) {
+            sellOrderIndex = 0;
+            sellNextOrder = 0;
+            OrderQueueGeneral("Очередь ордеров на продажу очищена");
+        } else {
+            sellOrderIndex = _limit;
+            OrderQueueGeneral("Очередь ордеров на продажу очищена не до конца");
+        }
+        
         return true;
     }
     // 02-queue end
@@ -343,14 +334,14 @@ contract ComplexBank is Pausable,BankI {
     }
 
     function getBuyOrder(uint256 i) public onlyOwner view returns (address, address, uint256, uint256, uint256) {
-        require(buyOrderLast > 0 && buyOrderLast >= i && buyOrderIndex <= i);
+        require(buyNextOrder > 0 && buyNextOrder >= i && buyOrderIndex <= i);
         return (buyOrders[i].senderAddress, buyOrders[i].recipientAddress,
                 buyOrders[i].orderAmount, buyOrders[i].orderTimestamp,
                 buyOrders[i].rateLimit);
     }
 
     function getSellOrder(uint256 i) public onlyOwner view returns (address, address, uint256, uint256, uint256) {
-        require(sellOrderLast > 0 && sellOrderLast >= i && sellOrderIndex <= i);
+        require(sellNextOrder > 0 && sellNextOrder >= i && sellOrderIndex <= i);
         return (sellOrders[i].senderAddress, sellOrders[i].recipientAddress,
                 sellOrders[i].orderAmount, sellOrders[i].orderTimestamp,
                 sellOrders[i].rateLimit);
@@ -358,7 +349,7 @@ contract ComplexBank is Pausable,BankI {
 
     function getSellOrdersCount() public onlyOwner view returns(uint256) {
         uint256 count = 0;
-        for (uint256 i = 0; i < sellOrders.length; i++) {
+        for (uint256 i = sellOrderIndex; i < sellNextOrder; i++) {
             if (sellOrders[i].recipientAddress != 0x0) 
                 count++;
         }
@@ -367,7 +358,7 @@ contract ComplexBank is Pausable,BankI {
 
     function getBuyOrdersCount() public onlyOwner view returns(uint256) {
         uint256 count = 0;
-        for (uint256 i = 0; i < buyOrders.length; i++) {
+        for (uint256 i = buyOrderIndex; i < buyNextOrder; i++) {
             if (buyOrders[i].recipientAddress != 0x0) 
                 count++;
         }
@@ -414,7 +405,7 @@ contract ComplexBank is Pausable,BankI {
         bytes32 name;
         uint256 rating;
         bool enabled;
-        address next; // логичнее было сделать отдельную структуру, но для экономии пусть будет так!
+        address next;
     }
 
     mapping (address => OracleData) public oracles;
@@ -422,8 +413,8 @@ contract ComplexBank is Pausable,BankI {
     address public firstOracle = 0x0;
     //address lastOracle = 0x0;
 
-    uint256 public cryptoFiatRateBuy;
-    uint256 public cryptoFiatRateSell;
+    uint256 public cryptoFiatRateBuy = 100;
+    uint256 public cryptoFiatRateSell = 100;
     uint256 public cryptoFiatRate;
     uint256 public buyFee = 0;
     uint256 public sellFee = 0;
