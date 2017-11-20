@@ -2,18 +2,18 @@ var fs = require('fs');
 const path = require('path');
 
 module.exports = async function(deployer, network) {
-  var contracts = ['token/LibreCash','bank/ComplexBank'];
+  var contracts = ['token/LibreCash', 'bank/ComplexBank'];
 
   if (network == "mainnet") {
     contracts = contracts.concat(
       ['oracles/OracleBitfinex',
-       'oracles/OracleBitstamp',
-        //'oracles/OracleWEX',
-        //'oracles/OracleGDAX',
-        //'oracles/OracleGemini',
-        //'oracles/OracleKraken',
-        //'oracles/OraclePoloniex'
-       ]);
+       //'oracles/OracleBitstamp',
+       //'oracles/OracleWEX',
+       //'oracles/OracleGDAX',
+       //'oracles/OracleGemini',
+       //'oracles/OracleKraken',
+       //'oracles/OraclePoloniex'
+      ]);
   } else {
     contracts = contracts.concat(
       ['oracles/mock/OracleMockLiza',
@@ -47,7 +47,7 @@ async function finalizeDeployDependencies(_contractsToDeploy) {
   var bank;
   // find the bank
   for (var _contractName in _contractsToDeploy) {
-    if (search(_contractName,"bank")) {
+    if (search(_contractName, "bank")) {
       bank = _contractsToDeploy[_contractName];
       break;
     }
@@ -58,18 +58,19 @@ async function finalizeDeployDependencies(_contractsToDeploy) {
   }
 
   for (var _contractName in _contractsToDeploy) {
-    if (search(_contractName,"oracle")) {
+    if (search(_contractName, "oracle")) {
       let 
         oracleInstance = await _contractsToDeploy[_contractName].deployed(),
         bankInstance = await bank.deployed();
         await bankInstance.addOracle(oracleInstance.address);
         await oracleInstance.setBank(bankInstance.address);
     }
-    if (search(_contractName,"token") || search(_contractName,"cash")) {
+    if (search(_contractName, "token") || search(_contractName, "cash")) {
       let 
         tokenInstance = await _contractsToDeploy[_contractName].deployed(),
         bankInstance = await bank.deployed();
         await bankInstance.attachToken(tokenInstance.address);
+        await tokenInstance.setBankAddress(bankInstance.address);
     }
   }
 }
@@ -87,5 +88,5 @@ function writeDeployedContractData(contractPath, contractAddress, contractABI) {
         contractAddress,
         contractABI
       };
-  fs.writeFileSync(`${dir}/${contractName}.json`,JSON.stringify(contractData));    
+  fs.writeFileSync(`${dir}/${contractName}.json`, JSON.stringify(contractData, null, 2));    
 }

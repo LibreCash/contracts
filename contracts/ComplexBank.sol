@@ -388,7 +388,6 @@ contract ComplexBank is Pausable,BankI {
     function attachToken(address _tokenAddress) public onlyOwner {
         tokenAddress = _tokenAddress;
         libreToken = LibreTokenI(tokenAddress);
-        libreToken.setBankAddress(address(this));
     }
 
     // admin end
