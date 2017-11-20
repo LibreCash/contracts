@@ -430,7 +430,10 @@ contract ComplexBank is Pausable,BankI {
     uint256 public sellFee = 0;
     uint256 timeUpdateRequest = 0;
     uint constant MAX_ORACLE_RATING = 10000;
-    
+    uint256 constant MAX_FEE = 7000; // 70%
+
+    Limit buyFeeLimit = Limit(0, MAX_FEE);
+    Limit sellFeeLimit = Limit(0, MAX_FEE);
 
     // TODO: Change visiblity after tests
     function numEnabledOracles() public view returns (uint256) {
@@ -466,6 +469,24 @@ contract ComplexBank is Pausable,BankI {
                 return true;
         }
         return false;
+    }
+
+    /**
+     * @dev Sets buyFee.
+     * @param _fee The fee.
+     */
+    function setBuyFee(uint256 _fee) public onlyOwner {
+        require((_fee > buyFeeLimit.min) && (_fee < buyFeeLimit.max));
+        buyFee = _fee;
+    }
+    
+    /**
+     * @dev Sets sellFee.
+     * @param _fee The fee.
+     */
+    function setSellFee(uint256 _fee) public onlyOwner {
+        require((_fee > sellFeeLimit.min) && (_fee < sellFeeLimit.max));
+        sellFee = _fee;
     }
     
     /**

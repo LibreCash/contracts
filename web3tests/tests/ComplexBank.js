@@ -12,6 +12,9 @@ async function testFee() {
     var setBuyFeeAddr = await contract.setBuyFee(500);
     var setBuyFeeMined = await web3.eth.getTransactionReceiptMined(setBuyFeeAddr);
     logTransactionByReceipt(setBuyFeeAddr);
+    var setSellFeeAddr = await contract.setSellFee(500);
+    var setSellFeeMined = await web3.eth.getTransactionReceiptMined(setSellFeeAddr);
+    logTransactionByReceipt(setSellFeeAddr);
 }
 
 async function testRequestUpdateRates() {
