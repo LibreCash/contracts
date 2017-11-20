@@ -51,6 +51,7 @@ contract OracleBase is Ownable, usingOraclize, OracleI {
     function clearState() public onlyBank {
         queryId = 0x0;
         rate = 0;
+        updateTime = 0;
     }
 
     /**
@@ -87,7 +88,8 @@ contract OracleBase is Ownable, usingOraclize, OracleI {
         rate = Helpers.parseIntRound(result, 2); // save it in storage as $ cents
         NewPriceTicker(result);
         delete(validIds[myid]);
-        clearState();
+        updateTime = now;
+        queryId = 0x0;
     }
 
     /**
