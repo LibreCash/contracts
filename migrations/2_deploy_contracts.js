@@ -35,13 +35,36 @@ module.exports = async function(deployer, network) {
     await deployer.deploy(artifact);
     let 
       instance = await artifact.deployed(),
-      contractABI = artifact._json.abi,
+      contractABI = JSON.stringify(artifact._json.abi),
       contractAddress = artifact.address;
 
       writeDeployedContractData(_contractPath, contractAddress, contractABI);
   })); // foreach
+  finalizeDeployFiles(contracts);
   await finalizeDeployDependencies(contractsToDeploy);
 };
+
+function finalizeDeployFiles(contracts) {
+  var directory = "web3tests/";
+  var fileName = "listTestsAndContracts.js";
+  var jsDataContracts = "var contracts = [{0}];\r\n";
+  var listOfContracts = "";
+  contracts.forEach(function(contractPath) {
+    let contractName = path.posix.basename(contractPath); // делаем всё в одной папке
+    listOfContracts += "'{0}', ".replace("{0}", contractName);
+  });
+  var jsDataTests = "var tests = [{0}];";
+  var listOfTests = "";
+  fs.readdirSync(directory + "tests/").forEach(_fileName => {
+    listOfTests += "'{0}', ".replace("{0}", _fileName);
+  })
+  var stream = fs.createWriteStream(directory + fileName);
+  stream.once('open', function(fd) {
+    stream.write(jsDataContracts.replace("{0}", listOfContracts));
+    stream.write(jsDataTests.replace("{0}", listOfTests));
+    stream.end();
+  });
+}
 
 async function finalizeDeployDependencies(_contractsToDeploy) {
   var bank;
@@ -79,13 +102,14 @@ function search(string,substring) {
 }
 
 function writeDeployedContractData(contractPath, contractAddress, contractABI) {
-  let 
-      dir = "build/data/",
-      contractName = path.posix.basename(contractPath),
-      contractData = {
-        contractName,
-        contractAddress,
-        contractABI
-      };
-  fs.writeFileSync(`${dir}/${contractName}.json`,JSON.stringify(contractData));    
+  var directory = "build/data/";
+  let contractName = path.posix.basename(contractPath); // делаем всё в одной папке
+  var fileName = contractName + ".js";
+  var stream = fs.createWriteStream(directory + fileName);
+  stream.once('open', function(fd) {
+    stream.write("contractName = '{0}';\r\n".replace('{0}', contractName));
+    stream.write("contractAddress = '{0}';\r\n".replace('{0}', contractAddress));
+    stream.write("contractABI = '{0}';\r\n".replace('{0}', contractABI));
+    stream.end();
+  });
 }
