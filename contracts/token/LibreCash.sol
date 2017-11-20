@@ -30,6 +30,7 @@ contract LibreCash is StandardToken, Ownable {
     function LibreCash(address _bankAddress) public {
         // 0x0 is possible; in this case we need to call setBankAddress later (like in migrations)
         bankAddress = _bankAddress;
+        BankSet(_bankAddress);
     }
 
     /**
