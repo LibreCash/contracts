@@ -493,17 +493,17 @@ contract ComplexBank is Pausable,BankI {
      */
     function setFees(uint256 _buyFee, uint256 _sellFee) public onlyOwner {
         require((_buyFee >= buyFeeLimit.min) && (_buyFee <= buyFeeLimit.max));
-        require((_sellFee >= sellFeeLimit.min) && (_sellFee <= buyFeeLimit.max));
+        require((_sellFee >= sellFeeLimit.min) && (_sellFee <= sellFeeLimit.max));
 
         if (buyFee != _buyFee) {
-            uint256 maximalOracleRate = cryptoFiatRateBuy.mul(10000).mul(1000).div(10000 + sellFee);
+            uint256 maximalOracleRate = cryptoFiatRateBuy.mul(10000).mul(1000).div(10000 + buyFee);
             buyFee = _buyFee;
-            cryptoFiatRateBuy = maximalOracleRate.mul(10000 + sellFee).div(10000000);
+            cryptoFiatRateBuy = maximalOracleRate.mul(10000 + buyFee).div(10000000);
         }
         if (sellFee != _sellFee) {
-            uint256 minimalOracleRate = cryptoFiatRateSell.mul(10000).mul(1000).div(10000 - buyFee);
+            uint256 minimalOracleRate = cryptoFiatRateSell.mul(10000).mul(1000).div(10000 - sellFee);
             sellFee = _sellFee;
-            cryptoFiatRateSell = minimalOracleRate.mul(10000 - buyFee).div(10000000);
+            cryptoFiatRateSell = minimalOracleRate.mul(10000 - sellFee).div(10000000);
         }
     }
     
@@ -675,8 +675,8 @@ contract ComplexBank is Pausable,BankI {
         } // foreach oracles
 
         uint256 middleRate = minimalRate.add(maximalRate).div(2);
-        cryptoFiatRateSell = minimalRate.sub(minimalRate.mul(buyFee).div(100).div(100));
-        cryptoFiatRateBuy = maximalRate.add(maximalRate.mul(sellFee).div(100).div(100));
+        cryptoFiatRateSell = minimalRate.sub(minimalRate.mul(sellFee).div(100).div(100));
+        cryptoFiatRateBuy = maximalRate.add(maximalRate.mul(buyFee).div(100).div(100));
         cryptoFiatRate = middleRate;
     }
     // 04-spread calc end
