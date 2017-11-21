@@ -9,10 +9,21 @@ async function main() {
     web3.eth.defaultAccount = web3.eth.coinbase;
 }
 
-async function testFee() {  
-    var setBuyFeeAddr = await contract.setBuyFee(500);
-    var setBuyFeeMined = await web3.eth.getTransactionReceiptMined(setBuyFeeAddr);
-    logTransactionByReceipt(setBuyFeeAddr);
+async function testFee() {
+    console.log("buyFee: " + contract.buyFee().toString(10));
+    console.log("sellFee: " + contract.sellFee().toString(10));
+    console.log("cryptoFiatRateBuy: " + contract.cryptoFiatRateBuy().toString(10));
+    console.log("cryptoFiatRateSell: " + contract.cryptoFiatRateSell().toString(10));
+    var setFeesAddr = await contract.setFees(500, 500);
+    var setFeesMined = await web3.eth.getTransactionReceiptMined(setFeesAddr);
+    logTransactionByReceipt(setFeesAddr);
+    console.log("buyFee: " + contract.buyFee().toString(10));
+    console.log("sellFee: " + contract.sellFee().toString(10));
+    console.log("cryptoFiatRateBuy: " + contract.cryptoFiatRateBuy().toString(10));
+    console.log("cryptoFiatRateSell: " + contract.cryptoFiatRateSell().toString(10));
+    var setFeesAddr = await contract.setFees(0, 0);
+    var setFeesMined = await web3.eth.getTransactionReceiptMined(setFeesAddr);
+    logTransactionByReceipt(setFeesAddr);
 }
 
 async function testRequestUpdateRates() {
