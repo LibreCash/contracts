@@ -1,5 +1,6 @@
 monitor = ['getBuyOrdersCount', 'getSellOrdersCount', 'getToken', 'numEnabledOracles', 'numReadyOracles', 'getOracleCount',
            'buyFee', 'sellFee', 'cryptoFiatRate', 'cryptoFiatRateBuy', 'cryptoFiatRateSell',
+           'relevancePeriod',
            //'getBuyOrder(1)', 'getSellOrder(1)'
         ];
 
@@ -24,6 +25,13 @@ async function testCalcRates() {
     var calcRatesAddr = await contract.calcRates({gas: 500000});
     var calcRatesMined = await web3.eth.getTransactionReceiptMined(calcRatesAddr);
     logTransactionByReceipt(calcRatesAddr);
+}
+
+async function testSetRelevancePeriod() {
+    console.log(contract.relevancePeriod().toString(10));
+    var setRelevancePeriodAddr = await contract.setRelevancePeriod(500);
+    var setRelevancePeriodMined = await web3.eth.getTransactionReceiptMined(setRelevancePeriodAddr);
+    logTransactionByReceipt(setRelevancePeriodAddr);
 }
 
 main();

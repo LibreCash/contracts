@@ -399,6 +399,9 @@ contract ComplexBank is Pausable,BankI {
 
     uint256 constant MIN_ENABLED_ORACLES = 0; //2;
     uint256 constant MIN_READY_ORACLES = 1; //2;
+    uint256 constant MIN_RELEVANCE_PERIOD = 5 minutes;
+    uint256 constant MAX_RELEVANCE_PERIOD = 48 hours;
+
     uint256 public relevancePeriod = 24 hours; // Время актуальности курса
 
     struct OracleData {
@@ -457,7 +460,7 @@ contract ComplexBank is Pausable,BankI {
      * @param _period Period between 5 minutes and 48 hours.
      */
     function setRelevancePeriod(uint256 _period) public onlyOwner {
-        require((_period > 5 minutes) && (_period < 48 hours));
+        require((_period > MIN_RELEVANCE_PERIOD) && (_period < MAX_RELEVANCE_PERIOD));
         relevancePeriod = _period;
     }
 
