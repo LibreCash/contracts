@@ -250,16 +250,8 @@ contract ComplexBank is Pausable,BankI {
             _limit += buyOrderIndex;
 
         for (uint i = buyOrderIndex; i < _limit; i++) {
-            // Если попали на удаленный\несуществующий ордер - переходим к следующему
-            if (!processBuyOrder(i)) { // false когда нужно вернуть, но не получилось!
-                if(firstOrder == 0) {
-                    firstOrder = i;
-                    OrderQueueGeneral("Очередь ордеров на покупку очищена не до конца");
-                }
-                buyOrderLast = i;
-            }
-            //delete(buyOrders[i]); // в solidity массив не сдвигается, тут будет нулевой элемент
-        } // for
+            processBuyOrder(i);
+        }
 
         if (_limit == buyNextOrder) {
             buyOrderIndex = 0;
