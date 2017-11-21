@@ -462,21 +462,24 @@ contract ComplexBank is Pausable,BankI {
     }
 
     /**
-     * @dev Sets buyFee.
-     * @param _fee The fee.
+     * @dev Sets buyFee and sellFee.
+     * @param _buyFee The buy fee.
+     * @param _sellFee The sell fee.
      */
-    function setBuyFee(uint256 _fee) public onlyOwner {
-        require((_fee > buyFeeLimit.min) && (_fee < buyFeeLimit.max));
-        buyFee = _fee;
-    }
-    
-    /**
-     * @dev Sets sellFee.
-     * @param _fee The fee.
-     */
-    function setSellFee(uint256 _fee) public onlyOwner {
-        require((_fee > sellFeeLimit.min) && (_fee < sellFeeLimit.max));
-        sellFee = _fee;
+    function setFees(uint256 _buyFee, uint256 _sellFee) public onlyOwner {
+        require((_buyFee >= buyFeeLimit.min) && (_buyFee <= buyFeeLimit.max));
+        require((_sellFee >= sellFeeLimit.min) && (_sellFee <= buyFeeLimit.max));
+
+        if (buyFee != _buyFee) {
+            uint256 maximalOracleRate = cryptoFiatRateBuy.mul(10000).mul(1000).div(10000 + sellFee);
+            buyFee = _buyFee;
+            cryptoFiatRateBuy = maximalOracleRate.mul(10000 + sellFee).div(10000000);
+        }
+        if (sellFee != _sellFee) {
+            uint256 minimalOracleRate = cryptoFiatRateSell.mul(10000).mul(1000).div(10000 - buyFee);
+            sellFee = _sellFee;
+            cryptoFiatRateSell = minimalOracleRate.mul(10000 - buyFee).div(10000000);
+        }
     }
     
     /**
