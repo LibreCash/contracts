@@ -17,6 +17,7 @@ contract OracleBase is Ownable, usingOraclize, OracleI {
     event NewPriceTicker(bytes32 oracleName, uint256 price, uint256 timestamp);
     event NewPriceTicker(string price);
     event Log(string description);
+    event BankSet(address bankAddress);
 
     struct OracleConfig {
         string datasource;
@@ -41,8 +42,10 @@ contract OracleBase is Ownable, usingOraclize, OracleI {
     /**
      * @dev Constructor.
      */
-    function OracleBase() public {
+    function OracleBase(address _bankAddress) public {
         oraclize_setProof(proofType_TLSNotary | proofStorage_IPFS);
+        bankAddress = _bankAddress;
+        BankSet(_bankAddress);
     }
 
     /**
@@ -60,6 +63,7 @@ contract OracleBase is Ownable, usingOraclize, OracleI {
      */
     function setBank(address _bankAddress) public onlyOwner {
         bankAddress = _bankAddress;
+        BankSet(_bankAddress);
     }
 
     /**

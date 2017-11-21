@@ -1,13 +1,14 @@
 pragma solidity ^0.4.10;
 
 import "../zeppelin/token/StandardToken.sol";
+import "../zeppelin/ownership/Ownable.sol";
 
 /**
  * @title LibreCash token contract.
  *
  * @dev ERC20 token contract.
  */
-contract LibreCash is StandardToken {
+contract LibreCash is StandardToken, Ownable {
     string public version = "0.1.1";
     string public constant name = "LibreCash Token";
     string public constant symbol = "LCT";
@@ -16,7 +17,7 @@ contract LibreCash is StandardToken {
     
     event Mint(address indexed to, uint256 amount);
     event Burn(address indexed burner, uint256 value);
-    event BankSet(address bankAddres);
+    event BankSet(address bankAddress);
 
     modifier onlyBank() {
         require(msg.sender == bankAddress);
@@ -24,11 +25,19 @@ contract LibreCash is StandardToken {
     }
 
     /**
+     * @dev Constructor.
+     */
+    function LibreCash(address _bankAddress) public {
+        // 0x0 is possible; in this case we need to call setBankAddress later (like in migrations)
+        bankAddress = _bankAddress;
+        BankSet(_bankAddress);
+    }
+
+    /**
      * @dev Sets new bank address.
      * @param _bankAddress The bank address.
-     * no onlyOwner for tests
      */
-    function setBankAddress(address _bankAddress) /*onlyOwner*/ public {
+    function setBankAddress(address _bankAddress) public onlyOwner {
         require(_bankAddress != 0x0);
         bankAddress = _bankAddress;
         BankSet(_bankAddress);
