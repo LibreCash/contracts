@@ -28,7 +28,7 @@ btnTestRun.style.display = "block";
 function setContract(e) {
     let contractName = e.target.innerText;
     let textContractData = document.getElementById("inputContractData");
-    textContractData.value = "data/" + e.target.innerText + ".js";
+    textContractData.value = "../build/data/" + e.target.innerText + ".js";
 }
 
 function setTest(e) {

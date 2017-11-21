@@ -2,24 +2,25 @@ var fs = require('fs');
 const path = require('path');
 
 module.exports = async function(deployer, network) {
-  var contracts = ['token/LibreCash','bank/ComplexBank'];
+  var contracts = ['token/LibreCash', 'bank/ComplexBank'];
 
   if (network == "mainnet") {
     contracts = contracts.concat(
       ['oracles/OracleBitfinex',
        'oracles/OracleBitstamp',
-        //'oracles/OracleWEX',
-        //'oracles/OracleGDAX',
-        //'oracles/OracleGemini',
-        //'oracles/OracleKraken',
-        //'oracles/OraclePoloniex'
-       ]);
+       //'oracles/OracleWEX',
+       //'oracles/OracleGDAX',
+       //'oracles/OracleGemini',
+       //'oracles/OracleKraken',
+       //'oracles/OraclePoloniex'
+      ]);
   } else {
     contracts = contracts.concat(
       ['oracles/mock/OracleMockLiza',
        'oracles/mock/OracleMockSasha',
        'oracles/mock/OracleMockKlara',
-       //'oracles/mock/OracleMockRandom'
+       //'oracles/mock/OracleMockRandom',
+       'oracles/mock/OracleMockTest'
       ]);
   }
 
@@ -43,41 +44,6 @@ module.exports = async function(deployer, network) {
   await finalizeDeployDependencies(contractsToDeploy);
 };
 
-async function finalizeDeployDependencies(_contractsToDeploy) {
-  var bank;
-  // find the bank
-  for (var _contractName in _contractsToDeploy) {
-    if (search(_contractName,"bank")) {
-      bank = _contractsToDeploy[_contractName];
-      break;
-    }
-  }
-  if (bank == null) {
-    console.log("No bank contract found!");
-    return;
-  }
-
-  for (var _contractName in _contractsToDeploy) {
-    if (search(_contractName,"oracle")) {
-      let 
-        oracleInstance = await _contractsToDeploy[_contractName].deployed(),
-        bankInstance = await bank.deployed();
-        await bankInstance.addOracle(oracleInstance.address);
-        await oracleInstance.setBank(bankInstance.address);
-    }
-    if (search(_contractName,"token") || search(_contractName,"cash")) {
-      let 
-        tokenInstance = await _contractsToDeploy[_contractName].deployed(),
-        bankInstance = await bank.deployed();
-        await bankInstance.attachToken(tokenInstance.address);
-    }
-  }
-}
-
-function search(string,substring) {
-    return string.toLowerCase().indexOf(substring) != -1;
-}
-
 function finalizeDeployFiles(contracts) {
   var directory = "web3tests/";
   var fileName = "listTestsAndContracts.js";
@@ -87,7 +53,6 @@ function finalizeDeployFiles(contracts) {
     let contractName = path.posix.basename(contractPath); // делаем всё в одной папке
     listOfContracts += "'{0}', ".replace("{0}", contractName);
   });
-
   var jsDataTests = "var tests = [{0}];";
   var listOfTests = "";
   fs.readdirSync(directory + "tests/").forEach(_fileName => {
@@ -101,20 +66,51 @@ function finalizeDeployFiles(contracts) {
   });
 }
 
+async function finalizeDeployDependencies(_contractsToDeploy) {
+  var bank;
+  // find the bank
+  for (var _contractName in _contractsToDeploy) {
+    if (search(_contractName, "bank")) {
+      bank = _contractsToDeploy[_contractName];
+      break;
+    }
+  }
+  if (bank == null) {
+    console.log("No bank contract found!");
+    return;
+  }
+
+  for (var _contractName in _contractsToDeploy) {
+    if (search(_contractName, "oracle")) {
+      let 
+        oracleInstance = await _contractsToDeploy[_contractName].deployed(),
+        bankInstance = await bank.deployed();
+        await bankInstance.addOracle(oracleInstance.address);
+        await oracleInstance.setBank(bankInstance.address);
+    }
+    if (search(_contractName, "token") || search(_contractName, "cash")) {
+      let 
+        tokenInstance = await _contractsToDeploy[_contractName].deployed(),
+        bankInstance = await bank.deployed();
+        await bankInstance.attachToken(tokenInstance.address);
+        await tokenInstance.setBankAddress(bankInstance.address);
+    }
+  }
+}
+
+function search(string,substring) {
+    return string.toLowerCase().indexOf(substring) != -1;
+}
+
 function writeDeployedContractData(contractPath, contractAddress, contractABI) {
-  var directory = "web3tests/data/";
+  var directory = "build/data/";
   let contractName = path.posix.basename(contractPath); // делаем всё в одной папке
   var fileName = contractName + ".js";
   var stream = fs.createWriteStream(directory + fileName);
   stream.once('open', function(fd) {
-    let contractData = {
-      "contractName": contractName,
-      "contractAddress": contractAddress,
-      "contractABI": contractABI
-    }
-    stream.write("contractName = '{0}';\r\n".replace('{0}', contractData.contractName));
-    stream.write("contractAddress = '{0}';\r\n".replace('{0}', contractData.contractAddress));
-    stream.write("contractABI = '{0}';\r\n".replace('{0}', contractData.contractABI));
+    stream.write("contractName = '{0}';\r\n".replace('{0}', contractName));
+    stream.write("contractAddress = '{0}';\r\n".replace('{0}', contractAddress));
+    stream.write("contractABI = '{0}';\r\n".replace('{0}', contractABI));
     stream.end();
   });
 }

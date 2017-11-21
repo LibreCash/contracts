@@ -3,7 +3,6 @@ pragma solidity ^0.4.10;
 import "./oraclizeAPI_0.4.sol";
 import "../zeppelin/ownership/Ownable.sol";
 import "../library/Helpers.sol";
-import "../interfaces/I_Bank.sol";
 import "../interfaces/I_Oracle.sol";
 
 
@@ -18,6 +17,7 @@ contract OracleBase is Ownable, usingOraclize, OracleI {
     event NewPriceTicker(bytes32 oracleName, uint256 price, uint256 timestamp);
     event NewPriceTicker(string price);
     event Log(string description);
+    event BankSet(address bankAddress);
 
     struct OracleConfig {
         string datasource;
@@ -27,14 +27,12 @@ contract OracleBase is Ownable, usingOraclize, OracleI {
     bytes32 public oracleName = "Base Oracle";
     bytes16 public oracleType = "Undefined";
     uint256 public updateTime;
-    uint256 public updateCost;
     mapping(bytes32=>bool) validIds; // ensure that each query response is processed only once
     address public bankAddress;
     uint256 public rate;
     bytes32 public queryId;
- //   BankI bank;
-    uint256 MIN_UPDATE_TIME = 5 minutes;
-    OracleConfig internal oracleConfig; // заполняется конструктором потомка константами из него же
+    uint256 public minUpdateTime = 5 minutes;
+    OracleConfig public oracleConfig; // заполняется конструктором потомка константами из него же
 
     modifier onlyBank() {
         require(msg.sender == bankAddress);
@@ -44,8 +42,10 @@ contract OracleBase is Ownable, usingOraclize, OracleI {
     /**
      * @dev Constructor.
      */
-    function OracleBase() public {
+    function OracleBase(address _bankAddress) public {
         oraclize_setProof(proofType_TLSNotary | proofStorage_IPFS);
+        bankAddress = _bankAddress;
+        BankSet(_bankAddress);
     }
 
     /**
@@ -54,26 +54,16 @@ contract OracleBase is Ownable, usingOraclize, OracleI {
     function clearState() public onlyBank {
         queryId = 0x0;
         rate = 0;
-    }
-
-    function getUpdateTime() public returns (uint256) {
-        return updateTime;
+        updateTime = 0;
     }
 
     /**
      * @dev Sets bank address.
-     * @param _bankAddress Description.
+     * @param _bankAddress Address of bank contract.
      */
     function setBank(address _bankAddress) public onlyOwner {
         bankAddress = _bankAddress;
-    }
-
-    // for test
-    /**
-     * @dev Gets bank address.
-     */
-    function getBank() public view returns (address) {
-        return bankAddress;
+        BankSet(_bankAddress);
     }
 
     /**
@@ -81,8 +71,8 @@ contract OracleBase is Ownable, usingOraclize, OracleI {
      */
     function updateRate() external onlyBank returns (bool) {
         // для тестов отдельно оракула закомментировать след. строку
-        require (now > updateTime + MIN_UPDATE_TIME);
-        if (oraclize_getPrice("URL") > this.balance) {
+        require (now > updateTime + minUpdateTime);
+        if (oraclize_getPrice(oracleConfig.datasource) > this.balance) {
             NewOraclizeQuery("Oraclize query was NOT sent, please add some ETH to cover for the query fee");
             return false;
         } else {
@@ -99,7 +89,6 @@ contract OracleBase is Ownable, usingOraclize, OracleI {
    function __callback(bytes32 myid, string result, bytes proof) public {
         require(validIds[myid]);
         require(msg.sender == oraclize_cbAddress());
-        NewPriceTicker(result);
         rate = Helpers.parseIntRound(result, 2); // save it in storage as $ cents
         NewPriceTicker(result);
         delete(validIds[myid]);
@@ -115,18 +104,4 @@ contract OracleBase is Ownable, usingOraclize, OracleI {
        __callback(myid, result, proof);
     }
 
-    /**
-     * @dev Updates oraclize costs.
-     * Shall be run after datasource setting.
-     */
-    function updateCosts() internal {
-        updateCost = 2 * oraclize_getPrice(oracleConfig.datasource);
-    }
-
-    /**
-
-    /**
-     * @dev Shall receive crypto for oraclize queries.
-     */
-    function () payable external { }
 }
