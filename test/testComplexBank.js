@@ -29,6 +29,9 @@ contract('ComplexBank', function(accounts) {
 
         before("init", async function() {
             let bank = await ComplexBank.deployed();
+            let cash = await LibreCash.deployed();
+
+            await cash.setBankAddress(bank.address);
             
             oracles.forEach( async function(oracle) {
                 await oracle.deployed();
@@ -217,6 +220,8 @@ contract('ComplexBank', function(accounts) {
             let bank = await ComplexBank.deployed();
             let cash = await LibreCash.deployed();
 
+            await cash.setBankAddress(bank.address);
+
             oracles.forEach( async function(oracle) {
                 await oracle.deployed();
                 try {
@@ -225,11 +230,11 @@ contract('ComplexBank', function(accounts) {
             });
 
             let oracleTest = await oracles[3].deployed();
-            await oracleTest.setBank(bank.address);
-            await bank.addOracle(oracleTest.address);
+            //await oracleTest.setBank(bank.address);
+            //await bank.addOracle(oracleTest.address);
 
-            await bank.requestUpdateRates();
-            await bank.calcRates();
+            //await bank.requestUpdateRates();
+            //await bank.calcRates();
             //console.log(await bank.cryptoFiatRateBuy.call());
             //console.log(await bank.cryptoFiatRateSell.call());
             
