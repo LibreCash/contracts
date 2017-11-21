@@ -37,6 +37,15 @@ contract ComplexBank is Pausable,BankI {
     Limit public sellTokens = Limit(0, 99999 * 1 ether);
     // Limits end
 
+    modifier whenRateIsActual() {
+        require(
+            (now <= timeUpdateRequest + relevancePeriod) &&
+            (cryptoFiatRateBuy != 0) &&
+            (cryptoFiatRateSell != 0)
+        );
+        _;
+    }
+
     function ComplexBank() {
         // Do something 
     }
@@ -241,9 +250,7 @@ contract ComplexBank is Pausable,BankI {
         return processBuyQueue(0);
     }
 
-    function processBuyQueue(uint256 _limit) public whenNotPaused returns (bool) {
-        require(cryptoFiatRateBuy != 0); 
-
+    function processBuyQueue(uint256 _limit) public whenNotPaused whenRateIsActual returns (bool) {
         if (_limit == 0 || (buyOrderIndex + _limit) > buyNextOrder)
             _limit = buyNextOrder;
         else
@@ -294,9 +301,7 @@ contract ComplexBank is Pausable,BankI {
     /**
      * @dev Fill sell orders queue.
      */
-    function processSellQueue(uint256 _limit) public whenNotPaused returns (bool) {
-        require(cryptoFiatRateSell != 0);
-
+    function processSellQueue(uint256 _limit) public whenNotPaused whenRateIsActual returns (bool) {
         if (_limit == 0 || (sellOrderIndex + _limit) > sellNextOrder) 
             _limit = sellNextOrder;
         else
@@ -708,14 +713,6 @@ contract ComplexBank is Pausable,BankI {
         uint _quotient = _numerator.div(denominator).add(5).div(10);
         return _quotient;
     }
-
-    /**
-     * @dev Checks if the rate is up to date
-     */
-    function isRateActual() public constant returns(bool) {
-        return (now <= timeUpdateRequest + relevancePeriod);
-    }
-
     // 08-helper methods end
 
 
