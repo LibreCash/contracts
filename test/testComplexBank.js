@@ -392,7 +392,9 @@ contract('ComplexBank', function(accounts) {
     contract("Oracles", function() {
         beforeEach(async function() {
             let bank = await ComplexBank.deployed();
-            oracles.forEach( async function(oracle) {
+            await LibreCash.deployed();
+            
+            oracles.forEach(async function(oracle) {
                 await oracle.deployed();
                 try {
                     await bank.deleteOracle(oracle.address);
@@ -633,6 +635,18 @@ contract('ComplexBank', function(accounts) {
             }
             
             throw new Error("Disable Oracle if not owner!");
+        });
+
+        it.only("Don't start calcRate without oracles", async function() {
+            let bank = await ComplexBank.deployed();
+
+            try {
+                await bank.calcRates();
+            } catch(e) {
+                return true;
+            }
+            
+            throw new Error("calcRate start without Oracles!");
         });
     });
     contract("Limits setting", function() {
