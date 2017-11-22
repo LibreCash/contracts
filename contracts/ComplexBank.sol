@@ -708,7 +708,7 @@ contract ComplexBank is Pausable,BankI {
     uint256 constant STOCK_VIOLANCE_ALERT = 3000; // 30% процент разницы между биржами при котором происходит уведомление
 
     /**
-     * @dev ???
+     * @dev Checks the contract state.
      */
     function checkContract() public {
         // TODO: Добавить проверки
