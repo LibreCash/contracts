@@ -660,11 +660,7 @@ contract ComplexBank is Pausable,BankI {
      */
     function calcRates() public {
         processWaitingOracles(); // выкинет если есть оракулы, ждущие менее 10 минут
-        uint256 countOracles = numReadyOracles();
-        require (countOracles >= MIN_READY_ORACLES);
-        if (countOracles < COUNT_EVENT_ORACLES) {
-            OracleReadyNearToMin(countOracles);
-        }
+        checkContract();
         uint256 minimalRate = 2**256 - 1; // Max for UINT256
         uint256 maximalRate = 0;
         
@@ -690,6 +686,11 @@ contract ComplexBank is Pausable,BankI {
     uint256 constant STOCK_VIOLANCE_ALERT = 3000; // 30% процент разницы между биржами при котором происходит уведомление
     function checkContract() public {
         // TODO: Добавить проверки
+        uint256 countOracles = numReadyOracles();
+        require (countOracles >= MIN_READY_ORACLES);
+        if (countOracles < COUNT_EVENT_ORACLES) {
+            OracleReadyNearToMin(countOracles);
+        }
     }   
     // TODO: change to internal after tests
     function targetRateViolance(uint256 newCryptoFiatRate) public view returns(uint256) {
