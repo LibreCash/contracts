@@ -637,7 +637,7 @@ contract('ComplexBank', function(accounts) {
             throw new Error("Disable Oracle if not owner!");
         });
 
-        it.only("Don't start calcRate without oracles", async function() {
+        it("Don't start calcRate without oracles", async function() {
             let bank = await ComplexBank.deployed();
 
             try {
