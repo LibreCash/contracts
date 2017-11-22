@@ -716,8 +716,8 @@ contract ComplexBank is Pausable,BankI {
 
     // TODO: change to internal after tests
     /**
-     * @dev ???
-     * @param _newCryptoFiatRate ???
+     * @dev Gets target rate violence.
+     * @param _newCryptoFiatRate New rate.
      */
     function targetRateViolance(uint256 _newCryptoFiatRate) public view returns(uint256) {
         uint256 maxRate = Math.max256(cryptoFiatRate, _newCryptoFiatRate);
