@@ -127,6 +127,7 @@ contract ComplexBank is Pausable,BankI {
      * @param minBuyInWei - min buy sum in Wei.
      */
     function setMinBuyLimit(uint minBuyInWei) public onlyOwner {
+        require(minBuyInWei <= MAX_MINIMUM_BUY);
         buyEther.min = minBuyInWei;
     }
 
@@ -135,6 +136,7 @@ contract ComplexBank is Pausable,BankI {
      * @param maxBuyInWei - max buy sum in Wei.
      */
     function setMaxBuyLimit(uint maxBuyInWei) public onlyOwner {
+        require(maxBuyInWei >= MIN_MAXIMUM_BUY);
         buyEther.max = maxBuyInWei;
     }
 
@@ -143,6 +145,7 @@ contract ComplexBank is Pausable,BankI {
      * @param minSellTokens - min sell tokens.
      */
     function setMinSellLimit(uint minSellTokens) public onlyOwner {
+        require(minSellTokens <= MAX_MINIMUM_TOKENS_SELL);
         sellTokens.min = minSellTokens;
     }
     /**
@@ -150,6 +153,7 @@ contract ComplexBank is Pausable,BankI {
      * @param maxSellTokens - max sell tokens.
      */
     function setMaxSellLimit(uint maxSellTokens) public onlyOwner {
+        require(maxSellTokens >= MIN_MAXIMUM_TOKENS_SELL);
         sellTokens.max = maxSellTokens;
     }
 
@@ -401,6 +405,10 @@ contract ComplexBank is Pausable,BankI {
     uint256 constant MIN_READY_ORACLES = 1; //2;
     uint256 constant MIN_RELEVANCE_PERIOD = 5 minutes;
     uint256 constant MAX_RELEVANCE_PERIOD = 48 hours;
+    uint256 constant MAX_MINIMUM_BUY = 100 ether;
+    uint256 constant MIN_MAXIMUM_BUY = 100 ether;
+    uint256 constant MAX_MINIMUM_TOKENS_SELL = 100 * 10**18;
+    uint256 constant MIN_MAXIMUM_TOKENS_SELL = 100 * 10**18;
 
     uint256 public relevancePeriod = 24 hours; // Время актуальности курса
 
