@@ -451,7 +451,7 @@ contract ComplexBank is Pausable,BankI {
         for (address current = firstOracle; current != 0x0; current = oracles[current].next) {
             OracleData memory currentOracleData = oracles[current];
             OracleI currentOracle = OracleI(current);
-            if ((currentOracleData.enabled) && (currentOracle.rate() != 0) && (currentOracle.queryId() == 0x0)) 
+            if ((currentOracleData.enabled) && (currentOracle.rate() != 0) && (currentOracle.waitQuery() == false)) 
                 numOracles++;
         }
         
@@ -616,7 +616,7 @@ contract ComplexBank is Pausable,BankI {
         for (address cur = firstOracle; cur != 0x0; cur = oracles[cur].next) {
             if (oracles[cur].enabled) {
                 OracleI currentOracle = OracleI(cur);
-                if (currentOracle.queryId() == 0x0) {
+                if (currentOracle.waitQuery() == false) {
                     bool updateRateReturned = currentOracle.updateRate();
                     if (updateRateReturned)
                         OracleTouched(cur, oracles[cur].name);
@@ -638,7 +638,7 @@ contract ComplexBank is Pausable,BankI {
         for (address cur = firstOracle; cur != 0x0; cur = oracles[cur].next) {
             if (oracles[cur].enabled) {
                 OracleI currentOracle = OracleI(cur);
-                if (currentOracle.queryId() != 0x0) {
+                if (currentOracle.waitQuery() != false) {
                     // если оракул ждёт 10 минут и больше
                     if (currentOracle.updateTime() < now - 10 minutes) {
                         currentOracle.clearState(); // но не ждать
@@ -668,7 +668,7 @@ contract ComplexBank is Pausable,BankI {
             OracleI currentOracle = OracleI(cur);
             // TODO: данные хранятся и в оракуле и в эмиссионном контракте
             uint256 _rate = currentOracle.rate();
-            if ((currentOracleData.enabled) && (currentOracle.queryId() == 0x0) && (_rate != 0)) {
+            if ((currentOracleData.enabled) && (currentOracle.waitQuery() == false) && (_rate != 0)) {
                 minimalRate = Math.min256(_rate, minimalRate);    
                 maximalRate = Math.max256(_rate, maximalRate);
            }

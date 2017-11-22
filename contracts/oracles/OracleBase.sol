@@ -30,7 +30,8 @@ contract OracleBase is Ownable, usingOraclize, OracleI {
     mapping(bytes32=>bool) validIds; // ensure that each query response is processed only once
     address public bankAddress;
     uint256 public rate;
-    bytes32 public queryId;
+    bytes32 queryId;
+    bool public waitQuery = false;
     uint256 public minUpdateTime = 5 minutes;
     OracleConfig public oracleConfig; // заполняется конструктором потомка константами из него же
 
@@ -52,7 +53,7 @@ contract OracleBase is Ownable, usingOraclize, OracleI {
      * Clears queryId and rate.
      */
     function clearState() public onlyBank {
-        queryId = 0x0;
+        waitQuery = false;
         rate = 0;
         updateTime = 0;
     }
@@ -79,6 +80,7 @@ contract OracleBase is Ownable, usingOraclize, OracleI {
             queryId = oraclize_query(0, oracleConfig.datasource, oracleConfig.arguments);
             NewOraclizeQuery("Oraclize query was sent, standing by for the answer...");
             validIds[queryId] = true;
+            waitQuery = true;
             return true;
         }
     }
@@ -93,7 +95,7 @@ contract OracleBase is Ownable, usingOraclize, OracleI {
         NewPriceTicker(result);
         delete(validIds[myid]);
         updateTime = now;
-        queryId = 0x0;
+        waitQuery = false;
     }
 
     /**
