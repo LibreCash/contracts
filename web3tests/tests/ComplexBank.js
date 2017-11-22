@@ -1,5 +1,6 @@
 monitor = ['getBuyOrdersCount', 'getSellOrdersCount', 'getToken', 'numEnabledOracles', 'numReadyOracles', 'getOracleCount',
            'buyFee', 'sellFee', 'cryptoFiatRate', 'cryptoFiatRateBuy', 'cryptoFiatRateSell',
+           'relevancePeriod',
            //'getBuyOrder(1)', 'getSellOrder(1)'
         ];
 
@@ -8,10 +9,21 @@ async function main() {
     web3.eth.defaultAccount = web3.eth.coinbase;
 }
 
-async function testFee() {  
-    var setBuyFeeAddr = await contract.setBuyFee(500);
-    var setBuyFeeMined = await web3.eth.getTransactionReceiptMined(setBuyFeeAddr);
-    logTransactionByReceipt(setBuyFeeAddr);
+async function testFee() {
+    console.log("buyFee: " + contract.buyFee().toString(10));
+    console.log("sellFee: " + contract.sellFee().toString(10));
+    console.log("cryptoFiatRateBuy: " + contract.cryptoFiatRateBuy().toString(10));
+    console.log("cryptoFiatRateSell: " + contract.cryptoFiatRateSell().toString(10));
+    var setFeesAddr = await contract.setFees(500, 500);
+    var setFeesMined = await web3.eth.getTransactionReceiptMined(setFeesAddr);
+    logTransactionByReceipt(setFeesAddr);
+    console.log("buyFee: " + contract.buyFee().toString(10));
+    console.log("sellFee: " + contract.sellFee().toString(10));
+    console.log("cryptoFiatRateBuy: " + contract.cryptoFiatRateBuy().toString(10));
+    console.log("cryptoFiatRateSell: " + contract.cryptoFiatRateSell().toString(10));
+    var setFeesAddr = await contract.setFees(0, 0);
+    var setFeesMined = await web3.eth.getTransactionReceiptMined(setFeesAddr);
+    logTransactionByReceipt(setFeesAddr);
 }
 
 async function testRequestUpdateRates() {
@@ -24,6 +36,13 @@ async function testCalcRates() {
     var calcRatesAddr = await contract.calcRates({gas: 500000});
     var calcRatesMined = await web3.eth.getTransactionReceiptMined(calcRatesAddr);
     logTransactionByReceipt(calcRatesAddr);
+}
+
+async function testSetRelevancePeriod() {
+    console.log(contract.relevancePeriod().toString(10));
+    var setRelevancePeriodAddr = await contract.setRelevancePeriod(500);
+    var setRelevancePeriodMined = await web3.eth.getTransactionReceiptMined(setRelevancePeriodAddr);
+    logTransactionByReceipt(setRelevancePeriodAddr);
 }
 
 main();

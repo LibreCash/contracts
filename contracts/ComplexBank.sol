@@ -401,7 +401,9 @@ contract ComplexBank is Pausable,BankI {
     uint256 constant MIN_ENABLED_ORACLES = 0; //2;
     uint256 constant MIN_READY_ORACLES = 1; //2;
     uint256 constant COUNT_EVENT_ORACLES = MIN_READY_ORACLES + 1;
-    uint256 constant RELEVANCE_PERIOD = 24 hours; // Время актуальности курса
+    uint256 constant MIN_RELEVANCE_PERIOD = 5 minutes;
+    uint256 constant MAX_RELEVANCE_PERIOD = 48 hours;
+    uint256 public relevancePeriod = 24 hours; // Время актуальности курса
 
     struct OracleData {
         bytes32 name;
@@ -422,9 +424,15 @@ contract ComplexBank is Pausable,BankI {
     uint256 public sellFee = 0;
     uint256 timeUpdateRequest = 0;
     uint constant MAX_ORACLE_RATING = 10000;
-    
+    uint256 constant MAX_FEE = 7000; // 70%
+
+    Limit buyFeeLimit = Limit(0, MAX_FEE);
+    Limit sellFeeLimit = Limit(0, MAX_FEE);
 
     // TODO: Change visiblity after tests
+    /**
+     * @dev Returns enabled oracles count.
+     */
     function numEnabledOracles() public view returns (uint256) {
         uint256 numOracles = 0;
 
@@ -436,6 +444,9 @@ contract ComplexBank is Pausable,BankI {
         return numOracles;
     }
 
+    /**
+     * @dev Returns ready (which have data to be used) oracles count.
+     */
     function numReadyOracles() public view returns (uint256) {
         uint256 numOracles = 0;
         for (address current = firstOracle; current != 0x0; current = oracles[current].next) {
@@ -448,16 +459,53 @@ contract ComplexBank is Pausable,BankI {
         return numOracles;
     }
 
+    /**
+     * @dev Lets owner to set relevance period.
+     * @param _period Period between 5 minutes and 48 hours.
+     */
+    function setRelevancePeriod(uint256 _period) public onlyOwner {
+        require((_period > MIN_RELEVANCE_PERIOD) && (_period < MAX_RELEVANCE_PERIOD));
+        relevancePeriod = _period;
+    }
+
+    /**
+     * @dev Returns oracle count.
+     */
     function getOracleCount() public view returns (uint) {
         return countOracles;
     }
 
+    /**
+     * @dev Returns whether the oracle exists in the bank.
+     * @param _oracle The oracle's address.
+     */
     function oracleExists(address _oracle) internal returns (bool) {
         for (address current = firstOracle; current != 0x0; current = oracles[current].next) {
             if (current == _oracle) 
                 return true;
         }
         return false;
+    }
+
+    /**
+     * @dev Sets buyFee and sellFee.
+     * @param _buyFee The buy fee.
+     * @param _sellFee The sell fee.
+     */
+    function setFees(uint256 _buyFee, uint256 _sellFee) public onlyOwner {
+        require((_buyFee >= buyFeeLimit.min) && (_buyFee <= buyFeeLimit.max));
+        require((_sellFee >= sellFeeLimit.min) && (_sellFee <= buyFeeLimit.max));
+
+        if (buyFee != _buyFee) {
+            uint256 maximalOracleRate = cryptoFiatRateBuy.mul(10000).mul(1000).div(10000 + sellFee);
+            buyFee = _buyFee;
+            cryptoFiatRateBuy = maximalOracleRate.mul(10000 + sellFee).div(10000000);
+        }
+        if (sellFee != _sellFee) {
+            uint256 minimalOracleRate = cryptoFiatRateSell.mul(10000).mul(1000).div(10000 - buyFee);
+            sellFee = _sellFee;
+            cryptoFiatRateSell = minimalOracleRate.mul(10000 - buyFee).div(10000000);
+        }
     }
     
     /**
@@ -546,6 +594,10 @@ contract ComplexBank is Pausable,BankI {
         oracles[_address].rating = _rating;
     }
 
+    /**
+     * @dev Sends money to oracles.
+     * @param fundToOracle Desired balance of every oracle.
+     */
     function fundOracles(uint256 fundToOracle) public payable onlyOwner {
         for (address cur = firstOracle; cur != 0x0; cur = oracles[cur].next) {
             if (oracles[cur].enabled == false) 
@@ -558,6 +610,9 @@ contract ComplexBank is Pausable,BankI {
     }
 
     // TODO: change to intrernal or add onlyOwner
+    /**
+     * @dev Requests every enabled oracle to get the actual rate.
+     */
     function requestUpdateRates() public {
         for (address cur = firstOracle; cur != 0x0; cur = oracles[cur].next) {
             if (oracles[cur].enabled) {
@@ -577,6 +632,9 @@ contract ComplexBank is Pausable,BankI {
 
     // TODO - rewrote method, append to google docs
     // TODO: Прикрутить использование метода. Сейчас не используется
+    /**
+     * @dev Clears too-long-waiting oracles.
+     */
     function processWaitingOracles() internal {
         for (address cur = firstOracle; cur != 0x0; cur = oracles[cur].next) {
             if (oracles[cur].enabled) {
@@ -597,6 +655,9 @@ contract ComplexBank is Pausable,BankI {
 
 
     // 04-spread calc start 
+    /**
+     * @dev Processes data from ready oracles to get rates.
+     */
     function calcRates() public {
         processWaitingOracles(); // выкинет если есть оракулы, ждущие менее 10 минут
         uint256 countOracles = numReadyOracles();
@@ -656,7 +717,7 @@ contract ComplexBank is Pausable,BankI {
      * @dev Checks if the rate is up to date
      */
     function isRateActual() public constant returns(bool) {
-        return (now <= timeUpdateRequest + RELEVANCE_PERIOD);
+        return (now <= timeUpdateRequest + relevancePeriod);
     }
 
     // 08-helper methods end
