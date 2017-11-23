@@ -30,7 +30,8 @@ contract OracleBase is Ownable, usingOraclize, OracleI {
     mapping(bytes32=>bool) validIds; // ensure that each query response is processed only once
     address public bankAddress;
     uint256 public rate;
-    bytes32 public queryId;
+    bytes32 queryId;
+    bool public waitQuery = false;
     uint256 public minUpdateTime = 5 minutes;
     OracleConfig public oracleConfig; // заполняется конструктором потомка константами из него же
 
@@ -42,7 +43,7 @@ contract OracleBase is Ownable, usingOraclize, OracleI {
     /**
      * @dev Constructor.
      */
-    function OracleBase(address _bankAddress) public {
+    function OracleBase(address _bankAddress) {
         oraclize_setProof(proofType_TLSNotary | proofStorage_IPFS);
         bankAddress = _bankAddress;
         BankSet(_bankAddress);
@@ -52,7 +53,7 @@ contract OracleBase is Ownable, usingOraclize, OracleI {
      * Clears queryId, updateTime and rate.
      */
     function clearState() public onlyBank {
-        queryId = 0x0;
+        waitQuery = false;
         rate = 0;
         updateTime = 0;
     }
@@ -78,6 +79,7 @@ contract OracleBase is Ownable, usingOraclize, OracleI {
             queryId = oraclize_query(0, oracleConfig.datasource, oracleConfig.arguments);
             NewOraclizeQuery("Oraclize query was sent, standing by for the answer...");
             validIds[queryId] = true;
+            waitQuery = true;
             return true;
         }
     }
@@ -91,11 +93,11 @@ contract OracleBase is Ownable, usingOraclize, OracleI {
     function __callback(bytes32 myid, string result, bytes proof) public {
         require(validIds[myid]);
         require(msg.sender == oraclize_cbAddress());
-        rate = Helpers.parseIntRound(result, 2); // save it in storage as $ cents
+        rate = Helpers.parseIntRound(result, 3); // save it in storage as 1/1000 of $
         NewPriceTicker(result);
         delete(validIds[myid]);
         updateTime = now;
-        queryId = 0x0;
+        waitQuery = false;
     }
 
     /**
@@ -107,5 +109,10 @@ contract OracleBase is Ownable, usingOraclize, OracleI {
        bytes memory proof = new bytes(1);
        __callback(myid, result, proof);
     }
+
+    /**
+    * @dev Method used for oracle funding   
+    */    
+    function () public payable {}
 
 }

@@ -30,12 +30,19 @@ contract ComplexBank is Pausable,BankI {
     uint256 constant MIN_ENABLED_ORACLES = 0; //2;
     uint256 constant MIN_READY_ORACLES = 1; //2;
     uint256 constant COUNT_EVENT_ORACLES = MIN_READY_ORACLES + 1;
-    uint256 constant MIN_RELEVANCE_PERIOD = 1 minutes;
+    uint256 constant MIN_RELEVANCE_PERIOD = 5 minutes;
     uint256 constant MAX_RELEVANCE_PERIOD = 48 hours;
     // отводим 20 минут для calcRates() после requestUpdateRates()
     uint256 constant MAX_CALCRATES_PERIOD = 20 minutes;
     // отводим час на разбор очередей после requestUpdateRates(), MAX_CALCRATES_PERIOD включён сюда
     uint256 constant MAX_PROCESSQUEUES_PERIOD = 1 hours;
+
+    uint256 constant REVERSE_PERCENT = 100;
+    uint256 constant RATE_MULTIPLIER = 1000; // doubling in oracleBase __callback as parseIntRound(..., 3) as 3
+    uint256 constant MAX_MINIMUM_BUY = 100 ether;
+    uint256 constant MIN_MAXIMUM_BUY = 100 ether;
+    uint256 constant MAX_MINIMUM_TOKENS_SELL = 400 * 100 * 10**18; // 100 ether * 400 usd/eth
+    uint256 constant MIN_MAXIMUM_TOKENS_SELL = 400 * 100 * 10**18; // 100 ether * 400 usd/eth
 
     uint256 public relevancePeriod = 23 hours; // Минимальное время между calcRates() прошлого раунда
                                                // и requestUpdateRates() следующего
@@ -49,8 +56,8 @@ contract ComplexBank is Pausable,BankI {
     }
 
     // Limits start
-    Limit public buyEther = Limit(0, 99999 * 1 ether);
-    Limit public sellTokens = Limit(0, 99999 * 1 ether);
+    Limit public buyLimit = Limit(0, 99999 * 1 ether);
+    Limit public sellLimit = Limit(0, 99999 * 1 ether);
     // Limits end
 
     modifier afterRelevancePeriod() {
@@ -171,7 +178,8 @@ contract ComplexBank is Pausable,BankI {
      * @param _minBuyInWei - min buy sum in Wei.
      */
     function setMinBuyLimit(uint _minBuyInWei) public onlyOwner {
-        buyEther.min = _minBuyInWei;
+        require(_minBuyInWei <= MAX_MINIMUM_BUY);
+        buyLimit.min = _minBuyInWei;
     }
 
     /**
@@ -179,23 +187,26 @@ contract ComplexBank is Pausable,BankI {
      * @param _maxBuyInWei - max buy sum in Wei.
      */
     function setMaxBuyLimit(uint _maxBuyInWei) public onlyOwner {
-        buyEther.max = _maxBuyInWei;
+        require(_maxBuyInWei >= MIN_MAXIMUM_BUY);
+        buyLimit.max = _maxBuyInWei;
     }
 
     /**
      * @dev Sets min sell tokens amount.
-     * @param _minSellTokens - min sell tokens.
+     * @param _minSellLimit - min sell tokens.
      */
-    function setMinSellLimit(uint _minSellTokens) public onlyOwner {
-        sellTokens.min = _minSellTokens;
+    function setMinSellLimit(uint _minSellLimit) public onlyOwner {
+        require(_minSellLimit <= MAX_MINIMUM_TOKENS_SELL);
+        sellLimit.min = _minSellLimit;
     }
     
     /**
      * @dev Sets max sell tokens amount.
-     * @param _maxSellTokens - max sell tokens.
+     * @param _maxSellLimit - max sell tokens.
      */
-    function setMaxSellLimit(uint _maxSellTokens) public onlyOwner {
-        sellTokens.max = _maxSellTokens;
+    function setMaxSellLimit(uint _maxSellLimit) public onlyOwner {
+        require(_maxSellLimit >= MIN_MAXIMUM_TOKENS_SELL);
+        sellLimit.max = _maxSellLimit;
     }
 
     // 01-emission end
@@ -270,7 +281,7 @@ contract ComplexBank is Pausable,BankI {
             return true;
 
         uint256 cryptoAmount = buyOrders[_orderID].orderAmount;
-        uint256 tokensAmount = cryptoAmount.mul(cryptoFiatRateBuy).div(100);
+        uint256 tokensAmount = cryptoAmount.mul(cryptoFiatRateBuy).div(RATE_MULTIPLIER);
         address recipientAddress = buyOrders[_orderID].recipientAddress;
         uint256 maxRate = buyOrders[_orderID].rateLimit;
 
@@ -329,7 +340,7 @@ contract ComplexBank is Pausable,BankI {
         address recipientAddress = sellOrders[_orderID].recipientAddress;
         address senderAddress = sellOrders[_orderID].senderAddress;
         uint256 tokensAmount = sellOrders[_orderID].orderAmount;
-        uint256 cryptoAmount = tokensAmount.mul(100).div(cryptoFiatRateSell);
+        uint256 cryptoAmount = tokensAmount.mul(RATE_MULTIPLIER).div(cryptoFiatRateSell);
         uint256 minRate = sellOrders[_orderID].rateLimit;
 
         if ((minRate != 0) && (cryptoFiatRateSell < minRate)) {
@@ -483,8 +494,8 @@ contract ComplexBank is Pausable,BankI {
     address public firstOracle = 0x0;
     //address lastOracle = 0x0;
 
-    uint256 public cryptoFiatRateBuy = 100;
-    uint256 public cryptoFiatRateSell = 100;
+    uint256 public cryptoFiatRateBuy = 1000;
+    uint256 public cryptoFiatRateSell = 1000;
     uint256 public cryptoFiatRate;
     uint256 public buyFee = 0;
     uint256 public sellFee = 0;
@@ -516,7 +527,7 @@ contract ComplexBank is Pausable,BankI {
         for (address current = firstOracle; current != 0x0; current = oracles[current].next) {
             OracleData memory currentOracleData = oracles[current];
             OracleI currentOracle = OracleI(current);
-            if ((currentOracleData.enabled) && (currentOracle.rate() != 0) && (currentOracle.queryId() == 0x0)) 
+            if ((currentOracleData.enabled) && (currentOracle.rate() != 0) && (currentOracle.waitQuery() == false)) 
                 numOracles++;
         }
         
@@ -560,15 +571,15 @@ contract ComplexBank is Pausable,BankI {
         require((_buyFee >= buyFeeLimit.min) && (_buyFee <= buyFeeLimit.max));
         require((_sellFee >= sellFeeLimit.min) && (_sellFee <= sellFeeLimit.max));
 
-        if (buyFee != _buyFee) {
-            uint256 maximalOracleRate = cryptoFiatRateBuy.mul(10000).mul(1000).div(10000 + buyFee);
-            buyFee = _buyFee;
-            cryptoFiatRateBuy = maximalOracleRate.mul(10000 + buyFee).div(10000000);
-        }
         if (sellFee != _sellFee) {
-            uint256 minimalOracleRate = cryptoFiatRateSell.mul(10000).mul(1000).div(10000 - sellFee);
+            uint256 maximalOracleRate = cryptoFiatRateSell.mul(RATE_MULTIPLIER).mul(REVERSE_PERCENT).div(RATE_MULTIPLIER * REVERSE_PERCENT + sellFee);
             sellFee = _sellFee;
-            cryptoFiatRateSell = minimalOracleRate.mul(10000 - sellFee).div(10000000);
+            cryptoFiatRateSell = maximalOracleRate.mul(RATE_MULTIPLIER * REVERSE_PERCENT + sellFee).div(RATE_MULTIPLIER * REVERSE_PERCENT);
+        }
+        if (buyFee != _buyFee) {
+            uint256 minimalOracleRate = cryptoFiatRateBuy.mul(RATE_MULTIPLIER * REVERSE_PERCENT).div(RATE_MULTIPLIER * REVERSE_PERCENT - buyFee);
+            buyFee = _buyFee;
+            cryptoFiatRateBuy = minimalOracleRate.mul(RATE_MULTIPLIER * REVERSE_PERCENT - buyFee).div(RATE_MULTIPLIER * REVERSE_PERCENT);
         }
     }
     
@@ -680,7 +691,7 @@ contract ComplexBank is Pausable,BankI {
         for (address cur = firstOracle; cur != 0x0; cur = oracles[cur].next) {
             if (oracles[cur].enabled) {
                 OracleI currentOracle = OracleI(cur);
-                if (currentOracle.queryId() == 0x0) {
+                if (currentOracle.waitQuery() == false) {
                     bool updateRateReturned = currentOracle.updateRate();
                     if (updateRateReturned)
                         OracleTouched(cur, oracles[cur].name);
@@ -700,7 +711,7 @@ contract ComplexBank is Pausable,BankI {
         for (address cur = firstOracle; cur != 0x0; cur = oracles[cur].next) {
             if (oracles[cur].enabled) {
                 OracleI currentOracle = OracleI(cur);
-                if (currentOracle.queryId() != 0x0) {
+                if (currentOracle.waitQuery() != false) {
                     // если оракул ждёт 10 минут и больше
                     if (currentOracle.updateTime() < now - 10 minutes) {
                         currentOracle.clearState(); // но не ждать
@@ -729,15 +740,15 @@ contract ComplexBank is Pausable,BankI {
             OracleData memory currentOracleData = oracles[cur];
             OracleI currentOracle = OracleI(cur);
             uint256 _rate = currentOracle.rate();
-            if ((currentOracleData.enabled) && (currentOracle.queryId() == 0x0) && (_rate != 0)) {
+            if ((currentOracleData.enabled) && (currentOracle.waitQuery() == false) && (_rate != 0)) {
                 minimalRate = Math.min256(_rate, minimalRate);    
                 maximalRate = Math.max256(_rate, maximalRate);
            }
         } // foreach oracles
 
         uint256 middleRate = minimalRate.add(maximalRate).div(2);
-        cryptoFiatRateSell = minimalRate.sub(minimalRate.mul(sellFee).div(100).div(100));
-        cryptoFiatRateBuy = maximalRate.add(maximalRate.mul(buyFee).div(100).div(100));
+        cryptoFiatRateBuy = minimalRate.sub(minimalRate.mul(buyFee).div(REVERSE_PERCENT).div(RATE_MULTIPLIER));
+        cryptoFiatRateSell = maximalRate.add(maximalRate.mul(sellFee).div(REVERSE_PERCENT).div(RATE_MULTIPLIER));
         cryptoFiatRate = middleRate;
         timeCalcRates = now;
     }
