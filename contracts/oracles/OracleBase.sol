@@ -43,7 +43,7 @@ contract OracleBase is Ownable, usingOraclize, OracleI {
     /**
      * @dev Constructor.
      */
-    function OracleBase(address _bankAddress) public {
+    function OracleBase(address _bankAddress) {
         oraclize_setProof(proofType_TLSNotary | proofStorage_IPFS);
         bankAddress = _bankAddress;
         BankSet(_bankAddress);
