@@ -121,6 +121,7 @@ contract ComplexBank is Pausable,BankI {
      * @param _minBuyInWei - min buy sum in Wei.
      */
     function setMinBuyLimit(uint _minBuyInWei) public onlyOwner {
+        require(_minBuyInWei <= MAX_MINIMUM_BUY);
         buyEther.min = _minBuyInWei;
     }
 
@@ -129,6 +130,7 @@ contract ComplexBank is Pausable,BankI {
      * @param _maxBuyInWei - max buy sum in Wei.
      */
     function setMaxBuyLimit(uint _maxBuyInWei) public onlyOwner {
+        require(_maxBuyInWei >= MIN_MAXIMUM_BUY);
         buyEther.max = _maxBuyInWei;
     }
 
@@ -137,6 +139,7 @@ contract ComplexBank is Pausable,BankI {
      * @param _minSellTokens - min sell tokens.
      */
     function setMinSellLimit(uint _minSellTokens) public onlyOwner {
+        require(_minSellTokens <= MAX_MINIMUM_TOKENS_SELL);
         sellTokens.min = _minSellTokens;
     }
     /**
@@ -144,6 +147,7 @@ contract ComplexBank is Pausable,BankI {
      * @param _maxSellTokens - max sell tokens.
      */
     function setMaxSellLimit(uint _maxSellTokens) public onlyOwner {
+        require(_maxSellTokens >= MIN_MAXIMUM_TOKENS_SELL);
         sellTokens.max = _maxSellTokens;
     }
 
@@ -429,6 +433,11 @@ contract ComplexBank is Pausable,BankI {
     uint256 constant COUNT_EVENT_ORACLES = MIN_READY_ORACLES + 1;
     uint256 constant MIN_RELEVANCE_PERIOD = 5 minutes;
     uint256 constant MAX_RELEVANCE_PERIOD = 48 hours;
+    uint256 constant MAX_MINIMUM_BUY = 100 ether;
+    uint256 constant MIN_MAXIMUM_BUY = 100 ether;
+    uint256 constant MAX_MINIMUM_TOKENS_SELL = 100 * 10**18;
+    uint256 constant MIN_MAXIMUM_TOKENS_SELL = 100 * 10**18;
+
     uint256 public relevancePeriod = 24 hours; // Время актуальности курса
 
     struct OracleData {
