@@ -188,6 +188,13 @@ contract ComplexBank is Pausable,BankI {
     }
 
     /**
+     * @dev Gets the possible refund amount for owner
+     */
+    function getBalanceEther(address _address) public view onlyOwner returns (uint256) {
+        return balanceEther[_address];
+    }
+
+    /**
      * @dev Cancels buy order.
      * @param _orderID The ID of order.
      */

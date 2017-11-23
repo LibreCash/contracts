@@ -143,10 +143,10 @@ contract('ComplexBank', function(accounts) {
             let bank = await ComplexBank.deployed();
             let cash = await LibreCash.deployed();
 
-            let before = parseInt(await bank.getBalanceEther());
+            let before = parseInt(await bank.getBalanceEther(owner));
             await bank.createBuyOrder(acc1, 10, {from: owner, value: web3.toWei(3,'ether')});
             await bank.processBuyQueue(0);
-            let after = parseInt(await bank.getBalanceEther());
+            let after = parseInt(await bank.getBalanceEther(owner));
 
             assert.equal(before + parseInt(web3.toWei(3,'ether')), after, "Don't mint cash with rate");
         });
@@ -203,7 +203,7 @@ contract('ComplexBank', function(accounts) {
             await bank.processBuyQueue(0);
             
             let before = parseInt(web3.eth.getBalance(owner));
-            let amount = parseInt(await bank.getBalanceEther());
+            let amount = parseInt(await bank.getBalanceEther(owner));
             await bank.getEther();
             let after = parseInt(web3.eth.getBalance(owner));
 
