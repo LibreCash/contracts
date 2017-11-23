@@ -33,8 +33,8 @@ contract ComplexBank is Pausable,BankI {
     }
 
     // Limits start
-    Limit public buyEther = Limit(0, 99999 * 1 ether);
-    Limit public sellTokens = Limit(0, 99999 * 1 ether);
+    Limit public buyLimit = Limit(0, 99999 * 1 ether);
+    Limit public sellLimit = Limit(0, 99999 * 1 ether);
     // Limits end
 
     /**
@@ -52,7 +52,7 @@ contract ComplexBank is Pausable,BankI {
      * @param _rateLimit Max affordable buying rate, 0 to allow all.
      */
     function createBuyOrder(address _address, uint256 _rateLimit) payable public whenNotPaused {
-        require((msg.value > buyEther.min) && (msg.value < buyEther.max));
+        require((msg.value > buyLimit.min) && (msg.value < buyLimit.max));
         require(_address != 0x0);
         if (buyNextOrder == buyOrders.length) {
             buyOrders.length += 1;
@@ -82,7 +82,7 @@ contract ComplexBank is Pausable,BankI {
      * @param _rateLimit Min affordable selling rate, 0 to allow all.
      */
     function createSellOrder(address _address, uint256 _tokensCount, uint256 _rateLimit) public whenNotPaused {
-        require((_tokensCount > sellTokens.min) && (_tokensCount < sellTokens.max));
+        require((_tokensCount > sellLimit.min) && (_tokensCount < sellLimit.max));
         require(_address != 0x0);
         address tokenOwner = msg.sender;
         require(_tokensCount <= libreToken.balanceOf(tokenOwner));
@@ -122,7 +122,7 @@ contract ComplexBank is Pausable,BankI {
      */
     function setMinBuyLimit(uint _minBuyInWei) public onlyOwner {
         require(_minBuyInWei <= MAX_MINIMUM_BUY);
-        buyEther.min = _minBuyInWei;
+        buyLimit.min = _minBuyInWei;
     }
 
     /**
@@ -131,24 +131,24 @@ contract ComplexBank is Pausable,BankI {
      */
     function setMaxBuyLimit(uint _maxBuyInWei) public onlyOwner {
         require(_maxBuyInWei >= MIN_MAXIMUM_BUY);
-        buyEther.max = _maxBuyInWei;
+        buyLimit.max = _maxBuyInWei;
     }
 
     /**
      * @dev Sets min sell tokens amount.
-     * @param _minSellTokens - min sell tokens.
+     * @param _minSellLimit - min sell tokens.
      */
-    function setMinSellLimit(uint _minSellTokens) public onlyOwner {
-        require(_minSellTokens <= MAX_MINIMUM_TOKENS_SELL);
-        sellTokens.min = _minSellTokens;
+    function setMinSellLimit(uint _minSellLimit) public onlyOwner {
+        require(_minSellLimit <= MAX_MINIMUM_TOKENS_SELL);
+        sellLimit.min = _minSellLimit;
     }
     /**
      * @dev Sets max sell tokens amount.
-     * @param _maxSellTokens - max sell tokens.
+     * @param _maxSellLimit - max sell tokens.
      */
-    function setMaxSellLimit(uint _maxSellTokens) public onlyOwner {
-        require(_maxSellTokens >= MIN_MAXIMUM_TOKENS_SELL);
-        sellTokens.max = _maxSellTokens;
+    function setMaxSellLimit(uint _maxSellLimit) public onlyOwner {
+        require(_maxSellLimit >= MIN_MAXIMUM_TOKENS_SELL);
+        sellLimit.max = _maxSellLimit;
     }
 
     // 01-emission end
@@ -488,7 +488,7 @@ contract ComplexBank is Pausable,BankI {
         for (address current = firstOracle; current != 0x0; current = oracles[current].next) {
             OracleData memory currentOracleData = oracles[current];
             OracleI currentOracle = OracleI(current);
-            if ((currentOracleData.enabled) && (currentOracle.rate() != 0) && (currentOracle.queryId() == 0x0)) 
+            if ((currentOracleData.enabled) && (currentOracle.rate() != 0) && (currentOracle.waitQuery() == false)) 
                 numOracles++;
         }
         
@@ -652,7 +652,7 @@ contract ComplexBank is Pausable,BankI {
         for (address cur = firstOracle; cur != 0x0; cur = oracles[cur].next) {
             if (oracles[cur].enabled) {
                 OracleI currentOracle = OracleI(cur);
-                if (currentOracle.queryId() == 0x0) {
+                if (currentOracle.waitQuery() == false) {
                     bool updateRateReturned = currentOracle.updateRate();
                     if (updateRateReturned)
                         OracleTouched(cur, oracles[cur].name);
@@ -672,7 +672,7 @@ contract ComplexBank is Pausable,BankI {
         for (address cur = firstOracle; cur != 0x0; cur = oracles[cur].next) {
             if (oracles[cur].enabled) {
                 OracleI currentOracle = OracleI(cur);
-                if (currentOracle.queryId() != 0x0) {
+                if (currentOracle.waitQuery() != false) {
                     // если оракул ждёт 10 минут и больше
                     if (currentOracle.updateTime() < now - 10 minutes) {
                         currentOracle.clearState(); // но не ждать
@@ -701,7 +701,7 @@ contract ComplexBank is Pausable,BankI {
             OracleData memory currentOracleData = oracles[cur];
             OracleI currentOracle = OracleI(cur);
             uint256 _rate = currentOracle.rate();
-            if ((currentOracleData.enabled) && (currentOracle.queryId() == 0x0) && (_rate != 0)) {
+            if ((currentOracleData.enabled) && (currentOracle.waitQuery() == false) && (_rate != 0)) {
                 minimalRate = Math.min256(_rate, minimalRate);    
                 maximalRate = Math.max256(_rate, maximalRate);
            }

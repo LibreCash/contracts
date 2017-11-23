@@ -172,7 +172,7 @@ contract('ComplexBank', function(accounts) {
             throw new Error("Don't proccessBuyQueue with limit! Order not clear");
         });
 
-        it("cancelBuyOrderAdm", async function() {
+        it("cancelBuyOrderOwner", async function() {
             let bank = await ComplexBank.deployed();
             let cash = await LibreCash.deployed();
 
@@ -181,18 +181,18 @@ contract('ComplexBank', function(accounts) {
             await bank.createBuyOrder(acc2, 10, {from: acc2, value: web3.toWei(3,'ether')});
 
             try {
-                await bank.cancelBuyOrderAdm(1);
+                await bank.cancelBuyOrderOwner(1);
             } catch(e) {
-                throw new Error("Don't work cancelBuyOrderAdm!");
+                throw new Error("Don't work cancelBuyOrderOwner!");
             }
 
             try {
-                await bank.cancelBuyOrderAdm(1);
+                await bank.cancelBuyOrderOwner(1);
             } catch(e) {
                 return true;
             }
 
-            throw new Error("Don't have revert if cancelBuyOrderAdm canceled!");
+            throw new Error("Don't have revert if cancelBuyOrderOwner canceled!");
         });
 
         it("get ether after cancel order", async function() {
@@ -361,7 +361,7 @@ contract('ComplexBank', function(accounts) {
             throw new Error("Don't proccessSelQueue with limit! Order not clear");
         });
 
-        it("cancelSellOrderAdm", async function() {
+        it("cancelSellOrderOwner", async function() {
             let bank = await ComplexBank.deployed();
             let cash = await LibreCash.deployed();
 
@@ -373,18 +373,18 @@ contract('ComplexBank', function(accounts) {
             await bank.createSellOrder(acc2, 1, 90);
 
             try {
-                await bank.cancelSellOrderAdm(1);
+                await bank.cancelSellOrderOwner(1);
             } catch(e) {
-                throw new Error("Don't work cancelSellOrderAdm!");
+                throw new Error("Don't work cancelSellOrderOwner!");
             }
 
             try {
-                await bank.cancelSellOrderAdm(1);
+                await bank.cancelSellOrderOwner(1);
             } catch(e) {
                 return true;
             }
 
-            throw new Error("Don't have revert if cancelSellOrderAdm canceled!");
+            throw new Error("Don't have revert if cancelSellOrderOwner canceled!");
         });
 
     });
@@ -653,49 +653,49 @@ contract('ComplexBank', function(accounts) {
         before("reset limit to zero",async function(){
             let bank = await ComplexBank.deployed();
             await bank.setMinBuyLimit(0);
-            await bank.setMaxBuyLimit(0);
+            await bank.setMaxBuyLimit(web3.toWei(100,'ether'));
             await bank.setMinSellLimit(0);
-            await bank.setMaxSellLimit(0);
-        })
+            await bank.setMaxSellLimit(100 * 10**18);
+        });
         it("Limits equals zero",async function(){
             let bank = await ComplexBank.deployed();
             let limits = {
-                buyLimits: await bank.buyEther.call(),
-                sellLimits: await bank.sellTokens.call()
+                buyLimits: await bank.buyLimit.call(),
+                sellLimits: await bank.sellLimit.call()
             }
-            assert.equal(limits.buyLimits[0],0,"Min buy limit is zero");
-            assert.equal(limits.buyLimits[1],0,"Max buy limit is zero");
-            assert.equal(limits.buyLimits[0],0,"Min sell limit is zero");
-            assert.equal(limits.buyLimits[1],0,"Max sell limit is zero");
+            assert.equal(limits.buyLimits[0],0,"Min buy limit not zero");
+            assert.equal(limits.buyLimits[1],web3.toWei(100,'ether'),"Max buy limit not zero");
+            assert.equal(limits.buyLimits[0],0,"Min sell limit not zero");
+            assert.equal(limits.buyLimits[1],100 * 10**18,"Max sell limit not zero");
             return true;
-        })
+        });
         it("Min buy limit sets properly",async function(){
-            let limitAmount = 123456;
+            let limitAmount = web3.toWei(12,'ether');
             let bank = await ComplexBank.deployed();
             await bank.setMinBuyLimit(limitAmount);
-            let minBuyLimit = (await bank.buyEther.call())[0];
+            let minBuyLimit = (await bank.buyLimit.call())[0];
             assert.equal(minBuyLimit,limitAmount,"Min buy limit set properly");
-        })
+        });
         it("Max buy limit sets properly",async function(){
-            let limitAmount = 654321;
+            let limitAmount = web3.toWei(120,'ether');
             let bank = await ComplexBank.deployed();
             await bank.setMaxBuyLimit(limitAmount);
-            let maxBuyLimit = (await bank.buyEther.call())[1];
+            let maxBuyLimit = (await bank.buyLimit.call())[1];
             assert.equal(maxBuyLimit,limitAmount,"Max buy limit set properly");
-        })
+        });
         it("Min sell limit sets properly",async function(){
             let limitAmount = 201733;
             let bank = await ComplexBank.deployed();
             await bank.setMinSellLimit(limitAmount);
-            let minSellLimit = (await bank.sellTokens.call())[0];
+            let minSellLimit = (await bank.sellLimit.call())[0];
             assert.equal(minSellLimit,limitAmount,"Min sell tokens set properly");
-        })
+        });
         it("Max sell limit sets properly",async function(){
-            let limitAmount = 21224533;
+            let limitAmount = 120 * 10**18;
             let bank = await ComplexBank.deployed();
             await bank.setMaxSellLimit(limitAmount);
-            let maxSellLimit = (await bank.sellTokens.call())[1];
+            let maxSellLimit = (await bank.sellLimit.call())[1];
             assert.equal(maxSellLimit,limitAmount,"Min sell tokens set properly");
-        })
+        });
     });
 });

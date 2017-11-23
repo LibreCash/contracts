@@ -18,7 +18,8 @@ contract OracleMockBase is Ownable {
 
     uint256 public updateTime;
     address public bankAddress;
-    bytes32 public queryId = 0x0;
+    bytes32 queryId = 0x0;
+    bool public waitQuery = false;
     uint256 public minimalUpdateInterval = 5 minutes;
     
     modifier onlyBank() {
@@ -37,14 +38,14 @@ contract OracleMockBase is Ownable {
      * @dev Sets bank address.
      * @param _bankAddress Description.
      */
-    function setBank(address _bankAddress) public {
+    function setBank(address _bankAddress) public onlyOwner {
         bankAddress = _bankAddress;
     }
 
     /**
      * @dev Sends query to oraclize.
      */
-    function updateRate() external returns (bool) {
+    function updateRate() external onlyBank returns (bool) {
         // для тестов отдельно оракула закомментировать 2 след. строки
         require (msg.sender == bankAddress);
         require (now > updateTime + minimalUpdateInterval);
@@ -57,7 +58,8 @@ contract OracleMockBase is Ownable {
         rate = newRate;
     }
 
-    function clearState() public {
+    function clearState() public onlyBank {
         // Do nothing
+        waitQuery = false;
     }
 }
