@@ -93,7 +93,7 @@ contract OracleBase is Ownable, usingOraclize, OracleI {
     function __callback(bytes32 myid, string result, bytes proof) public {
         require(validIds[myid]);
         require(msg.sender == oraclize_cbAddress());
-        rate = Helpers.parseIntRound(result, 2); // save it in storage as $ cents
+        rate = Helpers.parseIntRound(result, 3); // save it in storage as 1/1000 of $
         NewPriceTicker(result);
         delete(validIds[myid]);
         updateTime = now;
