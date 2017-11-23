@@ -422,12 +422,13 @@ contract ComplexBank is Pausable,BankI {
     event OracleNotTouched(address indexed _address, bytes32 name);
     event OracleCallback(address indexed _address, bytes32 name, uint256 result);
     event TextLog(string data);
+    event OracleReadyNearToMin(uint256 count);
 
     uint256 constant MIN_ENABLED_ORACLES = 0; //2;
     uint256 constant MIN_READY_ORACLES = 1; //2;
+    uint256 constant COUNT_EVENT_ORACLES = MIN_READY_ORACLES + 1;
     uint256 constant MIN_RELEVANCE_PERIOD = 5 minutes;
     uint256 constant MAX_RELEVANCE_PERIOD = 48 hours;
-
     uint256 public relevancePeriod = 24 hours; // Время актуальности курса
 
     struct OracleData {
@@ -681,14 +682,13 @@ contract ComplexBank is Pausable,BankI {
      */
     function calcRates() public {
         processWaitingOracles(); // выкинет если есть оракулы, ждущие менее 10 минут
-        require (numReadyOracles() >= MIN_READY_ORACLES);
+        checkContract();
         uint256 minimalRate = 2**256 - 1; // Max for UINT256
         uint256 maximalRate = 0;
         
         for (address cur = firstOracle; cur != 0x0; cur = oracles[cur].next) {
             OracleData memory currentOracleData = oracles[cur];
             OracleI currentOracle = OracleI(cur);
-            // TODO: данные хранятся и в оракуле и в эмиссионном контракте
             uint256 _rate = currentOracle.rate();
             if ((currentOracleData.enabled) && (currentOracle.queryId() == 0x0) && (_rate != 0)) {
                 minimalRate = Math.min256(_rate, minimalRate);    
@@ -712,6 +712,11 @@ contract ComplexBank is Pausable,BankI {
      */
     function checkContract() public {
         // TODO: Добавить проверки
+        uint256 countOracles = numReadyOracles();
+        require (countOracles >= MIN_READY_ORACLES);
+        if (countOracles < COUNT_EVENT_ORACLES) {
+            OracleReadyNearToMin(countOracles);
+        }
     }   
 
     // TODO: change to internal after tests
