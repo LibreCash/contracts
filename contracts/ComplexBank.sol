@@ -109,7 +109,7 @@ contract ComplexBank is Pausable,BankI {
      * @param _rateLimit Max affordable buying rate, 0 to allow all.
      */
     function createBuyOrder(address _address, uint256 _rateLimit) payable public whenNotPaused processingQueuesNotAllowed {
-        require((msg.value > buyEther.min) && (msg.value < buyEther.max));
+        require((msg.value > buyLimit.min) && (msg.value < buyLimit.max));
         require(_address != 0x0);
         if (buyNextOrder == buyOrders.length) {
             buyOrders.length += 1;
@@ -139,7 +139,7 @@ contract ComplexBank is Pausable,BankI {
      * @param _rateLimit Min affordable selling rate, 0 to allow all.
      */
     function createSellOrder(address _address, uint256 _tokensCount, uint256 _rateLimit) public whenNotPaused processingQueuesNotAllowed {
-        require((_tokensCount > sellTokens.min) && (_tokensCount < sellTokens.max));
+        require((_tokensCount > sellLimit.min) && (_tokensCount < sellLimit.max));
         require(_address != 0x0);
         address tokenOwner = msg.sender;
         require(_tokensCount <= libreToken.balanceOf(tokenOwner));
