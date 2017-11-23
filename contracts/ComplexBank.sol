@@ -176,8 +176,6 @@ contract ComplexBank is Pausable,BankI {
      * @dev Sends refund.
      */
     function getEther() public {
-        require(this.balance >= balanceEther[msg.sender]);
-
         if (this.balance < balanceEther[msg.sender]) {
             SendEtherError("У контракта недостаточно средств!");
         } else {
