@@ -101,7 +101,7 @@ contract ComplexBank is Pausable,BankI {
      * @param _address Beneficiar.
      * @param _rateLimit Max affordable buying rate, 0 to allow all.
      */
-    function createBuyOrder(address _address, uint256 _rateLimit) payable public whenNotPaused   {
+    function createBuyOrder(address _address, uint256 _rateLimit) payable public whenNotPaused processingQueuesNotAllowed {
         require((msg.value > buyEther.min) && (msg.value < buyEther.max));
         require(_address != 0x0);
         if (buyNextOrder == buyOrders.length) {
