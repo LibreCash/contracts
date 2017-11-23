@@ -108,4 +108,9 @@ contract OracleBase is Ownable, usingOraclize, OracleI {
        __callback(myid, result, proof);
     }
 
+    /**
+    * @dev Method used for oracle funding   
+    */    
+    function () public payable {}
+
 }
