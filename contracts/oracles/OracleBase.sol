@@ -50,7 +50,7 @@ contract OracleBase is Ownable, usingOraclize, OracleI {
     }
 
     /**
-     * Clears queryId and rate.
+     * Clears queryId, updateTime and rate.
      */
     function clearState() public onlyBank {
         waitQuery = false;
@@ -60,7 +60,7 @@ contract OracleBase is Ownable, usingOraclize, OracleI {
 
     /**
      * @dev Sets bank address.
-     * @param _bankAddress Address of bank contract.
+     * @param _bankAddress Address of the bank contract.
      */
     function setBank(address _bankAddress) public onlyOwner {
         bankAddress = _bankAddress;
@@ -68,10 +68,9 @@ contract OracleBase is Ownable, usingOraclize, OracleI {
     }
 
     /**
-     * @dev Sends query to oraclize.
+     * @dev Requests updating rate from oraclize.
      */
     function updateRate() external onlyBank returns (bool) {
-        // для тестов отдельно оракула закомментировать след. строку
         require (now > updateTime + minUpdateTime);
         if (oraclize_getPrice(oracleConfig.datasource) > this.balance) {
             NewOraclizeQuery("Oraclize query was NOT sent, please add some ETH to cover for the query fee");
@@ -87,8 +86,11 @@ contract OracleBase is Ownable, usingOraclize, OracleI {
 
     /**
     * @dev Oraclize default callback with the proof set.
+    * @param myid The callback ID.
+    * @param result The callback data.
+    * @param proof The oraclize proof bytes.
     */
-   function __callback(bytes32 myid, string result, bytes proof) public {
+    function __callback(bytes32 myid, string result, bytes proof) public {
         require(validIds[myid]);
         require(msg.sender == oraclize_cbAddress());
         rate = Helpers.parseIntRound(result, 2); // save it in storage as $ cents
@@ -100,10 +102,17 @@ contract OracleBase is Ownable, usingOraclize, OracleI {
 
     /**
     * @dev Oraclize default callback without the proof set.
+    * @param myid The callback ID.
+    * @param result The callback data.
     */
-   function __callback(bytes32 myid, string result) public {
+    function __callback(bytes32 myid, string result) public {
        bytes memory proof = new bytes(1);
        __callback(myid, result, proof);
     }
+
+    /**
+    * @dev Method used for oracle funding   
+    */    
+    function () public payable {}
 
 }
