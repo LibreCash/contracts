@@ -1,9 +1,8 @@
 pragma solidity ^0.4.11;
 
 
-import './BasicToken.sol';
-import './ERC20.sol';
-
+import './ERC223_token.sol';
+import './ERC223.sol';
 
 /**
  * @title Standard ERC20 token
@@ -12,7 +11,7 @@ import './ERC20.sol';
  * @dev https://github.com/ethereum/EIPs/issues/20
  * @dev Based on code by FirstBlood: https://github.com/Firstbloodio/token/blob/master/smart_contract/FirstBloodToken.sol
  */
-contract StandardToken is ERC20, BasicToken {
+contract StandardToken is ERC223, ERC223BasicToken {
 
   mapping (address => mapping (address => uint256)) allowed;
 
@@ -34,7 +33,7 @@ contract StandardToken is ERC20, BasicToken {
     balances[_from] = balances[_from].sub(_value);
     balances[_to] = balances[_to].add(_value);
     allowed[_from][msg.sender] = _allowance.sub(_value);
-    Transfer(_from, _to, _value);
+    Transfer(_from, _to, _value, "0x0");
     return true;
   }
 
