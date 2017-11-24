@@ -67,6 +67,7 @@ contract LibreCash is ERC223BasicToken, Ownable {
 
     /**
      * @dev Burns a specific amount of tokens.
+     * @param _burner The account there tokens should be burned.
      * @param _value The amount of token to be burned.
      */
     function burn(address _burner, uint256 _value) onlyBank public {
@@ -78,9 +79,9 @@ contract LibreCash is ERC223BasicToken, Ownable {
 
     /**
     * @dev Reject all ERC23 compatible tokens
-    * @param from_ address The address that is transferring the tokens
-    * @param value_ uint256 the amount of the specified token
-    * @param data_ Bytes The data passed from the caller.
+    * @param from_ The address that is transferring the tokens
+    * @param value_ the amount of the specified token
+    * @param data_ The data passed from the caller.
     */
     function tokenFallback(address from_, uint256 value_, bytes data_) external {
         revert();
