@@ -35,7 +35,7 @@ contract ComplexBank is Pausable,BankI {
     // отводим 20 минут для calcRates() после requestUpdateRates()
     uint256 constant MAX_CALCRATES_PERIOD = 20 minutes;
     // отводим час на разбор очередей после requestUpdateRates(), MAX_CALCRATES_PERIOD включён сюда
-    uint256 constant MAX_PROCESSQUEUES_PERIOD = 10 minutes;
+    uint256 constant MAX_PROCESSQUEUES_PERIOD = 60 minutes;
 
     uint256 constant REVERSE_PERCENT = 100;
     uint256 constant RATE_MULTIPLIER = 1000; // doubling in oracleBase __callback as parseIntRound(..., 3) as 3
@@ -44,7 +44,7 @@ contract ComplexBank is Pausable,BankI {
     uint256 constant MAX_MINIMUM_TOKENS_SELL = 400 * 100 * 10**18; // 100 ether * 400 usd/eth
     uint256 constant MIN_MAXIMUM_TOKENS_SELL = 400 * 100 * 10**18; // 100 ether * 400 usd/eth
 
-    uint256 public relevancePeriod = 1 minutes; // Минимальное время между calcRates() прошлого раунда
+    uint256 public relevancePeriod = 23 hours; // Минимальное время между calcRates() прошлого раунда
                                                // и requestUpdateRates() следующего
 
     uint256 public timeUpdateRequest = 0; // the time of requestUpdateRates()
