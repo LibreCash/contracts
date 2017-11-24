@@ -220,8 +220,8 @@ contract ComplexBank is Pausable,BankI {
         uint256 rateLimit;
     }
 
-    OrderData[] public buyOrders; // очередь ордеров на покупку
-    OrderData[] public sellOrders; // очередь ордеров на продажу
+    OrderData[] private buyOrders; // очередь ордеров на покупку
+    OrderData[] private sellOrders; // очередь ордеров на продажу
     uint256 buyOrderIndex = 0; // Хранит первый номер ордера
     uint256 sellOrderIndex = 0;
     uint256 buyNextOrder = 0; // Хранит следующий за последним номер ордера
