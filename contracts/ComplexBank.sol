@@ -30,12 +30,12 @@ contract ComplexBank is Pausable,BankI {
     uint256 constant MIN_ENABLED_ORACLES = 0; //2;
     uint256 constant MIN_READY_ORACLES = 1; //2;
     uint256 constant COUNT_EVENT_ORACLES = MIN_READY_ORACLES + 1;
-    uint256 constant MIN_RELEVANCE_PERIOD = 5 minutes;
+    uint256 constant MIN_RELEVANCE_PERIOD = 1 minutes;
     uint256 constant MAX_RELEVANCE_PERIOD = 48 hours;
     // отводим 20 минут для calcRates() после requestUpdateRates()
     uint256 constant MAX_CALCRATES_PERIOD = 20 minutes;
     // отводим час на разбор очередей после requestUpdateRates(), MAX_CALCRATES_PERIOD включён сюда
-    uint256 constant MAX_PROCESSQUEUES_PERIOD = 1 hours;
+    uint256 constant MAX_PROCESSQUEUES_PERIOD = 10 minutes;
 
     uint256 constant REVERSE_PERCENT = 100;
     uint256 constant RATE_MULTIPLIER = 1000; // doubling in oracleBase __callback as parseIntRound(..., 3) as 3
@@ -44,11 +44,14 @@ contract ComplexBank is Pausable,BankI {
     uint256 constant MAX_MINIMUM_TOKENS_SELL = 400 * 100 * 10**18; // 100 ether * 400 usd/eth
     uint256 constant MIN_MAXIMUM_TOKENS_SELL = 400 * 100 * 10**18; // 100 ether * 400 usd/eth
 
-    uint256 public relevancePeriod = 23 hours; // Минимальное время между calcRates() прошлого раунда
+    uint256 public relevancePeriod = 1 minutes; // Минимальное время между calcRates() прошлого раунда
                                                // и requestUpdateRates() следующего
 
-    uint256 timeUpdateRequest = 0; // the time of requestUpdateRates()
-    uint256 timeCalcRates = 0; // the time of emission round (when calcRates() done)
+    uint256 public timeUpdateRequest = 0; // the time of requestUpdateRates()
+    uint256 public timeCalcRates = 0; // the time of emission round (when calcRates() done)
+
+    function timeSinceUpdateRequest() public view returns (uint256) {return now - timeUpdateRequest; }
+    function timeSinceCalcRates() public view returns (uint256) {return now - timeCalcRates; }
 
     struct Limit {
         uint256 min;
@@ -224,8 +227,8 @@ contract ComplexBank is Pausable,BankI {
     OrderData[] public sellOrders; // очередь ордеров на продажу
     uint256 buyOrderIndex = 0; // Хранит первый номер ордера
     uint256 sellOrderIndex = 0;
-    uint256 buyNextOrder = 0; // Хранит следующий за последним номер ордера
-    uint256 sellNextOrder = 0;
+    uint256 public buyNextOrder = 0; // Хранит следующий за последним номер ордера
+    uint256 public sellNextOrder = 0;
 
     mapping (address => uint256) balanceEther; // возврат средств
 
@@ -328,6 +331,9 @@ contract ComplexBank is Pausable,BankI {
             buyOrderIndex = 0;
             buyNextOrder = 0;
             OrderQueueGeneral("Очередь ордеров на покупку очищена");
+            if (sellNextOrder == 0) {
+                timeUpdateRequest = 0;
+            }
         } else {
             buyOrderIndex = _limit;
             OrderQueueGeneral("Очередь ордеров на покупку очищена не до конца");
@@ -380,6 +386,9 @@ contract ComplexBank is Pausable,BankI {
             sellOrderIndex = 0;
             sellNextOrder = 0;
             OrderQueueGeneral("Очередь ордеров на продажу очищена");
+            if (buyNextOrder == 0) {
+                timeUpdateRequest = 0;
+            }
         } else {
             sellOrderIndex = _limit;
             OrderQueueGeneral("Очередь ордеров на продажу очищена не до конца");
