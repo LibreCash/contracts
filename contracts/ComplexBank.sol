@@ -30,7 +30,7 @@ contract ComplexBank is Pausable,BankI {
     uint256 constant MIN_ENABLED_ORACLES = 0; //2;
     uint256 constant MIN_READY_ORACLES = 1; //2;
     uint256 constant COUNT_EVENT_ORACLES = MIN_READY_ORACLES + 1;
-    uint256 constant MIN_RELEVANCE_PERIOD = 5 minutes;
+    uint256 constant MIN_RELEVANCE_PERIOD = 1 minutes;
     uint256 constant MAX_RELEVANCE_PERIOD = 48 hours;
     // отводим 20 минут для calcRates() после requestUpdateRates()
     uint256 constant MAX_CALCRATES_PERIOD = 20 minutes;
