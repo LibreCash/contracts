@@ -30,12 +30,12 @@ contract ComplexBank is Pausable,BankI {
     uint256 constant MIN_ENABLED_ORACLES = 0; //2;
     uint256 constant MIN_READY_ORACLES = 1; //2;
     uint256 constant COUNT_EVENT_ORACLES = MIN_READY_ORACLES + 1;
-    uint256 constant MIN_RELEVANCE_PERIOD = 1 minutes;
+    uint256 constant MIN_RELEVANCE_PERIOD = 0 seconds; //1 minutes;
     uint256 constant MAX_RELEVANCE_PERIOD = 48 hours;
     // отводим 20 минут для calcRates() после requestUpdateRates()
     uint256 constant MAX_CALCRATES_PERIOD = 20 minutes;
     // отводим час на разбор очередей после requestUpdateRates(), MAX_CALCRATES_PERIOD включён сюда
-    uint256 constant MAX_PROCESSQUEUES_PERIOD = 1 hours;
+    uint256 constant MAX_PROCESSQUEUES_PERIOD = 1 seconds; //1 hours;
 
     uint256 constant REVERSE_PERCENT = 100;
     uint256 constant RATE_MULTIPLIER = 1000; // doubling in oracleBase __callback as parseIntRound(..., 3) as 3
@@ -60,17 +60,23 @@ contract ComplexBank is Pausable,BankI {
     Limit public sellLimit = Limit(0, 99999 * 1 ether);
     // Limits end
 
-    modifier afterRelevancePeriod() {
+    //modifier afterRelevancePeriod() {
         // с последнего запуска calcRates() должно пройти relevancePeriod или больше
         // напомню, calcRates() запускается не позже, чем MAX_CALCRATES_PERIOD (20 мин.) от requestUpdateRates()
-        require(now >= timeCalcRates + relevancePeriod);
-        _;
+        //require(now >= timeCalcRates + relevancePeriod);
+        //_;
+    //}
+    function afterRelevancePeriod() view returns (bool) {
+        return (now >= timeCalcRates + relevancePeriod);
     }
 
-    modifier calcRatesAllowed() {
+    //modifier calcRatesAllowed() {
         // с последнего запуска updateRates() не должно пройти больше чем MAX_CALCRATES_PERIOD (20 мин.)
-        require(now <= timeUpdateRequest + MAX_CALCRATES_PERIOD);
-        _;
+        //require(now <= timeUpdateRequest + MAX_CALCRATES_PERIOD);
+        //_;
+    //}
+    function calcRatesAllowed() view returns (bool) {
+        return (now <= timeUpdateRequest + MAX_CALCRATES_PERIOD);
     }
 
     modifier processingQueuesAllowed() {
@@ -315,6 +321,7 @@ contract ComplexBank is Pausable,BankI {
      * @param _limit Order limit.
      */
     function processBuyQueue(uint256 _limit) public whenNotPaused processingQueuesAllowed returns (bool) {
+        return true;
         if ((_limit == 0) || ((buyOrderIndex + _limit) > buyNextOrder))
             _limit = buyNextOrder;
         else
@@ -499,7 +506,6 @@ contract ComplexBank is Pausable,BankI {
     mapping (address => OracleData) public oracles;
     uint256 countOracles;
     address public firstOracle = 0x0;
-    //address lastOracle = 0x0;
 
     uint256 public cryptoFiatRateBuy = 1000;
     uint256 public cryptoFiatRateSell = 1000;
@@ -694,11 +700,12 @@ contract ComplexBank is Pausable,BankI {
     /**
      * @dev Requests every enabled oracle to get the actual rate.
      */
-    function requestUpdateRates() public afterRelevancePeriod {
+    function requestUpdateRates() public { //afterRelevancePeriod {
+        require(afterRelevancePeriod());
         for (address cur = firstOracle; cur != 0x0; cur = oracles[cur].next) {
             if (oracles[cur].enabled) {
                 OracleI currentOracle = OracleI(cur);
-                if (currentOracle.waitQuery() == false) {
+                if (!currentOracle.waitQuery()) {
                     bool updateRateReturned = currentOracle.updateRate();
                     if (updateRateReturned)
                         OracleTouched(cur, oracles[cur].name);
@@ -718,7 +725,7 @@ contract ComplexBank is Pausable,BankI {
         for (address cur = firstOracle; cur != 0x0; cur = oracles[cur].next) {
             if (oracles[cur].enabled) {
                 OracleI currentOracle = OracleI(cur);
-                if (currentOracle.waitQuery() != false) {
+                if (currentOracle.waitQuery()) {
                     // если оракул ждёт 10 минут и больше
                     if (currentOracle.updateTime() < now - 10 minutes) {
                         currentOracle.clearState(); // но не ждать
@@ -737,7 +744,8 @@ contract ComplexBank is Pausable,BankI {
     /**
      * @dev Processes data from ready oracles to get rates.
      */
-    function calcRates() public calcRatesAllowed {
+    function calcRates() public { //calcRatesAllowed {
+        require(calcRatesAllowed());
         processWaitingOracles(); // выкинет если есть оракулы, ждущие менее 10 минут
         checkContract();
         uint256 minimalRate = 2**256 - 1; // Max for UINT256
