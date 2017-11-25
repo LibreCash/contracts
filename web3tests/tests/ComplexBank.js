@@ -1,6 +1,7 @@
 monitor = ['getBuyOrdersCount', 'getSellOrdersCount', 'getToken', 'numEnabledOracles', 'numReadyOracles', 'getOracleCount',
            'buyFee', 'sellFee', 'cryptoFiatRate', 'cryptoFiatRateBuy', 'cryptoFiatRateSell',
-           'relevancePeriod',
+           'relevancePeriod', 'timeUpdateRequest', 'timeSinceUpdateRequest', 'timeCalcRates', 'timeSinceCalcRates',
+           'buyNextOrder', 'sellNextOrder'
            //'getBuyOrder(1)', 'getSellOrder(1)'
         ];
 
@@ -43,6 +44,28 @@ async function testSetRelevancePeriod() {
     var setRelevancePeriodAddr = await contract.setRelevancePeriod(500);
     var setRelevancePeriodMined = await web3.eth.getTransactionReceiptMined(setRelevancePeriodAddr);
     logTransactionByReceipt(setRelevancePeriodAddr);
+}
+
+async function testBuyQueue() {
+    var processBuyQueueAddr = await contract.processBuyQueue(0, {gas: 500000});
+    await web3.eth.getTransactionReceiptMined(processBuyQueueAddr);
+    logTransactionByReceipt(processBuyQueueAddr);
+}
+
+async function testAdd3BuyOrders() {
+    console.log("Buy orders: ", contract.getBuyOrdersCount().toNumber());
+    var addOrderAddr1 = await contract.createBuyOrder(web3.eth.defaultAccount, 0,
+        {from: web3.eth.defaultAccount, value: web3.toWei(0.1, 'ether'), gas: 500000});
+    var addOrderAddr2 = await contract.createBuyOrder(web3.eth.defaultAccount, 0,
+        {from: web3.eth.defaultAccount, value: web3.toWei(0.2, 'ether'), gas: 500000});
+    var addOrderAddr3 = await contract.createBuyOrder(web3.eth.defaultAccount, 0,
+        {from: web3.eth.defaultAccount, value: web3.toWei(0.01, 'ether'), gas: 500000});
+    await web3.eth.getTransactionReceiptMined(addOrderAddr1);
+    await web3.eth.getTransactionReceiptMined(addOrderAddr2);
+    await web3.eth.getTransactionReceiptMined(addOrderAddr3);
+        logTransactionByReceipt(addOrderAddr3);
+    console.log("Buy orders: ", contract.getBuyOrdersCount().toNumber());
+    
 }
 
 main();
