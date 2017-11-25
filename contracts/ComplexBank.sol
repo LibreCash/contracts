@@ -26,6 +26,7 @@ contract ComplexBank is Pausable,BankI {
     event RateBuyLimitOverflow(uint256 cryptoFiatRateBuy, uint256 maxRate, uint256 cryptoAmount);
     event RateSellLimitOverflow(uint256 cryptoFiatRateSell, uint256 maxRate, uint256 tokenAmount);
     event CouldntCancelOrder(bool ifBuy, uint256 orderID);
+    event SendEtherError(string error, address _addr);
     
     uint256 constant MIN_ENABLED_ORACLES = 0; //2;
     uint256 constant MIN_READY_ORACLES = 1; //2;
@@ -236,9 +237,14 @@ contract ComplexBank is Pausable,BankI {
      * @dev Sends refund.
      */
     function getEther() public {
-        require(this.balance >= balanceEther[msg.sender]);
-        if (msg.sender.send(balanceEther[msg.sender]))
-            balanceEther[msg.sender] = 0;
+        if (this.balance < balanceEther[msg.sender]) {
+            SendEtherError("У контракта недостаточно средств!", msg.sender);
+        } else {
+            if (msg.sender.send(balanceEther[msg.sender]))
+                balanceEther[msg.sender] = 0;
+            else
+                SendEtherError("Ошибка при отправке средств!", msg.sender);
+        }
     }
 
     /**
