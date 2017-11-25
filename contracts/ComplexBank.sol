@@ -87,7 +87,7 @@ contract ComplexBank is Pausable,BankI {
             (cryptoFiatRateBuy != 0) &&
             (cryptoFiatRateSell != 0)
         );
-        require(timeUpdateRequest < timeCalcRates); // должен быть посчитан курс, а не просто запрошены данные
+        require(timeUpdateRequest <= timeCalcRates); // должен быть посчитан курс, а не просто запрошены данные
         _;
     }
 
@@ -335,6 +335,13 @@ contract ComplexBank is Pausable,BankI {
             buyOrderIndex = 0;
             buyNextOrder = 0;
             OrderQueueGeneral("Очередь ордеров на покупку очищена");
+            // если обе очереди пустые
+            if (sellNextOrder == 0) {
+                // сбрасываем счетчик из requestUpdateRates(),
+                // по которому определяем период блокировки создания ордеров.
+                // счётчик из calcRates() важно оставить: по нему определяем следующий запуск requestUpdateRates()
+                timeUpdateRequest = 0;
+            }
         } else {
             buyOrderIndex = _limit;
             OrderQueueGeneral("Очередь ордеров на покупку очищена не до конца");
@@ -387,6 +394,12 @@ contract ComplexBank is Pausable,BankI {
             sellOrderIndex = 0;
             sellNextOrder = 0;
             OrderQueueGeneral("Очередь ордеров на продажу очищена");
+            if (buyNextOrder == 0) {
+                // сбрасываем счетчик из requestUpdateRates(),
+                // по которому определяем период блокировки создания ордеров.
+                // счётчик из calcRates() важно оставить: по нему определяем следующий запуск requestUpdateRates()
+                timeUpdateRequest = 0;
+            }
         } else {
             sellOrderIndex = _limit;
             OrderQueueGeneral("Очередь ордеров на продажу очищена не до конца");
