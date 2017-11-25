@@ -33,9 +33,7 @@ contract ComplexBank is Pausable,BankI {
     uint256 constant COUNT_EVENT_ORACLES = MIN_READY_ORACLES + 1;
     uint256 constant MIN_RELEVANCE_PERIOD = 1 minutes;
     uint256 constant MAX_RELEVANCE_PERIOD = 48 hours;
-    // отводим 20 минут для calcRates() после requestUpdateRates()
-    uint256 constant MAX_CALCRATES_PERIOD = 20 minutes;
-    // отводим час на разбор очередей после requestUpdateRates(), MAX_CALCRATES_PERIOD включён сюда
+    // отводим час на calcRates и на разбор очередей после requestUpdateRates()
     uint256 constant MAX_PROCESSQUEUES_PERIOD = 60 minutes;
 
     uint256 constant REVERSE_PERCENT = 100;
@@ -50,11 +48,10 @@ contract ComplexBank is Pausable,BankI {
 
 // после тестов убрать public
     uint256 public timeUpdateRequest = 0; // the time of requestUpdateRates()
-    uint256 public timeCalcRates = 0; // the time of emission round (when calcRates() done)
+    bool public calcRatesDone = false;
 
 // for tests
     function timeSinceUpdateRequest() public view returns (uint256) {return now - timeUpdateRequest; }
-    function timeSinceCalcRates() public view returns (uint256) {return now - timeCalcRates; }
 // end for tests
 
     struct Limit {
@@ -70,13 +67,7 @@ contract ComplexBank is Pausable,BankI {
     modifier afterRelevancePeriod() {
         // с последнего запуска calcRates() должно пройти relevancePeriod или больше
         // напомню, calcRates() запускается не позже, чем MAX_CALCRATES_PERIOD (20 мин.) от requestUpdateRates()
-        require(now >= timeCalcRates + relevancePeriod);
-        _;
-    }
-
-    modifier calcRatesAllowed() {
-        // с последнего запуска updateRates() не должно пройти больше чем MAX_CALCRATES_PERIOD (20 мин.)
-        require(now <= timeUpdateRequest + MAX_CALCRATES_PERIOD);
+        require(now >= timeUpdateRequest + relevancePeriod);
         _;
     }
 
@@ -88,7 +79,6 @@ contract ComplexBank is Pausable,BankI {
             (cryptoFiatRateBuy != 0) &&
             (cryptoFiatRateSell != 0)
         );
-        require(timeUpdateRequest < timeCalcRates); // должен быть посчитан курс, а не просто запрошены данные
         _;
     }
 
@@ -231,8 +221,10 @@ contract ComplexBank is Pausable,BankI {
     OrderData[] private sellOrders; // очередь ордеров на продажу
     uint256 buyOrderIndex = 0; // Хранит первый номер ордера
     uint256 sellOrderIndex = 0;
+    // public for tests only
     uint256 public buyNextOrder = 0; // Хранит следующий за последним номер ордера
     uint256 public sellNextOrder = 0;
+    // end public for tests only
 
     mapping (address => uint256) balanceEther; // возврат средств
 
@@ -341,7 +333,7 @@ contract ComplexBank is Pausable,BankI {
             buyNextOrder = 0;
             OrderQueueGeneral("Очередь ордеров на покупку очищена");
             if (sellNextOrder == 0) {
-                timeUpdateRequest = 0;
+                calcRatesDone = false;
             }
         } else {
             buyOrderIndex = _limit;
@@ -396,7 +388,7 @@ contract ComplexBank is Pausable,BankI {
             sellNextOrder = 0;
             OrderQueueGeneral("Очередь ордеров на продажу очищена");
             if (buyNextOrder == 0) {
-                timeUpdateRequest = 0;
+                calcRatesDone = false;
             }
         } else {
             sellOrderIndex = _limit;
@@ -726,6 +718,7 @@ contract ComplexBank is Pausable,BankI {
             }
         } // foreach oracles
         timeUpdateRequest = now;
+        calcRatesDone = false;
         OraclesTouched("Запущено обновление курсов");
     }
 
@@ -755,7 +748,7 @@ contract ComplexBank is Pausable,BankI {
     /**
      * @dev Processes data from ready oracles to get rates.
      */
-    function calcRates() public calcRatesAllowed {
+    function calcRates() public processingQueuesAllowed {
         processWaitingOracles(); // выкинет если есть оракулы, ждущие менее 10 минут
         checkContract();
         uint256 minimalRate = 2**256 - 1; // Max for UINT256
@@ -775,7 +768,7 @@ contract ComplexBank is Pausable,BankI {
         cryptoFiatRateBuy = minimalRate.sub(minimalRate.mul(buyFee).div(REVERSE_PERCENT).div(RATE_MULTIPLIER));
         cryptoFiatRateSell = maximalRate.add(maximalRate.mul(sellFee).div(REVERSE_PERCENT).div(RATE_MULTIPLIER));
         cryptoFiatRate = middleRate;
-        timeCalcRates = now;
+        calcRatesDone = true;
     }
     // 04-spread calc end
 
