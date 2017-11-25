@@ -48,11 +48,14 @@ contract ComplexBank is Pausable,BankI {
     uint256 public relevancePeriod = 23 hours; // Минимальное время между calcRates() прошлого раунда
                                                // и requestUpdateRates() следующего
 
+// после тестов убрать public
     uint256 public timeUpdateRequest = 0; // the time of requestUpdateRates()
     uint256 public timeCalcRates = 0; // the time of emission round (when calcRates() done)
 
+// for tests
     function timeSinceUpdateRequest() public view returns (uint256) {return now - timeUpdateRequest; }
     function timeSinceCalcRates() public view returns (uint256) {return now - timeCalcRates; }
+// end for tests
 
     struct Limit {
         uint256 min;
