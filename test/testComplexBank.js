@@ -31,7 +31,7 @@ contract('ComplexBank', function(accounts) {
             let bank = await ComplexBank.deployed();
             let cash = await LibreCash.deployed();
 
-            await bank.setRelevancePeriod(3);
+            await bank.setRelevancePeriod(1);
 
             await cash.setBankAddress(bank.address);
             
@@ -68,7 +68,7 @@ contract('ComplexBank', function(accounts) {
             */
            // try {
                
-               console.log(await bank.afterRelevancePeriod());
+                console.log(await bank.afterRelevancePeriod());
                 await bank.requestUpdateRates();
             //} catch(e) {
                 //console.log("requestUpdateRates()");
@@ -76,6 +76,7 @@ contract('ComplexBank', function(accounts) {
             //try {
                 console.log(await bank.calcRatesAllowed());
                 await bank.calcRates();
+                sleep(1000);
             //} catch(e) {
                 //console.log("calcRate()");
             //}

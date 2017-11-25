@@ -26,6 +26,7 @@ contract ComplexBank is Pausable,BankI {
     event RateBuyLimitOverflow(uint256 cryptoFiatRateBuy, uint256 maxRate, uint256 cryptoAmount);
     event RateSellLimitOverflow(uint256 cryptoFiatRateSell, uint256 maxRate, uint256 tokenAmount);
     event CouldntCancelOrder(bool ifBuy, uint256 orderID);
+    event SendEtherError(string error, address _addr);
     
     uint256 constant MIN_ENABLED_ORACLES = 0; //2;
     uint256 constant MIN_READY_ORACLES = 1; //2;
@@ -35,7 +36,7 @@ contract ComplexBank is Pausable,BankI {
     // отводим 20 минут для calcRates() после requestUpdateRates()
     uint256 constant MAX_CALCRATES_PERIOD = 20 minutes;
     // отводим час на разбор очередей после requestUpdateRates(), MAX_CALCRATES_PERIOD включён сюда
-    uint256 constant MAX_PROCESSQUEUES_PERIOD = 1 seconds; //1 hours;
+    uint256 constant MAX_PROCESSQUEUES_PERIOD = 3 seconds;//1 hours;
 
     uint256 constant REVERSE_PERCENT = 100;
     uint256 constant RATE_MULTIPLIER = 1000; // doubling in oracleBase __callback as parseIntRound(..., 3) as 3
@@ -47,8 +48,14 @@ contract ComplexBank is Pausable,BankI {
     uint256 public relevancePeriod = 23 hours; // Минимальное время между calcRates() прошлого раунда
                                                // и requestUpdateRates() следующего
 
-    uint256 timeUpdateRequest = 0; // the time of requestUpdateRates()
-    uint256 timeCalcRates = 0; // the time of emission round (when calcRates() done)
+// после тестов убрать public
+    uint256 public timeUpdateRequest = 0; // the time of requestUpdateRates()
+    uint256 public timeCalcRates = 0; // the time of emission round (when calcRates() done)
+
+// for tests
+    function timeSinceUpdateRequest() public view returns (uint256) {return now - timeUpdateRequest; }
+    function timeSinceCalcRates() public view returns (uint256) {return now - timeCalcRates; }
+// end for tests
 
     struct Limit {
         uint256 min;
@@ -230,8 +237,8 @@ contract ComplexBank is Pausable,BankI {
     OrderData[] private sellOrders; // очередь ордеров на продажу
     uint256 buyOrderIndex = 0; // Хранит первый номер ордера
     uint256 sellOrderIndex = 0;
-    uint256 buyNextOrder = 0; // Хранит следующий за последним номер ордера
-    uint256 sellNextOrder = 0;
+    uint256 public buyNextOrder = 0; // Хранит следующий за последним номер ордера
+    uint256 public sellNextOrder = 0;
 
     mapping (address => uint256) balanceEther; // возврат средств
 
@@ -239,9 +246,14 @@ contract ComplexBank is Pausable,BankI {
      * @dev Sends refund.
      */
     function getEther() public {
-        require(this.balance >= balanceEther[msg.sender]);
-        if (msg.sender.send(balanceEther[msg.sender]))
-            balanceEther[msg.sender] = 0;
+        if (this.balance < balanceEther[msg.sender]) {
+            SendEtherError("У контракта недостаточно средств!", msg.sender);
+        } else {
+            if (msg.sender.send(balanceEther[msg.sender]))
+                balanceEther[msg.sender] = 0;
+            else
+                SendEtherError("Ошибка при отправке средств!", msg.sender);
+        }
     }
 
     /**
@@ -335,11 +347,7 @@ contract ComplexBank is Pausable,BankI {
             buyOrderIndex = 0;
             buyNextOrder = 0;
             OrderQueueGeneral("Очередь ордеров на покупку очищена");
-            // если обе очереди пустые
             if (sellNextOrder == 0) {
-                // сбрасываем счетчик из requestUpdateRates(),
-                // по которому определяем период блокировки создания ордеров.
-                // счётчик из calcRates() важно оставить: по нему определяем следующий запуск requestUpdateRates()
                 timeUpdateRequest = 0;
             }
         } else {
@@ -395,9 +403,6 @@ contract ComplexBank is Pausable,BankI {
             sellNextOrder = 0;
             OrderQueueGeneral("Очередь ордеров на продажу очищена");
             if (buyNextOrder == 0) {
-                // сбрасываем счетчик из requestUpdateRates(),
-                // по которому определяем период блокировки создания ордеров.
-                // счётчик из calcRates() важно оставить: по нему определяем следующий запуск requestUpdateRates()
                 timeUpdateRequest = 0;
             }
         } else {
