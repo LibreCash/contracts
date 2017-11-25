@@ -33,7 +33,7 @@ contract StandardToken is ERC223, ERC223BasicToken {
     balances[_from] = balances[_from].sub(_value);
     balances[_to] = balances[_to].add(_value);
     allowed[_from][msg.sender] = _allowance.sub(_value);
-    Transfer(_from, _to, _value, "0x0");
+    Transfer(_from, _to, _value, 0);
     return true;
   }
 

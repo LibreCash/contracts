@@ -54,7 +54,7 @@ contract LibreCash is StandardToken, Ownable {
         totalSupply = totalSupply.add(_amount);
         balances[_to] = balances[_to].add(_amount);
         Mint(_to, _amount);
-        Transfer(address(this), _to, _amount, "0x0");
+        Transfer(address(this), _to, _amount, 0);
         return true;
     }
 

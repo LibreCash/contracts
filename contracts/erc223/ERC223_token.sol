@@ -24,6 +24,7 @@ contract ERC223BasicToken is ERC223Interface {
      * @param _data  Transaction metadata.
      */
     function transfer(address _to, uint _value, bytes _data) {
+        require(_to != address(0));
         // Standard function transfer similar to ERC20 transfer with no _data .
         // Added due to backwards compatibility reasons .
         uint codeLength;
@@ -39,7 +40,7 @@ contract ERC223BasicToken is ERC223Interface {
             ERC223ReceivingContract receiver = ERC223ReceivingContract(_to);
             receiver.tokenFallback(msg.sender, _value, _data);
         }
-        Transfer(msg.sender, _to, _value, _data);
+        Transfer(msg.sender, _to, _value, _data.length);
     }
     
     /**
@@ -52,6 +53,8 @@ contract ERC223BasicToken is ERC223Interface {
      * @param _value Amount of tokens that will be transferred.
      */
     function transfer(address _to, uint _value) {
+        require(_to != address(0));
+        
         uint codeLength;
         bytes memory empty;
 
@@ -66,7 +69,7 @@ contract ERC223BasicToken is ERC223Interface {
             ERC223ReceivingContract receiver = ERC223ReceivingContract(_to);
             receiver.tokenFallback(msg.sender, _value, empty);
         }
-        Transfer(msg.sender, _to, _value, empty);
+        Transfer(msg.sender, _to, _value, 0);
     }
 
     
