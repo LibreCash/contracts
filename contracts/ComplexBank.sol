@@ -327,16 +327,18 @@ contract ComplexBank is Pausable,BankI {
      * @param _limit Order limit.
      */
     function processBuyQueue(uint256 _limit) public whenNotPaused processingQueuesAllowed returns (bool) {
-        if ((_limit == 0) || ((buyOrderIndex + _limit) > buyNextOrder))
-            _limit = buyNextOrder;
-        else
-            _limit += buyOrderIndex;
+        uint256 lastOrder;
 
-        for (uint i = buyOrderIndex; i < _limit; i++) {
+        if ((_limit == 0) || ((buyOrderIndex + _limit) > buyNextOrder))
+            lastOrder = buyNextOrder;
+        else
+            lastOrder = buyOrderIndex + _limit;
+
+        for (uint i = buyOrderIndex; i < lastOrder; i++) {
             processBuyOrder(i);
         }
 
-        if (_limit == buyNextOrder) {
+        if (lastOrder == buyNextOrder) {
             buyOrderIndex = 0;
             buyNextOrder = 0;
             OrderQueueGeneral("Очередь ордеров на покупку очищена");
@@ -344,7 +346,7 @@ contract ComplexBank is Pausable,BankI {
                 timeUpdateRequest = 0;
             }
         } else {
-            buyOrderIndex = _limit;
+            buyOrderIndex = lastOrder;
             OrderQueueGeneral("Очередь ордеров на покупку очищена не до конца");
         }
         
@@ -381,17 +383,18 @@ contract ComplexBank is Pausable,BankI {
      * @param _limit Order limit.
      */
     function processSellQueue(uint256 _limit) public whenNotPaused processingQueuesAllowed returns (bool) {
+        uint256 lastOrder;
+
         if ((_limit == 0) || ((sellOrderIndex + _limit) > sellNextOrder)) 
-            _limit = sellNextOrder;
+            lastOrder = sellNextOrder;
         else
-            _limit += sellOrderIndex;
+            lastOrder = sellOrderIndex + _limit;
                 
-        // TODO: при нарушении данного условия контракт окажется сломан. Нарушение малореально, но всё же найти выход
-        for (uint i = sellOrderIndex; i < _limit; i++) {
+        for (uint i = sellOrderIndex; i < lastOrder; i++) {
             processSellOrder(i);
         }
 
-        if (_limit == sellNextOrder) {
+        if (lastOrder == sellNextOrder) {
             sellOrderIndex = 0;
             sellNextOrder = 0;
             OrderQueueGeneral("Очередь ордеров на продажу очищена");
@@ -399,7 +402,7 @@ contract ComplexBank is Pausable,BankI {
                 timeUpdateRequest = 0;
             }
         } else {
-            sellOrderIndex = _limit;
+            sellOrderIndex = lastOrder;
             OrderQueueGeneral("Очередь ордеров на продажу очищена не до конца");
         }
         
