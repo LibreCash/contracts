@@ -64,7 +64,7 @@ contract ComplexBank is Pausable,BankI {
     Limit public sellLimit = Limit(0, 99999 * 1 ether);
     // Limits end
 
-    modifier afterRelevancePeriod() {
+    modifier canStartEmission() {
         // с последнего запуска calcRates() должно пройти relevancePeriod или больше
         // напомню, calcRates() запускается не позже, чем MAX_CALCRATES_PERIOD (20 мин.) от requestUpdateRates()
         require(now >= timeUpdateRequest + relevancePeriod);
@@ -722,7 +722,7 @@ contract ComplexBank is Pausable,BankI {
     /**
      * @dev Requests every enabled oracle to get the actual rate.
      */
-    function requestUpdateRates() public afterRelevancePeriod {
+    function requestUpdateRates() public canStartEmission {
         for (address cur = firstOracle; cur != 0x0; cur = oracles[cur].next) {
             if (oracles[cur].enabled) {
                 OracleI currentOracle = OracleI(cur);
