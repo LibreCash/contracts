@@ -5,6 +5,5 @@ contract OracleMockTest is OracleMockBase {
     function OracleMockTest() {
         oracleName = "Test (Mocked Oracle, 28000)";
         rate = 100;
-        minimalUpdateInterval = 0;
     }
 }

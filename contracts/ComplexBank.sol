@@ -11,7 +11,7 @@ import "./interfaces/I_Bank.sol";
 
 contract ComplexBank is Pausable,BankI {
     using SafeMath for uint256;
-    address tokenAddress;
+    address public tokenAddress;
     LibreTokenI libreToken;
     
     // TODO; Check that all evetns used and delete unused
@@ -328,16 +328,18 @@ contract ComplexBank is Pausable,BankI {
      * @param _limit Order limit.
      */
     function processBuyQueue(uint256 _limit) public whenNotPaused queueProcessingAllowed returns (bool) {
-        if ((_limit == 0) || ((buyOrderIndex + _limit) > buyNextOrder))
-            _limit = buyNextOrder;
-        else
-            _limit += buyOrderIndex;
+        uint256 lastOrder;
 
-        for (uint i = buyOrderIndex; i < _limit; i++) {
+        if ((_limit == 0) || ((buyOrderIndex + _limit) > buyNextOrder))
+            lastOrder = buyNextOrder;
+        else
+            lastOrder = buyOrderIndex + _limit;
+
+        for (uint i = buyOrderIndex; i < lastOrder; i++) {
             processBuyOrder(i);
         }
 
-        if (_limit == buyNextOrder) {
+        if (lastOrder == buyNextOrder) {
             buyOrderIndex = 0;
             buyNextOrder = 0;
             OrderQueueGeneral("Очередь ордеров на покупку очищена");
@@ -345,7 +347,7 @@ contract ComplexBank is Pausable,BankI {
                 queueProcessingFinished = true;
             }
         } else {
-            buyOrderIndex = _limit;
+            buyOrderIndex = lastOrder;
             OrderQueueGeneral("Очередь ордеров на покупку очищена не до конца");
         }
         
@@ -382,17 +384,18 @@ contract ComplexBank is Pausable,BankI {
      * @param _limit Order limit.
      */
     function processSellQueue(uint256 _limit) public whenNotPaused queueProcessingAllowed returns (bool) {
+        uint256 lastOrder;
+
         if ((_limit == 0) || ((sellOrderIndex + _limit) > sellNextOrder)) 
-            _limit = sellNextOrder;
+            lastOrder = sellNextOrder;
         else
-            _limit += sellOrderIndex;
+            lastOrder = sellOrderIndex + _limit;
                 
-        // TODO: при нарушении данного условия контракт окажется сломан. Нарушение малореально, но всё же найти выход
-        for (uint i = sellOrderIndex; i < _limit; i++) {
+        for (uint i = sellOrderIndex; i < lastOrder; i++) {
             processSellOrder(i);
         }
 
-        if (_limit == sellNextOrder) {
+        if (lastOrder == sellNextOrder) {
             sellOrderIndex = 0;
             sellNextOrder = 0;
             OrderQueueGeneral("Очередь ордеров на продажу очищена");
@@ -400,7 +403,7 @@ contract ComplexBank is Pausable,BankI {
                 queueProcessingFinished = true;
             }
         } else {
-            sellOrderIndex = _limit;
+            sellOrderIndex = lastOrder;
             OrderQueueGeneral("Очередь ордеров на продажу очищена не до конца");
         }
         
@@ -474,13 +477,6 @@ contract ComplexBank is Pausable,BankI {
         }
         return count;
     }
-
-    /**
-     * @dev Gets current token address.
-     */
-    function getToken() public view returns (address) {
-        return tokenAddress;
-    }
     
     /**
      * @dev Attaches token contract.
@@ -516,7 +512,7 @@ contract ComplexBank is Pausable,BankI {
     }
 
     mapping (address => OracleData) public oracles;
-    uint256 countOracles;
+    uint256 public countOracles;
     address public firstOracle = 0x0;
     //address lastOracle = 0x0;
 
@@ -576,13 +572,6 @@ contract ComplexBank is Pausable,BankI {
     function setQueuePeriod(uint256 _period) public onlyOwner {
         require(_period < MAX_QUEUE_PERIOD);
         queuePeriod = _period;
-    }
-
-    /**
-     * @dev Returns oracle count.
-     */
-    function getOracleCount() public view returns (uint) {
-        return countOracles;
     }
 
     /**
@@ -710,10 +699,7 @@ contract ComplexBank is Pausable,BankI {
      */
     function fundOracles(uint256 _fundToOracle) public payable onlyOwner {
         for (address cur = firstOracle; cur != 0x0; cur = oracles[cur].next) {
-            if (oracles[cur].enabled == false) 
-                continue; // Ignore disabled oracles
-
-            if (cur.balance < _fundToOracle) {
+            if (oracles[cur].enabled && cur.balance < _fundToOracle) {
                cur.transfer(_fundToOracle.sub(cur.balance));
             }
         }
@@ -722,13 +708,29 @@ contract ComplexBank is Pausable,BankI {
     /**
      * @dev Requests every enabled oracle to get the actual rate.
      */
-    function requestUpdateRates() public canStartEmission {
+    function requestUpdateRates() public payable canStartEmission {
+        uint sendValue = msg.value;
+
+        for (address curr = firstOracle; curr != 0x0; curr = oracles[curr].next) {
+            if (oracles[curr].enabled) {
+                OracleI oracle = OracleI(curr);
+                uint callPrice = oracle.getPrice();
+                if (curr.balance < callPrice) {
+                    if (callPrice <= sendValue) {
+                        curr.transfer(callPrice);
+                        sendValue -= callPrice;
+                    } else 
+                        revert();
+                }
+            }
+            
+        } 
+
         for (address cur = firstOracle; cur != 0x0; cur = oracles[cur].next) {
             if (oracles[cur].enabled) {
                 OracleI currentOracle = OracleI(cur);
-                if (currentOracle.waitQuery() == false) {
-                    bool updateRateReturned = currentOracle.updateRate();
-                    if (updateRateReturned)
+                if ( !currentOracle.waitQuery()) {
+                    if (currentOracle.updateRate())
                         OracleTouched(cur, oracles[cur].name);
                     else
                         OracleNotTouched(cur, oracles[cur].name);
@@ -791,9 +793,7 @@ contract ComplexBank is Pausable,BankI {
     // 04-spread calc end
 
     // 05-monitoring start
-    uint256 constant TARGET_VIOLANCE_ALERT = 20000; // 200% Проценты при котором происходит уведомление
-    uint256 constant STOCK_VIOLANCE_ALERT = 3000; // 30% процент разницы между биржами при котором происходит уведомление
-
+    
     /**
      * @dev Checks the contract state.
      */
@@ -806,16 +806,6 @@ contract ComplexBank is Pausable,BankI {
         }
     }   
 
-    // TODO: change to internal after tests
-    /**
-     * @dev Gets target rate violence.
-     * @param _newCryptoFiatRate New rate.
-     */
-    function targetRateViolance(uint256 _newCryptoFiatRate) public view returns(uint256) {
-        uint256 maxRate = Math.max256(cryptoFiatRate, _newCryptoFiatRate);
-        uint256 minRate = Math.min256(cryptoFiatRate, _newCryptoFiatRate);
-        return percent(maxRate, minRate, 2);
-    }
     // 05-monitoring end
     
     // 08-helper methods start
