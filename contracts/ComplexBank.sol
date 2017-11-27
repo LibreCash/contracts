@@ -11,7 +11,7 @@ import "./interfaces/I_Bank.sol";
 
 contract ComplexBank is Pausable,BankI {
     using SafeMath for uint256;
-    address tokenAddress;
+    address public tokenAddress;
     LibreTokenI libreToken;
     
     // TODO; Check that all evetns used and delete unused
@@ -473,13 +473,6 @@ contract ComplexBank is Pausable,BankI {
         }
         return count;
     }
-
-    /**
-     * @dev Gets current token address.
-     */
-    function getToken() public view returns (address) {
-        return tokenAddress;
-    }
     
     /**
      * @dev Attaches token contract.
@@ -515,7 +508,7 @@ contract ComplexBank is Pausable,BankI {
     }
 
     mapping (address => OracleData) public oracles;
-    uint256 countOracles;
+    uint256 public countOracles;
     address public firstOracle = 0x0;
     //address lastOracle = 0x0;
 
@@ -566,13 +559,6 @@ contract ComplexBank is Pausable,BankI {
     function setRelevancePeriod(uint256 _period) public onlyOwner {
         require((_period > MIN_RELEVANCE_PERIOD) && (_period < MAX_RELEVANCE_PERIOD));
         relevancePeriod = _period;
-    }
-
-    /**
-     * @dev Returns oracle count.
-     */
-    function getOracleCount() public view returns (uint) {
-        return countOracles;
     }
 
     /**
@@ -780,9 +766,7 @@ contract ComplexBank is Pausable,BankI {
     // 04-spread calc end
 
     // 05-monitoring start
-    uint256 constant TARGET_VIOLANCE_ALERT = 20000; // 200% Проценты при котором происходит уведомление
-    uint256 constant STOCK_VIOLANCE_ALERT = 3000; // 30% процент разницы между биржами при котором происходит уведомление
-
+    
     /**
      * @dev Checks the contract state.
      */
@@ -795,16 +779,6 @@ contract ComplexBank is Pausable,BankI {
         }
     }   
 
-    // TODO: change to internal after tests
-    /**
-     * @dev Gets target rate violence.
-     * @param _newCryptoFiatRate New rate.
-     */
-    function targetRateViolance(uint256 _newCryptoFiatRate) public view returns(uint256) {
-        uint256 maxRate = Math.max256(cryptoFiatRate, _newCryptoFiatRate);
-        uint256 minRate = Math.min256(cryptoFiatRate, _newCryptoFiatRate);
-        return percent(maxRate, minRate, 2);
-    }
     // 05-monitoring end
     
     // 08-helper methods start
