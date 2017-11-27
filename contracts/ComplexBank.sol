@@ -765,8 +765,8 @@ contract ComplexBank is Pausable,BankI {
         } // foreach oracles
 
         cryptoFiatRate = minimalRate.add(maximalRate).div(2);
-        cryptoFiatRateBuy = minimalRate.sub(minimalRate.mul(buyFee).div(REVERSE_PERCENT).div(RATE_MULTIPLIER));
-        cryptoFiatRateSell = maximalRate.add(maximalRate.mul(sellFee).div(REVERSE_PERCENT).div(RATE_MULTIPLIER));
+        cryptoFiatRateBuy = minimalRate.mul(REVERSE_PERCENT * RATE_MULTIPLIER - buyFee).div(REVERSE_PERCENT).div(RATE_MULTIPLIER);
+        cryptoFiatRateSell = maximalRate.mul(REVERSE_PERCENT * RATE_MULTIPLIER + sellFee).div(REVERSE_PERCENT).div(RATE_MULTIPLIER);
         calcRatesDone = true;
     }
     // 04-spread calc end
