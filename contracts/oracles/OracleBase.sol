@@ -71,7 +71,7 @@ contract OracleBase is Ownable, usingOraclize, OracleI {
      * @dev Requests updating rate from oraclize.
      */
     function updateRate() external onlyBank returns (bool) {
-        require (now > updateTime + minUpdateTime);
+        //require (now > updateTime + minUpdateTime);
         if (oraclize_getPrice(oracleConfig.datasource) > this.balance) {
             NewOraclizeQuery("Oraclize query was NOT sent, please add some ETH to cover for the query fee");
             return false;

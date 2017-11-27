@@ -47,8 +47,8 @@ contract OracleMockBase is Ownable {
      */
     function updateRate() external onlyBank returns (bool) {
         // для тестов отдельно оракула закомментировать 2 след. строки
-        require (msg.sender == bankAddress);
-        require (now > updateTime + minimalUpdateInterval);
+        //require (msg.sender == bankAddress);
+        //require (now > updateTime + minimalUpdateInterval);
         updateTime = now;
         NewPriceTicker(rate);
         return true;
