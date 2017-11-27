@@ -31,10 +31,8 @@ contract ComplexBank is Pausable,BankI {
     uint256 constant MIN_ENABLED_ORACLES = 0; //2;
     uint256 constant MIN_READY_ORACLES = 1; //2;
     uint256 constant COUNT_EVENT_ORACLES = MIN_READY_ORACLES + 1;
-    uint256 constant MIN_RELEVANCE_PERIOD = 1 minutes;
     uint256 constant MAX_RELEVANCE_PERIOD = 48 hours;
-    // отводим час на calcRates и на разбор очередей после requestUpdateRates()
-    uint256 constant MAX_PROCESSQUEUES_PERIOD = 60 minutes;
+    uint256 constant MAX_QUEUE_PERIOD = 60 minutes;
 
     uint256 constant REVERSE_PERCENT = 100;
     uint256 constant RATE_MULTIPLIER = 1000; // doubling in oracleBase __callback as parseIntRound(..., 3) as 3
@@ -45,10 +43,12 @@ contract ComplexBank is Pausable,BankI {
 
     uint256 public relevancePeriod = 23 hours; // Минимальное время между calcRates() прошлого раунда
                                                // и requestUpdateRates() следующего
+    uint256 public queuePeriod = 60 minutes;
 
 // после тестов убрать public
     uint256 public timeUpdateRequest = 0; // the time of requestUpdateRates()
     bool public calcRatesDone = false;
+    bool public queueProcessingFinished = false;
 
 // for tests
     function timeSinceUpdateRequest() public view returns (uint256) {return now - timeUpdateRequest; }
@@ -71,23 +71,32 @@ contract ComplexBank is Pausable,BankI {
         _;
     }
 
-    modifier processingQueuesAllowed() {
-        // курс актуален для разбора очередей
-        // когда: когда с момента requestUpdateRates() не успело пройти MAX_PROCESSQUEUES_PERIOD (1 час)
+    modifier orderCreationAllowed() {
         require(
-            (now <= timeUpdateRequest + MAX_PROCESSQUEUES_PERIOD) &&
-            (cryptoFiatRateBuy != 0) &&
-            (cryptoFiatRateSell != 0)
+            (now >= timeUpdateRequest + queuePeriod) ||
+            (queueProcessingFinished)
         );
         _;
     }
 
-    modifier processingQueuesNotAllowed() {
-        // время, когда обработка очередей запрещена
-        // используется для разрешения создания ордеров в любое время кроме времени обработки очереди
-        // время обр. очереди это когда с момента requestUpdateRates() не успело пройти MAX_PROCESSQUEUES_PERIOD (1 час)
-        require(now > timeUpdateRequest + MAX_PROCESSQUEUES_PERIOD);
-        // даже если курс не посчитан пока что, то всё равно на паузе будет. С момента запроса данных у оракулов
+    modifier calcRatesAllowed() {
+        require(
+            (now < timeUpdateRequest + queuePeriod)
+        );
+        _;
+    }
+
+    modifier queueProcessingAllowed() {
+        require(
+            (now < timeUpdateRequest + queuePeriod) &&
+            (!queueProcessingFinished) &&
+            (calcRatesDone)
+        );
+        _;
+    }
+
+    modifier positiveRates() {
+        require((cryptoFiatRateBuy != 0) && (cryptoFiatRateSell != 0));
         _;
     }
 
@@ -105,7 +114,7 @@ contract ComplexBank is Pausable,BankI {
      * @param _address Beneficiar.
      * @param _rateLimit Max affordable buying rate, 0 to allow all.
      */
-    function createBuyOrder(address _address, uint256 _rateLimit) payable public whenNotPaused processingQueuesNotAllowed {
+    function createBuyOrder(address _address, uint256 _rateLimit) payable public whenNotPaused orderCreationAllowed {
         require((msg.value > buyLimit.min) && (msg.value < buyLimit.max));
         require(_address != 0x0);
         if (buyNextOrder == buyOrders.length) {
@@ -125,7 +134,7 @@ contract ComplexBank is Pausable,BankI {
      * @dev Creates buy order.
      * @param _rateLimit Max affordable buying rate, 0 to allow all.
      */
-    function createBuyOrder(uint256 _rateLimit) payable public whenNotPaused processingQueuesNotAllowed {
+    function createBuyOrder(uint256 _rateLimit) payable public whenNotPaused orderCreationAllowed {
         createBuyOrder(msg.sender, _rateLimit);
     }
 
@@ -135,7 +144,7 @@ contract ComplexBank is Pausable,BankI {
      * @param _tokensCount Amount of tokens to sell.
      * @param _rateLimit Min affordable selling rate, 0 to allow all.
      */
-    function createSellOrder(address _address, uint256 _tokensCount, uint256 _rateLimit) public whenNotPaused processingQueuesNotAllowed {
+    function createSellOrder(address _address, uint256 _tokensCount, uint256 _rateLimit) public whenNotPaused orderCreationAllowed {
         require((_tokensCount > sellLimit.min) && (_tokensCount < sellLimit.max));
         require(_address != 0x0);
         address tokenOwner = msg.sender;
@@ -159,14 +168,14 @@ contract ComplexBank is Pausable,BankI {
      * @param _tokensCount Amount of tokens to sell.
      * @param _rateLimit Min affordable selling rate, 0 to allow all.
      */
-    function createSellOrder(uint256 _tokensCount, uint256 _rateLimit) public whenNotPaused processingQueuesNotAllowed {
+    function createSellOrder(uint256 _tokensCount, uint256 _rateLimit) public whenNotPaused orderCreationAllowed {
         createSellOrder(msg.sender, _tokensCount, _rateLimit);
     }
 
     /**
      * @dev Fallback function.
      */
-    function () whenNotPaused processingQueuesNotAllowed payable external {
+    function () whenNotPaused orderCreationAllowed payable external {
         createBuyOrder(msg.sender, 0); // 0 - без ценовых ограничений
     }
 
@@ -310,7 +319,7 @@ contract ComplexBank is Pausable,BankI {
     /**
      * @dev Fill buy orders queue (alias with no order limit).
      */
-    function processBuyQueue() public whenNotPaused processingQueuesAllowed returns (bool) {
+    function processBuyQueue() public whenNotPaused queueProcessingAllowed returns (bool) {
         return processBuyQueue(0);
     }
 
@@ -318,7 +327,7 @@ contract ComplexBank is Pausable,BankI {
      * @dev Fill buy orders queue.
      * @param _limit Order limit.
      */
-    function processBuyQueue(uint256 _limit) public whenNotPaused processingQueuesAllowed returns (bool) {
+    function processBuyQueue(uint256 _limit) public whenNotPaused queueProcessingAllowed returns (bool) {
         if ((_limit == 0) || ((buyOrderIndex + _limit) > buyNextOrder))
             _limit = buyNextOrder;
         else
@@ -333,7 +342,7 @@ contract ComplexBank is Pausable,BankI {
             buyNextOrder = 0;
             OrderQueueGeneral("Очередь ордеров на покупку очищена");
             if (sellNextOrder == 0) {
-                calcRatesDone = false;
+                queueProcessingFinished = true;
             }
         } else {
             buyOrderIndex = _limit;
@@ -372,7 +381,7 @@ contract ComplexBank is Pausable,BankI {
      * @dev Fill sell orders queue.
      * @param _limit Order limit.
      */
-    function processSellQueue(uint256 _limit) public whenNotPaused processingQueuesAllowed returns (bool) {
+    function processSellQueue(uint256 _limit) public whenNotPaused queueProcessingAllowed returns (bool) {
         if ((_limit == 0) || ((sellOrderIndex + _limit) > sellNextOrder)) 
             _limit = sellNextOrder;
         else
@@ -388,7 +397,7 @@ contract ComplexBank is Pausable,BankI {
             sellNextOrder = 0;
             OrderQueueGeneral("Очередь ордеров на продажу очищена");
             if (buyNextOrder == 0) {
-                calcRatesDone = false;
+                queueProcessingFinished = true;
             }
         } else {
             sellOrderIndex = _limit;
@@ -553,11 +562,20 @@ contract ComplexBank is Pausable,BankI {
 
     /**
      * @dev Lets owner to set relevance period.
-     * @param _period Period between 5 minutes and 48 hours.
+     * @param _period Period up to MAX_RELEVANCE_PERIOD hours.
      */
     function setRelevancePeriod(uint256 _period) public onlyOwner {
-        require((_period > MIN_RELEVANCE_PERIOD) && (_period < MAX_RELEVANCE_PERIOD));
+        require(_period < MAX_RELEVANCE_PERIOD);
         relevancePeriod = _period;
+    }
+
+    /**
+     * @dev Lets owner to set queue period.
+     * @param _period Period up to MAX_QUEUE_PERIOD.
+     */
+    function setQueuePeriod(uint256 _period) public onlyOwner {
+        require(_period < MAX_QUEUE_PERIOD);
+        queuePeriod = _period;
     }
 
     /**
@@ -719,6 +737,7 @@ contract ComplexBank is Pausable,BankI {
         } // foreach oracles
         timeUpdateRequest = now;
         calcRatesDone = false;
+        queueProcessingFinished = false;
         OraclesTouched("Запущено обновление курсов");
     }
 
@@ -748,7 +767,7 @@ contract ComplexBank is Pausable,BankI {
     /**
      * @dev Processes data from ready oracles to get rates.
      */
-    function calcRates() public processingQueuesAllowed {
+    function calcRates() public calcRatesAllowed {
         processWaitingOracles(); // выкинет если есть оракулы, ждущие менее 10 минут
         checkContract();
         uint256 minimalRate = 2**256 - 1; // Max for UINT256
