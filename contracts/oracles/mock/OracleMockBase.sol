@@ -20,6 +20,7 @@ contract OracleMockBase is Ownable {
     address public bankAddress;
     bytes32 queryId = 0x0;
     bool public waitQuery = false;
+    uint price = 10;
     
     modifier onlyBank() {
         require(msg.sender == bankAddress);
@@ -44,8 +45,8 @@ contract OracleMockBase is Ownable {
     /**
      * @dev oraclize getPrice.
      */
-    function getPrice() view public returns (uint) {
-        return 0;
+    function getPrice() public returns (uint) {
+        return price++;
     }
 
     /**
@@ -64,4 +65,9 @@ contract OracleMockBase is Ownable {
     function clearState() public onlyBank {
         waitQuery = false;
     }
+
+    /**
+    * @dev Method used for oracle funding   
+    */    
+    function () public payable {}
 }

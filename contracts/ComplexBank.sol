@@ -709,7 +709,7 @@ contract ComplexBank is Pausable,BankI {
     /**
      * @dev Requests every enabled oracle to get the actual rate.
      */
-    function requestUpdateRates() public afterRelevancePeriod payable {
+    function requestUpdateRates() public payable afterRelevancePeriod  {
         uint sendValue = msg.value;
 
         for (address curr = firstOracle; curr != 0x0; curr = oracles[curr].next) {
