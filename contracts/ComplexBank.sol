@@ -689,10 +689,7 @@ contract ComplexBank is Pausable,BankI {
      */
     function fundOracles(uint256 _fundToOracle) public payable onlyOwner {
         for (address cur = firstOracle; cur != 0x0; cur = oracles[cur].next) {
-            if (oracles[cur].enabled == false) 
-                continue; // Ignore disabled oracles
-
-            if (cur.balance < _fundToOracle) {
+            if (oracles[cur].enabled && cur.balance < _fundToOracle) {
                cur.transfer(_fundToOracle.sub(cur.balance));
             }
         }
@@ -701,13 +698,29 @@ contract ComplexBank is Pausable,BankI {
     /**
      * @dev Requests every enabled oracle to get the actual rate.
      */
-    function requestUpdateRates() public afterRelevancePeriod {
+    function requestUpdateRates() public payable afterRelevancePeriod  {
+        uint sendValue = msg.value;
+
+        for (address curr = firstOracle; curr != 0x0; curr = oracles[curr].next) {
+            if (oracles[curr].enabled ) {
+                OracleI oracle = OracleI(curr);
+                uint callPrice = oracle.getPrice();
+                if (curr.balance < callPrice) {
+                    if (callPrice <= sendValue) {
+                        curr.transfer(callPrice);
+                        sendValue -= callPrice;
+                    } else 
+                        revert();
+                }
+            }
+            
+        } 
+
         for (address cur = firstOracle; cur != 0x0; cur = oracles[cur].next) {
             if (oracles[cur].enabled) {
                 OracleI currentOracle = OracleI(cur);
-                if (currentOracle.waitQuery() == false) {
-                    bool updateRateReturned = currentOracle.updateRate();
-                    if (updateRateReturned)
+                if ( !currentOracle.waitQuery()) {
+                    if (currentOracle.updateRate())
                         OracleTouched(cur, oracles[cur].name);
                     else
                         OracleNotTouched(cur, oracles[cur].name);
