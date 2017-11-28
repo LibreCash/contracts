@@ -31,7 +31,8 @@ contract('ComplexBank', function(accounts) {
             let bank = await ComplexBank.deployed();
             let cash = await LibreCash.deployed();
 
-            await bank.setRelevancePeriod(1);
+            await bank.setRelevancePeriod(3);
+            await bank.setQueuePeriod(3);
 
             await cash.setBankAddress(bank.address);
             
@@ -58,28 +59,17 @@ contract('ComplexBank', function(accounts) {
             try {
                 await bank.unpause();
             } catch(e) {}
-            /*
-            let count = parseInt(await bank.getBuyOrdersCount.call());
-            for (let i = 0; i < count; i++) {
-                try {
-                    await bank.cancelBuyOrderOwner(i);
-                } catch(e) {}
-            }
-            */
-           // try {
-               
-                console.log(await bank.afterRelevancePeriod());
-                await bank.requestUpdateRates();
-            //} catch(e) {
-                //console.log("requestUpdateRates()");
-            //}
-            //try {
-                console.log(await bank.calcRatesAllowed());
-                await bank.calcRates();
-                sleep(1000);
-            //} catch(e) {
-                //console.log("calcRate()");
-            //}
+            
+            console.log("Hello start");
+            console.log(await bank.canStartEmission());
+            await bank.requestUpdateRates({value: web3.toWei(1,'ether')});
+            console.log("end");
+
+            console.log(await bank.calcRatesAllowed());
+            await bank.calcRates();
+            console.log("end");
+            sleep(1000);
+
             try {
                 await bank.processBuyQueue(0);
             } catch(e) {

@@ -65,11 +65,17 @@ contract ComplexBank is Pausable,BankI {
     Limit public sellLimit = Limit(0, 99999 * 1 ether);
     // Limits end
 
+    /*
     modifier canStartEmission() {
         // с последнего запуска calcRates() должно пройти relevancePeriod или больше
         // напомню, calcRates() запускается не позже, чем MAX_CALCRATES_PERIOD (20 мин.) от requestUpdateRates()
         require(now >= timeUpdateRequest + relevancePeriod);
         _;
+    }
+    */
+
+    function canStartEmission() view returns (bool) {
+        return (now >= timeUpdateRequest + relevancePeriod);
     }
 
     modifier orderCreationAllowed() {
@@ -79,14 +85,19 @@ contract ComplexBank is Pausable,BankI {
         );
         _;
     }
-
+    /*
     modifier calcRatesAllowed() {
         require(
             (now < timeUpdateRequest + queuePeriod)
         );
         _;
     }
+    */
+    function calcRatesAllowed() view returns (bool){
+        return (now < timeUpdateRequest + queuePeriod);
+    }
 
+    /*
     modifier queueProcessingAllowed() {
         require(
             (now < timeUpdateRequest + queuePeriod) &&
@@ -94,6 +105,12 @@ contract ComplexBank is Pausable,BankI {
             (calcRatesDone)
         );
         _;
+    }
+    */
+    function queueProcessingAllowed() view returns(bool) {
+        return (now < timeUpdateRequest + queuePeriod) &&
+            (!queueProcessingFinished) &&
+            (calcRatesDone);
     }
 
     modifier positiveRates() {
@@ -320,7 +337,8 @@ contract ComplexBank is Pausable,BankI {
     /**
      * @dev Fill buy orders queue (alias with no order limit).
      */
-    function processBuyQueue() public whenNotPaused queueProcessingAllowed returns (bool) {
+    function processBuyQueue() public whenNotPaused returns (bool) {//queueProcessingAllowed returns (bool) {
+        require(queueProcessingAllowed());
         return processBuyQueue(0);
     }
 
@@ -328,7 +346,8 @@ contract ComplexBank is Pausable,BankI {
      * @dev Fill buy orders queue.
      * @param _limit Order limit.
      */
-    function processBuyQueue(uint256 _limit) public whenNotPaused queueProcessingAllowed returns (bool) {
+    function processBuyQueue(uint256 _limit) public whenNotPaused returns (bool) {//queueProcessingAllowed returns (bool) {
+        require(queueProcessingAllowed());
         uint256 lastOrder;
 
         if ((_limit == 0) || ((buyOrderIndex + _limit) > buyNextOrder))
@@ -384,7 +403,8 @@ contract ComplexBank is Pausable,BankI {
      * @dev Fill sell orders queue.
      * @param _limit Order limit.
      */
-    function processSellQueue(uint256 _limit) public whenNotPaused queueProcessingAllowed returns (bool) {
+    function processSellQueue(uint256 _limit) public whenNotPaused returns (bool) {//queueProcessingAllowed returns (bool) {
+        require(queueProcessingAllowed());
         uint256 lastOrder;
 
         if ((_limit == 0) || ((sellOrderIndex + _limit) > sellNextOrder)) 
@@ -709,7 +729,8 @@ contract ComplexBank is Pausable,BankI {
      * @dev Requests every enabled oracle to get the actual rate.
      */
 
-    function requestUpdateRates() public payable canStartEmission {
+    function requestUpdateRates() public payable {//canStartEmission {
+        require(canStartEmission());
         uint sendValue = msg.value;
 
         for (address curr = firstOracle; curr != 0x0; curr = oracles[curr].next) {
@@ -776,19 +797,19 @@ contract ComplexBank is Pausable,BankI {
         checkContract();
         uint256 minimalRate = 2**256 - 1; // Max for UINT256
         uint256 maximalRate = 0;
-        
+
         for (address cur = firstOracle; cur != 0x0; cur = oracles[cur].next) {
             OracleData memory currentOracleData = oracles[cur];
             OracleI currentOracle = OracleI(cur);
-            uint256 _rate = currentOracle.rate();
-            if ((currentOracleData.enabled) && (currentOracle.waitQuery() == false) && (_rate != 0)) {
-                minimalRate = Math.min256(_rate, minimalRate);    
-                maximalRate = Math.max256(_rate, maximalRate);
-           }
+            //uint256 _rate = currentOracle.rate();
+            //if ((currentOracleData.enabled) && ( !currentOracle.waitQuery()) && (_rate != 0)) {
+            //    minimalRate = Math.min256(_rate, minimalRate);
+            //    maximalRate = Math.max256(_rate, maximalRate);
+            //}
         } // foreach oracles
-
-        cryptoFiatRate = minimalRate.add(maximalRate).div(2);
-        cryptoFiatRateBuy = minimalRate.mul(REVERSE_PERCENT * RATE_MULTIPLIER - buyFee).div(REVERSE_PERCENT).div(RATE_MULTIPLIER);
+        
+        //cryptoFiatRate = minimalRate.add(maximalRate).div(2);
+        //cryptoFiatRateBuy = minimalRate.mul(REVERSE_PERCENT * RATE_MULTIPLIER - buyFee).div(REVERSE_PERCENT).div(RATE_MULTIPLIER);
         cryptoFiatRateSell = maximalRate.mul(REVERSE_PERCENT * RATE_MULTIPLIER + sellFee).div(REVERSE_PERCENT).div(RATE_MULTIPLIER);
         calcRatesDone = true;
     }
