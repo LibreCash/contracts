@@ -1,7 +1,7 @@
-monitor = ['getBuyOrdersCount', 'getSellOrdersCount', 'getToken', 'numEnabledOracles', 'numReadyOracles', 'getOracleCount',
+monitor = ['getBuyOrdersCount', 'getSellOrdersCount', 'numEnabledOracles', 'numReadyOracles', 'countOracles',
            'buyFee', 'sellFee', 'cryptoFiatRate', 'cryptoFiatRateBuy', 'cryptoFiatRateSell',
            'relevancePeriod', 'timeUpdateRequest', 'timeSinceUpdateRequest', 'calcRatesDone', 'queueProcessingFinished',
-           'buyNextOrder', 'sellNextOrder'
+           'buyNextOrder', 'sellNextOrder', 'getOracleDeficit'
            //'getBuyOrder(1)', 'getSellOrder(1)'
         ];
 
@@ -10,25 +10,51 @@ async function main() {
     web3.eth.defaultAccount = web3.eth.coinbase;
 }
 
+async function setFee(x) {
+    var setFeesAddr = await contract.setFees(x, x);
+    var setFeesMined = await web3.eth.getTransactionReceiptMined(setFeesAddr);
+    logTransactionByReceipt(setFeesAddr);
+    console.log("buyFee: " + contract.buyFee().toString(10));
+    console.log("sellFee: " + contract.sellFee().toString(10));
+    console.log("cryptoFiatRateBuy: " + contract.cryptoFiatRateBuy().toString(10));
+    console.log("cryptoFiatRateSell: " + contract.cryptoFiatRateSell().toString(10));
+}
+
 async function testFee() {
+    var fee = parseInt(prompt("buy and sell fees: ", "0"));
     console.log("buyFee: " + contract.buyFee().toString(10));
     console.log("sellFee: " + contract.sellFee().toString(10));
     console.log("cryptoFiatRateBuy: " + contract.cryptoFiatRateBuy().toString(10));
     console.log("cryptoFiatRateSell: " + contract.cryptoFiatRateSell().toString(10));
-    var setFeesAddr = await contract.setFees(500, 500);
-    var setFeesMined = await web3.eth.getTransactionReceiptMined(setFeesAddr);
-    logTransactionByReceipt(setFeesAddr);
+    await setFee(fee);
+}
+
+async function testFeesCascade() {
     console.log("buyFee: " + contract.buyFee().toString(10));
     console.log("sellFee: " + contract.sellFee().toString(10));
     console.log("cryptoFiatRateBuy: " + contract.cryptoFiatRateBuy().toString(10));
     console.log("cryptoFiatRateSell: " + contract.cryptoFiatRateSell().toString(10));
-    var setFeesAddr = await contract.setFees(0, 0);
-    var setFeesMined = await web3.eth.getTransactionReceiptMined(setFeesAddr);
-    logTransactionByReceipt(setFeesAddr);
+    await setFee(500);
+    await setFee(7000);
+    await setFee(1000);
+    await setFee(6000);
+    await setFee(2000);
+    await setFee(5000);
+    await setFee(4000);
+    await setFee(3000);
+    await setFee(500);
+    await setFee(7000);
+    await setFee(0);
+    
+    
 }
 
 async function testRequestUpdateRates() {
-    var requestUpdateRatesAddr = await contract.requestUpdateRates({gas: 500000});
+    var weiStr = prompt('send wei with requestUpdateRates ("." to send current deficit):', "0");
+    var wei = (weiStr == ".") ? (await contract.getOracleDeficit.call()).toNumber() : parseInt(weiStr);
+    console.log("Wei to send: ", wei);
+    var acc1 = web3.eth.accounts[0];
+    var requestUpdateRatesAddr = await contract.requestUpdateRates({from: acc1, value: wei, gas: 500000});
     var requestUpdateRatesMined = await web3.eth.getTransactionReceiptMined(requestUpdateRatesAddr);
     logTransactionByReceipt(requestUpdateRatesAddr);
 }
@@ -40,6 +66,7 @@ async function testCalcRates() {
 }
 
 async function testSetRelevancePeriod() {
+    var period = parseInt(prompt("new relevance period: ", "0"));
     console.log(contract.relevancePeriod().toString(10));
     var setRelevancePeriodAddr = await contract.setRelevancePeriod(500);
     var setRelevancePeriodMined = await web3.eth.getTransactionReceiptMined(setRelevancePeriodAddr);
