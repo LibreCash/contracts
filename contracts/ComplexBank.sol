@@ -596,14 +596,14 @@ contract ComplexBank is Pausable,BankI {
         require((_sellFee >= sellFeeLimit.min) && (_sellFee <= sellFeeLimit.max));
 
         if (sellFee != _sellFee) {
-            uint256 maximalOracleRate = cryptoFiatRateSell.mul(RATE_MULTIPLIER).mul(REVERSE_PERCENT).div(RATE_MULTIPLIER * REVERSE_PERCENT + sellFee);
+            uint256 maximalOracleRate = cryptoFiatRateSell.mul(RATE_MULTIPLIER).mul(REVERSE_PERCENT).div(RATE_MULTIPLIER * REVERSE_PERCENT + sellFee * RATE_MULTIPLIER / REVERSE_PERCENT);
             sellFee = _sellFee;
-            cryptoFiatRateSell = maximalOracleRate.mul(RATE_MULTIPLIER * REVERSE_PERCENT + sellFee).div(RATE_MULTIPLIER * REVERSE_PERCENT);
+            cryptoFiatRateSell = maximalOracleRate.mul(RATE_MULTIPLIER * REVERSE_PERCENT + sellFee * RATE_MULTIPLIER / REVERSE_PERCENT).div(RATE_MULTIPLIER * REVERSE_PERCENT);
         }
         if (buyFee != _buyFee) {
-            uint256 minimalOracleRate = cryptoFiatRateBuy.mul(RATE_MULTIPLIER * REVERSE_PERCENT).div(RATE_MULTIPLIER * REVERSE_PERCENT - buyFee);
+            uint256 minimalOracleRate = cryptoFiatRateBuy.mul(RATE_MULTIPLIER * REVERSE_PERCENT).div(RATE_MULTIPLIER * REVERSE_PERCENT - buyFee * RATE_MULTIPLIER / REVERSE_PERCENT);
             buyFee = _buyFee;
-            cryptoFiatRateBuy = minimalOracleRate.mul(RATE_MULTIPLIER * REVERSE_PERCENT - buyFee).div(RATE_MULTIPLIER * REVERSE_PERCENT);
+            cryptoFiatRateBuy = minimalOracleRate.mul(RATE_MULTIPLIER * REVERSE_PERCENT - buyFee * RATE_MULTIPLIER / REVERSE_PERCENT).div(RATE_MULTIPLIER * REVERSE_PERCENT);
         }
     }
     
@@ -800,8 +800,8 @@ contract ComplexBank is Pausable,BankI {
         } // foreach oracles
 
         cryptoFiatRate = minimalRate.add(maximalRate).div(2);
-        cryptoFiatRateBuy = minimalRate.mul(REVERSE_PERCENT * RATE_MULTIPLIER - buyFee).div(REVERSE_PERCENT).div(RATE_MULTIPLIER);
-        cryptoFiatRateSell = maximalRate.mul(REVERSE_PERCENT * RATE_MULTIPLIER + sellFee).div(REVERSE_PERCENT).div(RATE_MULTIPLIER);
+        cryptoFiatRateBuy = minimalRate.mul(REVERSE_PERCENT * RATE_MULTIPLIER - buyFee * RATE_MULTIPLIER / REVERSE_PERCENT).div(REVERSE_PERCENT).div(RATE_MULTIPLIER);
+        cryptoFiatRateSell = maximalRate.mul(REVERSE_PERCENT * RATE_MULTIPLIER + sellFee * RATE_MULTIPLIER / REVERSE_PERCENT).div(REVERSE_PERCENT).div(RATE_MULTIPLIER);
         calcRatesDone = true;
     }
     // 04-spread calc end

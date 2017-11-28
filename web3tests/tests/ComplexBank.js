@@ -11,20 +11,18 @@ async function main() {
 }
 
 async function testFee() {
+    var fee = parseInt(prompt("buy and sell fees: ", "0"));
     console.log("buyFee: " + contract.buyFee().toString(10));
     console.log("sellFee: " + contract.sellFee().toString(10));
     console.log("cryptoFiatRateBuy: " + contract.cryptoFiatRateBuy().toString(10));
     console.log("cryptoFiatRateSell: " + contract.cryptoFiatRateSell().toString(10));
-    var setFeesAddr = await contract.setFees(500, 500);
+    var setFeesAddr = await contract.setFees(fee, fee);
     var setFeesMined = await web3.eth.getTransactionReceiptMined(setFeesAddr);
     logTransactionByReceipt(setFeesAddr);
     console.log("buyFee: " + contract.buyFee().toString(10));
     console.log("sellFee: " + contract.sellFee().toString(10));
     console.log("cryptoFiatRateBuy: " + contract.cryptoFiatRateBuy().toString(10));
     console.log("cryptoFiatRateSell: " + contract.cryptoFiatRateSell().toString(10));
-    var setFeesAddr = await contract.setFees(0, 0);
-    var setFeesMined = await web3.eth.getTransactionReceiptMined(setFeesAddr);
-    logTransactionByReceipt(setFeesAddr);
 }
 
 async function testRequestUpdateRates() {
