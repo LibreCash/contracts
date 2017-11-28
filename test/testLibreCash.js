@@ -76,4 +76,52 @@ contract('LibreCash', async function(accounts) {
         });
     });
 
+    contract("#StandartToken", function() {
+        before("init", async function() {
+            let cash = await LibreCash.deployed();
+            await cash.setBankAddress(owner);
+
+            await cash.mint(owner, 10);
+            await cash.mint(acc1, 11);
+            await cash.mint(acc2, 12);
+        });
+
+        it("transfer", async function() {
+            let cash = await LibreCash.deployed();
+            
+            let acc1Before = parseInt(await cash.balanceOf(acc1));
+            let acc2Before = parseInt(await cash.balanceOf(acc2));
+
+            let amount = Math.round(acc1Before/2);
+            await cash.transfer(acc2, amount, 0, {from: acc1});
+
+            let acc1After = parseInt(await cash.balanceOf(acc1));
+            let acc2After = parseInt(await cash.balanceOf(acc2));
+
+            assert.equal(acc1Before - amount, acc1After, "Sender balance not decrease");
+            assert.equal(acc2Before + amount, acc2After, "Receiver balance not increase");
+        });
+
+        it("allowance", async function() {
+            let cash = await LibreCash.deployed();
+
+            let balanceOne = parseInt(await cash.balanceOf(acc1));
+            let balanceTwo = parseInt(await cash.balanceOf(acc2));
+
+            let allowanceBefore = parseInt(await cash.allowance(acc1,acc2));
+            let amount = Math.round(balanceOne/2);
+
+            await cash.approve(acc2,amount, {from: acc1});
+
+            let allowanceAfter = parseInt(await cash.allowance(acc1,acc2));
+
+            try {
+                await cash.transferFrom(acc1,acc2,amount, {from: acc2});
+            } catch(e) {
+                throw new Error("Account don't transferFrom!");
+            }
+            assert.equal(allowanceBefore + amount, allowanceAfter, "Allowance not work!");
+        });
+    });
+
 });
