@@ -1,2 +1,2 @@
-var contracts = ['LibreCash', 'ComplexBank', 'OracleMockLiza', 'OracleMockSasha', 'OracleMockKlara', 'OracleMockTest', ];
+var contracts = ['LibreCash', 'ComplexBank', 'OracleBitfinex', 'OracleBitstamp', ];
 var tests = ['ComplexBank.js', ];

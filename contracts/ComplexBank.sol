@@ -705,6 +705,20 @@ contract ComplexBank is Pausable,BankI {
         }
     }
 
+    function getOracleDeficit() public view returns (uint256) {
+        uint256 deficit = 0;
+        for (address curr = firstOracle; curr != 0x0; curr = oracles[curr].next) {
+            if (oracles[curr].enabled) {
+                OracleI oracle = OracleI(curr);
+                uint callPrice = oracle.getPrice();
+                if (curr.balance < callPrice) {
+                    deficit += callPrice - curr.balance;
+                }
+            }   
+        }
+        return deficit;
+    }
+
     /**
      * @dev Requests every enabled oracle to get the actual rate.
      */

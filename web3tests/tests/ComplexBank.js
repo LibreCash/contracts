@@ -1,7 +1,7 @@
-monitor = ['getBuyOrdersCount', 'getSellOrdersCount', 'getToken', 'numEnabledOracles', 'numReadyOracles', 'getOracleCount',
+monitor = ['getBuyOrdersCount', 'getSellOrdersCount', 'numEnabledOracles', 'numReadyOracles', 'countOracles',
            'buyFee', 'sellFee', 'cryptoFiatRate', 'cryptoFiatRateBuy', 'cryptoFiatRateSell',
            'relevancePeriod', 'timeUpdateRequest', 'timeSinceUpdateRequest', 'calcRatesDone', 'queueProcessingFinished',
-           'buyNextOrder', 'sellNextOrder'
+           'buyNextOrder', 'sellNextOrder', 'getOracleDeficit'
            //'getBuyOrder(1)', 'getSellOrder(1)'
         ];
 
@@ -28,7 +28,11 @@ async function testFee() {
 }
 
 async function testRequestUpdateRates() {
-    var requestUpdateRatesAddr = await contract.requestUpdateRates({gas: 500000});
+    var weiStr = prompt('send wei with requestUpdateRates ("." to send current deficit):', "0");
+    var wei = (weiStr == ".") ? (await contract.getOracleDeficit.call()).toNumber() : parseInt(weiStr);
+    console.log("Wei to send: ", wei);
+    var acc1 = web3.eth.accounts[0];
+    var requestUpdateRatesAddr = await contract.requestUpdateRates({from: acc1, value: wei, gas: 500000});
     var requestUpdateRatesMined = await web3.eth.getTransactionReceiptMined(requestUpdateRatesAddr);
     logTransactionByReceipt(requestUpdateRatesAddr);
 }
