@@ -1,7 +1,7 @@
 monitor = ['getBuyOrdersCount', 'getSellOrdersCount', 'numEnabledOracles', 'numReadyOracles', 'countOracles',
            'buyFee', 'sellFee', 'cryptoFiatRate', 'cryptoFiatRateBuy', 'cryptoFiatRateSell',
            'relevancePeriod', 'timeUpdateRequest', 'timeSinceUpdateRequest', 'calcRatesDone', 'queueProcessingFinished',
-           'buyNextOrder', 'sellNextOrder', 'getOracleDeficit'
+           'buyNextOrder', 'sellNextOrder', 'getOracleDeficit', 'getReserve'
            //'getBuyOrder(1)', 'getSellOrder(1)'
         ];
 
@@ -50,7 +50,7 @@ async function testFeesCascade() {
 }
 
 async function testRequestUpdateRates() {
-    var weiStr = prompt('send wei with requestUpdateRates ("." to send current deficit):', "0");
+    var weiStr = prompt('send wei with requestUpdateRates ("." to send current deficit):', ".");
     var wei = (weiStr == ".") ? (await contract.getOracleDeficit.call()).toNumber() : parseInt(weiStr);
     console.log("Wei to send: ", wei);
     var acc1 = web3.eth.accounts[0];

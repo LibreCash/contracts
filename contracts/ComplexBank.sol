@@ -719,6 +719,14 @@ contract ComplexBank is Pausable,BankI {
         return deficit;
     }
 
+    function getReserve() public view returns (uint256) {
+        uint256 reserve = 0;
+        if ((this.balance != 0) && (cryptoFiatRateSell != 0)) {
+            reserve = (100 * 100 * libreToken.getTokensAmount().div(cryptoFiatRateSell)).div(this.balance);
+        }
+        return reserve;
+    }
+
     /**
      * @dev Requests every enabled oracle to get the actual rate.
      */
