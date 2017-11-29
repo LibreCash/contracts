@@ -12,7 +12,7 @@ import "../interfaces/I_Oracle.sol";
  *
  * @dev Base contract for oracles. Not abstract.
  */
-contract OracleBase is Ownable, usingOraclize, OracleI {
+contract OracleBase is Ownable, OracleI {
     event NewOraclizeQuery(string description);
     event NewPriceTicker(bytes32 oracleName, uint256 price, uint256 timestamp);
     event NewPriceTicker(string price);
@@ -34,6 +34,11 @@ contract OracleBase is Ownable, usingOraclize, OracleI {
     bool public waitQuery = false;
     OracleConfig public oracleConfig; // заполняется конструктором потомка константами из него же
 
+    OraclizeAddrResolverI OAR;
+    OraclizeI oraclize;
+    string oraclize_network_name;
+
+
     modifier onlyBank() {
         require(msg.sender == bankAddress);
         _;
@@ -43,7 +48,7 @@ contract OracleBase is Ownable, usingOraclize, OracleI {
      * @dev Constructor.
      */
     function OracleBase(address _bankAddress) {
-        oraclize_setProof(proofType_TLSNotary | proofStorage_IPFS);
+        OraclizeAPI.oraclize_setProof(OraclizeAPI.proofType_TLSNotary() | OraclizeAPI.proofStorage_IPFS());
         bankAddress = _bankAddress;
         BankSet(_bankAddress);
     }
@@ -70,7 +75,7 @@ contract OracleBase is Ownable, usingOraclize, OracleI {
      * @dev oraclize getPrice.
      */
     function getPrice() view public returns (uint) {
-        return oraclize_getPrice(oracleConfig.datasource);
+        return OraclizeAPI.oraclize_getPrice(oracleConfig.datasource);
     }
 
     /**
@@ -81,7 +86,7 @@ contract OracleBase is Ownable, usingOraclize, OracleI {
             NewOraclizeQuery("Oraclize query was NOT sent, please add some ETH to cover for the query fee");
             return false;
         } else {
-            queryId = oraclize_query(0, oracleConfig.datasource, oracleConfig.arguments);
+            queryId = OraclizeAPI.oraclize_query(0, oracleConfig.datasource, oracleConfig.arguments);
             NewOraclizeQuery("Oraclize query was sent, standing by for the answer...");
             validIds[queryId] = true;
             waitQuery = true;
@@ -97,7 +102,7 @@ contract OracleBase is Ownable, usingOraclize, OracleI {
     */
     function __callback(bytes32 myid, string result, bytes proof) public {
         require(validIds[myid]);
-        require(msg.sender == oraclize_cbAddress());
+        require(msg.sender == OraclizeAPI.oraclize_cbAddress());
         rate = Helpers.parseIntRound(result, 3); // save it in storage as 1/1000 of $
         NewPriceTicker(result);
         delete(validIds[myid]);
