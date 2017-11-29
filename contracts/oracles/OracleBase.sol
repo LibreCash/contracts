@@ -1,6 +1,6 @@
 pragma solidity ^0.4.10;
 
-import "./oraclizeAPI_0.4.sol";
+import "./OraclizeAPI.sol";
 import "../zeppelin/ownership/Ownable.sol";
 import "../library/Helpers.sol";
 import "../interfaces/I_Oracle.sol";
