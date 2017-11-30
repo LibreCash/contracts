@@ -710,31 +710,27 @@ contract ComplexBank is Pausable,BankI {
     /**
      * @dev Sends money to oracles and start requestUpdateRates.
      */
-    function requestUpdateRateWithFund() public {
-        requestUpdateRateWithFund(0);
+    function schedulerUpdateRate() public {
+        schedulerUpdateRate(0);
     }
 
     /**
      * @dev Sends money to oracles and start requestUpdateRates.
      * @param fund Desired balance of every oracle.
      */
-    function requestUpdateRateWithFund(uint256 fund) public {
+    function schedulerUpdateRate(uint256 fund) public {
         require(msg.sender == scheduler);
         if (fund == 0) {
             for (address cur = firstOracle; cur != 0x0; cur = oracles[cur].next) {
                 if (oracles[cur].enabled) {
-                    OracleI oracle = OracleI(cur);
-                    uint callPrice = oracle.getPrice();
-                    if (this.balance >= callPrice) {
-                        cur.transfer(callPrice);
-                    }
+                    cur.transfer(OracleI(cur).getPrice());
                 }
             }
         } else {
             fundOracles(fund);
         }
 
-        requestUpdateRates();
+        //requestUpdateRates();
     }
 
     /**

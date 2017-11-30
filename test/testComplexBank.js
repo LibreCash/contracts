@@ -648,6 +648,33 @@ contract('ComplexBank', function(accounts) {
             
             throw new Error("calcRate start without Oracles!");
         });
+
+        it("set scheduler",async function() {
+            let bank = await ComplexBank.deployed();
+            let before = await bank.scheduler.call();
+
+            let scheduler = (before == acc1) ? (acc2) : (acc1);
+            await bank.setScheduler(scheduler);
+
+            let after = await bank.scheduler.call();
+
+            assert.equal(scheduler, after, "setScheduler not work!")
+        });
+
+        it("refundOracles", async function() {
+            let bank = await ComplexBank.deployed();
+            await bank.sendTransaction({from: acc1, value: web3.toWei(5,'ether')});
+            //sleep(3000);
+            await bank.setScheduler(acc1);
+            let oracle = await bank.firstOracle.call();
+            
+            let before = web3.eth.getBalance(oracle);
+            await bank.schedulerUpdateRate(0,{from:acc1});
+
+            let after = web3.eth.getBalance(oracle);
+
+            assert.isTrue(before < after, "Don't fund oralces!");
+        });
     });
     contract("Limits setting", function() {
         before("reset limit to zero",async function(){
