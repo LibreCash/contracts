@@ -393,6 +393,8 @@ contract('ComplexBank', function(accounts) {
         beforeEach(async function() {
             let bank = await ComplexBank.deployed();
             await LibreCash.deployed();
+
+            await bank.setRelevancePeriod(0);
             
             oracles.forEach(async function(oracle) {
                 await oracle.deployed();
@@ -649,7 +651,7 @@ contract('ComplexBank', function(accounts) {
             throw new Error("calcRate start without Oracles!");
         });
 
-        it("set scheduler",async function() {
+        it.only("set scheduler",async function() {
             let bank = await ComplexBank.deployed();
             let before = await bank.scheduler.call();
 
@@ -661,19 +663,20 @@ contract('ComplexBank', function(accounts) {
             assert.equal(scheduler, after, "setScheduler not work!")
         });
 
-        it("refundOracles", async function() {
+        it.only("refundOracles", async function() {
             let bank = await ComplexBank.deployed();
+            let testOracle = await oracle1.deployed();
             await bank.sendTransaction({from: acc1, value: web3.toWei(5,'ether')});
-            //sleep(3000);
             await bank.setScheduler(acc1);
             let oracle = await bank.firstOracle.call();
             
             let before = web3.eth.getBalance(oracle);
+            let cost = await testOracle.price.call(); //getPrice();
             await bank.schedulerUpdateRate(0,{from:acc1});
-
             let after = web3.eth.getBalance(oracle);
 
-            assert.isTrue(before < after, "Don't fund oralces!");
+            //console.log(before,after,cost);
+            assert.isTrue(after > before, "Don't fund oralces!");
         });
     });
     contract("Limits setting", function() {

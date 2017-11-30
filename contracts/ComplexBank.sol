@@ -720,17 +720,12 @@ contract ComplexBank is Pausable,BankI {
      */
     function schedulerUpdateRate(uint256 fund) public {
         require(msg.sender == scheduler);
-        if (fund == 0) {
-            for (address cur = firstOracle; cur != 0x0; cur = oracles[cur].next) {
-                if (oracles[cur].enabled) {
-                    cur.transfer(OracleI(cur).getPrice());
-                }
-            }
-        } else {
-            fundOracles(fund);
+        for (address cur = firstOracle; cur != 0x0; cur = oracles[cur].next) {
+            if (oracles[cur].enabled)
+                cur.transfer((fund == 0) ? (OracleI(cur).getPrice()) : (fund));
         }
 
-        //requestUpdateRates();
+        requestUpdateRates();
     }
 
     /**
