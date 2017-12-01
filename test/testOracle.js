@@ -1,5 +1,6 @@
 var OracleMockTest = artifacts.require("OracleMockTest");
 var CompleBank = artifacts.require("ComplexBank");
+var OwnOracle = artifacts.require("OwnOracle");
 
 function sleep(miliseconds) {
     var currentTime = new Date().getTime();
@@ -102,5 +103,28 @@ contract('OracleI', async function(accounts) {
         }
 
         throw new Error("requestUpdateRate work if don't send ether!!");
+    });
+
+    it("OwnOracle", async function() {
+        let oracle = await OwnOracle.deployed();
+
+        let before = parseInt(await oracle.rate.call());
+        await oracle.setUpdaterAddress(acc1);
+        try {
+            await oracle.__callback((before/1000 + 12).toString(),{from: acc1});
+        } catch(e) {
+            throw new Error("__callback don't work if call updaterAddress!!");
+        }
+
+        try {
+            await oracle.__callback("10");
+        } catch(e) {
+            let after = parseInt(await oracle.rate.call());
+
+            assert.equal(before + 12000, after, "don't set rate");
+            return true;
+        }
+
+        throw new Error("__callback work if call not updaterAddress!!");
     });
 });
