@@ -719,11 +719,21 @@ contract ComplexBank is Pausable,BankI {
         return deficit;
     }
 
+    /**
+     * @dev Gets bank reserve.
+     */
     function getReserve() public view returns (uint256) {
         uint256 reserve = 0;
         if ((this.balance != 0) && (cryptoFiatRateSell != 0)) {
+            uint256 reserveBalance = this.balance;
+            for (uint i = buyOrderIndex; i < buyNextOrder; i++) {
+                if (buyOrders[i].recipientAddress != 0x0) {
+                    reserveBalance -= buyOrders[i].orderAmount;
+                }
+            }
+
             uint256 canGetCryptoBySellingTokens = (libreToken.getTokensAmount() * RATE_MULTIPLIER).div(cryptoFiatRateSell);
-            reserve = (this.balance * REVERSE_PERCENT * 100).div(canGetCryptoBySellingTokens);
+            reserve = (reserveBalance * REVERSE_PERCENT * 100).div(canGetCryptoBySellingTokens);
         }
         return reserve;
     }
