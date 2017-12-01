@@ -37,56 +37,60 @@ contract OraclizeAddrResolverI {
     function getAddress() returns (address _addr);
 }
 
-library OraclizeAPI {
-    byte public constant proofType_NONE = 0x00;
-    byte public constant proofType_TLSNotary = 0x10;
-    byte public constant proofType_Android = 0x20;
-    byte public constant proofType_Ledger = 0x30;
-    byte public constant proofType_Native = 0xF0;
-    byte public constant proofStorage_IPFS = 0x01;
+contract usingOraclize {
+    byte constant proofType_NONE = 0x00;
+    byte constant proofType_TLSNotary = 0x10;
+    byte constant proofType_Android = 0x20;
+    byte constant proofType_Ledger = 0x30;
+    byte constant proofType_Native = 0xF0;
+    byte constant proofStorage_IPFS = 0x01;
 
+    OraclizeAddrResolverI OAR;
+    OraclizeI oraclize;
+
+    string oraclize_network_name;
 
     modifier oraclizeAPI {
-        if ((address(this.OAR)==0)||(getCodeSize(address(this.OAR))==0))
+        if ((address(OAR)==0)||(getCodeSize(address(OAR))==0))
             oraclize_setNetworkAuto();
 
-        if (address(this.oraclize) != this.OAR.getAddress())
-            this.oraclize = OraclizeI(this.OAR.getAddress());
+        if (address(oraclize) != OAR.getAddress())
+            oraclize = OraclizeI(OAR.getAddress());
 
         _;
     }
 
     function oraclize_setNetworkAuto() internal returns(bool){
         if (getCodeSize(0x1d3B2638a7cC9f2CB3D298A3DA7a90B67E5506ed)>0){ //mainnet
-            this.OAR = OraclizeAddrResolverI(0x1d3B2638a7cC9f2CB3D298A3DA7a90B67E5506ed);
+            OAR = OraclizeAddrResolverI(0x1d3B2638a7cC9f2CB3D298A3DA7a90B67E5506ed);
             oraclize_setNetworkName("eth_mainnet");
             return true;
         }
         if (getCodeSize(0xc03A2615D5efaf5F49F60B7BB6583eaec212fdf1)>0){ //ropsten testnet
-            this.OAR = OraclizeAddrResolverI(0xc03A2615D5efaf5F49F60B7BB6583eaec212fdf1);
+            OAR = OraclizeAddrResolverI(0xc03A2615D5efaf5F49F60B7BB6583eaec212fdf1);
             oraclize_setNetworkName("eth_ropsten3");
             return true;
         }
         if (getCodeSize(0xB7A07BcF2Ba2f2703b24C0691b5278999C59AC7e)>0){ //kovan testnet
-            this.OAR = OraclizeAddrResolverI(0xB7A07BcF2Ba2f2703b24C0691b5278999C59AC7e);
+            OAR = OraclizeAddrResolverI(0xB7A07BcF2Ba2f2703b24C0691b5278999C59AC7e);
             oraclize_setNetworkName("eth_kovan");
             return true;
         }
         if (getCodeSize(0x146500cfd35B22E4A392Fe0aDc06De1a1368Ed48)>0){ //rinkeby testnet
-            this.OAR = OraclizeAddrResolverI(0x146500cfd35B22E4A392Fe0aDc06De1a1368Ed48);
+            OAR = OraclizeAddrResolverI(0x146500cfd35B22E4A392Fe0aDc06De1a1368Ed48);
             oraclize_setNetworkName("eth_rinkeby");
             return true;
         }
         if (getCodeSize(0x6f485C8BF6fc43eA212E93BBF8ce046C7f1cb475)>0){ //ethereum-bridge
-            this.OAR = OraclizeAddrResolverI(0x6f485C8BF6fc43eA212E93BBF8ce046C7f1cb475);
+            OAR = OraclizeAddrResolverI(0x6f485C8BF6fc43eA212E93BBF8ce046C7f1cb475);
             return true;
         }
         if (getCodeSize(0x20e12A1F859B3FeaE5Fb2A0A32C18F5a65555bBF)>0){ //ether.camp ide
-            this.OAR = OraclizeAddrResolverI(0x20e12A1F859B3FeaE5Fb2A0A32C18F5a65555bBF);
+            OAR = OraclizeAddrResolverI(0x20e12A1F859B3FeaE5Fb2A0A32C18F5a65555bBF);
             return true;
         }
         if (getCodeSize(0x51efaF4c8B3C9AfBD5aB9F4bbC82784Ab6ef8fAA)>0){ //browser-solidity
-            this.OAR = OraclizeAddrResolverI(0x51efaF4c8B3C9AfBD5aB9F4bbC82784Ab6ef8fAA);
+            OAR = OraclizeAddrResolverI(0x51efaF4c8B3C9AfBD5aB9F4bbC82784Ab6ef8fAA);
             return true;
         }
         return false;
@@ -100,7 +104,7 @@ library OraclizeAPI {
     }
 
     function oraclize_getPrice(string datasource) oraclizeAPI internal returns (uint){
-        return this.oraclize.getPrice(datasource);
+        return oraclize.getPrice(datasource);
     }
 
 /* возможно, понадобится
@@ -110,9 +114,9 @@ library OraclizeAPI {
 */
 
     function oraclize_query(uint timestamp, string datasource, string arg) oraclizeAPI internal returns (bytes32 id){
-        uint price = this.oraclize.getPrice(datasource);
+        uint price = oraclize.getPrice(datasource);
         if (price > 1 ether + tx.gasprice*200000) return 0; // unexpectedly high price
-        return this.oraclize.query.value(price)(timestamp, datasource, arg);
+        return oraclize.query.value(price)(timestamp, datasource, arg);
     }
 
 /* возможно, понадобится
@@ -124,15 +128,15 @@ library OraclizeAPI {
 */
 
     function oraclize_cbAddress() oraclizeAPI internal returns (address){
-        return this.oraclize.cbAddress();
+        return oraclize.cbAddress();
     }
 
     function oraclize_setProof(byte proofP) oraclizeAPI internal {
-        return this.oraclize.setProofType(proofP);
+        return oraclize.setProofType(proofP);
     }
 
     function oraclize_setCustomGasPrice(uint gasPrice) oraclizeAPI internal {
-        return this.oraclize.setCustomGasPrice(gasPrice);
+        return oraclize.setCustomGasPrice(gasPrice);
     }
 
 /*
@@ -148,7 +152,7 @@ library OraclizeAPI {
     }
 
     function oraclize_setNetworkName(string _network_name) internal {
-        this.oraclize_network_name = _network_name;
+        oraclize_network_name = _network_name;
     }
 /* unused getter    
     function oraclize_getNetworkName() internal returns (string) {
