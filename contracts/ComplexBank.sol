@@ -718,7 +718,7 @@ contract ComplexBank is Pausable,BankI {
      * @dev Sends money to oracles and start requestUpdateRates.
      * @param fund Desired balance of every oracle.
      */
-    function schedulerUpdateRate(uint256 fund) public {
+    function schedulerUpdateRate(uint256 fund) public canStartEmission {
         require(msg.sender == scheduler);
         for (address cur = firstOracle; cur != 0x0; cur = oracles[cur].next) {
             if (oracles[cur].enabled)
