@@ -12,7 +12,7 @@ contract('OracleI', async function(accounts) {
     var owner = accounts[0];
     var acc1  = accounts[1];
 
-    it.only('setBank', async function() {
+    it('setBank', async function() {
         let oracle = await OracleMockTest.deployed();
 
         try {
@@ -29,7 +29,7 @@ contract('OracleI', async function(accounts) {
         throw new Error("Not Owner set Bank!!");
     });
 
-    it.only('updateRate', async function() {
+    it('updateRate', async function() {
         let oracle = await OracleMockTest.deployed();
 
         try {
@@ -46,7 +46,7 @@ contract('OracleI', async function(accounts) {
         throw new Error("Not Bank update Rate!!");
     });
 
-    it.only('clearState', async function() {
+    it('clearState', async function() {
         let oracle = await OracleMockTest.deployed();
 
         await oracle.setBank(owner);
@@ -73,14 +73,14 @@ contract('OracleI', async function(accounts) {
         assert.isFalse(wait, "wait dont clear");
     });
 
-    it.only("get rate", async function() {
+    it("get rate", async function() {
         let oracle = await OracleMockTest.deployed();
         
         let rate = await oracle.rate.call();
         assert.equal(rate, 100, "don't get rate");
     });
 
-    it.only("requestUpdateRate", async function() {
+    it("requestUpdateRate", async function() {
         let bank = await CompleBank.deployed();
 
         let oracle = await bank.firstOracle.call();

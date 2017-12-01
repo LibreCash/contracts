@@ -11,7 +11,7 @@ import './ERC223.sol';
  * @dev https://github.com/ethereum/EIPs/issues/20
  * @dev Based on code by FirstBlood: https://github.com/Firstbloodio/token/blob/master/smart_contract/FirstBloodToken.sol
  */
-contract StandardToken is ERC223, ERC223BasicToken {
+contract StandardToken223 is ERC223, ERC223BasicToken {
 
   mapping (address => mapping (address => uint256)) allowed;
 
