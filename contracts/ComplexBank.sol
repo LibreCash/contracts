@@ -15,17 +15,11 @@ contract ComplexBank is Pausable,BankI {
     LibreTokenI libreToken;
     
     // TODO; Check that all evetns used and delete unused
-    event TokensBought(address _beneficiar, uint256 tokensAmount, uint256 cryptoAmount);
-    event TokensSold(address _beneficiar, uint256 tokensAmount, uint256 cryptoAmount);
-    event UINTLog(string description, uint256 data);
     event BuyOrderCreated(uint256 amount);
     event SellOrderCreated(uint256 amount);
     event LogBuy(address clientAddress, uint256 tokenAmount, uint256 cryptoAmount, uint256 buyPrice);
     event LogSell(address clientAddress, uint256 tokenAmount, uint256 cryptoAmount, uint256 sellPrice);
     event OrderQueueGeneral(string description);
-    event RateBuyLimitOverflow(uint256 cryptoFiatRateBuy, uint256 maxRate, uint256 cryptoAmount);
-    event RateSellLimitOverflow(uint256 cryptoFiatRateSell, uint256 maxRate, uint256 tokenAmount);
-    event CouldntCancelOrder(bool ifBuy, uint256 orderID);
     event SendEtherError(string error, address _addr);
     
     uint256 constant MIN_ENABLED_ORACLES = 0; //2;
@@ -306,7 +300,6 @@ contract ComplexBank is Pausable,BankI {
         uint256 maxRate = buyOrders[_orderID].rateLimit;
 
         if ((maxRate != 0) && (cryptoFiatRateBuy > maxRate)) {
-            RateBuyLimitOverflow(cryptoFiatRateBuy, maxRate, cryptoAmount); // TODO: Delete it after tests
             cancelBuyOrder(_orderID);
         } else {
             libreToken.mint(recipientAddress, tokensAmount);
@@ -369,7 +362,6 @@ contract ComplexBank is Pausable,BankI {
         uint256 minRate = sellOrders[_orderID].rateLimit;
 
         if ((minRate != 0) && (cryptoFiatRateSell < minRate)) {
-            RateSellLimitOverflow(cryptoFiatRateSell, minRate, cryptoAmount);
             cancelSellOrder(_orderID);
             libreToken.mint(senderAddress, tokensAmount);
         } else {
@@ -491,17 +483,13 @@ contract ComplexBank is Pausable,BankI {
 
 
     // 03-oracles methods start
-    event InsufficientOracleData(string description, uint256 oracleCount);
-    event OraclizeStatus(address indexed _address, bytes32 oraclesName, string description);
-    event OraclesTouched(string description);
     event OracleAdded(address indexed _address, bytes32 name);
     event OracleEnabled(address indexed _address, bytes32 name);
     event OracleDisabled(address indexed _address, bytes32 name);
     event OracleDeleted(address indexed _address, bytes32 name);
+    event OraclesTouched(string message);
     event OracleTouched(address indexed _address, bytes32 name);
     event OracleNotTouched(address indexed _address, bytes32 name);
-    event OracleCallback(address indexed _address, bytes32 name, uint256 result);
-    event TextLog(string data);
     event OracleReadyNearToMin(uint256 count);
 
     struct OracleData {
