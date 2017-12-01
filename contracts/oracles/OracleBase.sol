@@ -34,6 +34,15 @@ contract OracleBase is Ownable, usingOraclize, OracleI {
     bool public waitQuery = false;
     OracleConfig public oracleConfig; // заполняется конструктором потомка константами из него же
 
+    // public для тестов, но может и оставим
+    uint256 public gasPrice = 20 * 10**9;
+    uint256 public gasLimit = 100000;
+
+    uint256 constant MIN_GAS_PRICE = 2 * 10**9; // чтобы мы не могли убить работу контракта полностью
+    uint256 constant MAX_GAS_PRICE = 1000 * 10**9; // мало ли что будет с сетью, но больше 1000 ГВей за газ вряд ли будет (?)
+    uint256 constant MIN_GAS_LIMIT = 95000; // по факту 87600+ стоит, чтобы мы не могли убить контракт
+    uint256 constant MAX_GAS_LIMIT = 10000000; // ну и чтоб не заставляли людей платить слишком много, перестав сами обновлять данные
+
     modifier onlyBank() {
         require(msg.sender == bankAddress);
         _;
@@ -46,6 +55,25 @@ contract OracleBase is Ownable, usingOraclize, OracleI {
         oraclize_setProof(proofType_TLSNotary | proofStorage_IPFS);
         bankAddress = _bankAddress;
         BankSet(_bankAddress);
+    }
+
+    /**
+     * @dev Sets gas price.
+     * @param _price New gas price.
+     */
+    function setGasPrice(uint256 _price) public onlyOwner {
+        require ((_price >= MIN_GAS_PRICE) && (_price <= MAX_GAS_PRICE));
+        gasPrice = _price;
+        oraclize_setCustomGasPrice(gasPrice);
+    }
+
+    /**
+     * @dev Sets gas limit.
+     * @param _limit New gas limit.
+     */
+    function setGasLimit(uint256 _limit) public onlyOwner {
+        require ((_limit >= MIN_GAS_LIMIT) && (_limit <= MAX_GAS_LIMIT));
+        gasLimit = _limit;
     }
 
     /**
@@ -70,7 +98,7 @@ contract OracleBase is Ownable, usingOraclize, OracleI {
      * @dev oraclize getPrice.
      */
     function getPrice() view public returns (uint) {
-        return oraclize_getPrice(oracleConfig.datasource);
+        return oraclize_getPrice(oracleConfig.datasource, gasLimit);
     }
 
     /**
@@ -81,7 +109,7 @@ contract OracleBase is Ownable, usingOraclize, OracleI {
             NewOraclizeQuery("Oraclize query was NOT sent, please add some ETH to cover for the query fee");
             return false;
         } else {
-            queryId = oraclize_query(0, oracleConfig.datasource, oracleConfig.arguments);
+            queryId = oraclize_query(oracleConfig.datasource, oracleConfig.arguments, gasLimit);
             NewOraclizeQuery("Oraclize query was sent, standing by for the answer...");
             validIds[queryId] = true;
             waitQuery = true;
