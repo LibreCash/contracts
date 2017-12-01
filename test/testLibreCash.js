@@ -93,7 +93,7 @@ contract('LibreCash', async function(accounts) {
             let acc2Before = parseInt(await cash.balanceOf(acc2));
 
             let amount = Math.round(acc1Before/2);
-            await cash.transfer(acc2, amount, 0, {from: acc1});
+            await cash.transfer(acc2, amount, {from: acc1});
 
             let acc1After = parseInt(await cash.balanceOf(acc1));
             let acc2After = parseInt(await cash.balanceOf(acc2));

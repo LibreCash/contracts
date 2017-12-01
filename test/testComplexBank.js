@@ -31,8 +31,8 @@ contract('ComplexBank', function(accounts) {
             let bank = await ComplexBank.deployed();
             let cash = await LibreCash.deployed();
 
-            await bank.setRelevancePeriod(3);
-            await bank.setQueuePeriod(3);
+            await bank.setRelevancePeriod(0);
+            await bank.setQueuePeriod(0);
 
             await cash.setBankAddress(bank.address);
             
@@ -45,12 +45,7 @@ contract('ComplexBank', function(accounts) {
 
             let oracleTest = await oracle1.deployed();
             await oracleTest.setBank(bank.address);
-            //await bank.enableOracle(oracleTest.address);
-
-            //await bank.requestUpdateRates();
-            //await bank.calcRates();
-            //console.log(await bank.cryptoFiatRateBuy.call());
-            //console.log(await bank.cryptoFiatRateSell.call());
+            sleep(3000);
         });
 
         beforeEach("clear orders", async function() {
@@ -59,27 +54,19 @@ contract('ComplexBank', function(accounts) {
             try {
                 await bank.unpause();
             } catch(e) {}
-            
-            console.log("Hello start");
-            console.log(await bank.canStartEmission());
-            await bank.requestUpdateRates({value: web3.toWei(1,'ether')});
-            console.log("end");
 
-            console.log(await bank.calcRatesAllowed());
+            await bank.requestUpdateRates({value: web3.toWei(0.01,'ether')});
             await bank.calcRates();
-            console.log("end");
-            sleep(1000);
-
             try {
                 await bank.processBuyQueue(0);
             } catch(e) {
                 //console.log(e);
                 console.log("beforeEach:",parseInt(await bank.getBuyOrdersCount.call()));
             }
-            sleep(3000);
+            
         });
 
-        it.only("add buyOrders", async function() {
+        it("add buyOrders", async function() {
             let bank = await ComplexBank.deployed();
             
             let before = parseInt(await bank.getBuyOrdersCount.call());
@@ -91,14 +78,13 @@ contract('ComplexBank', function(accounts) {
             assert.equal(acc1, result[0], "don't add buyOrders, address not equal");
         });
 
-        it.only("add buyOrders with rate", async function() {
+        it("add buyOrders with rate", async function() {
             let bank = await ComplexBank.deployed();
 
             let before = parseInt(await bank.getBuyOrdersCount.call());
             await bank.createBuyOrder(acc1, 10, {from: owner, value: web3.toWei(6,'ether')});
             let after = parseInt(await bank.getBuyOrdersCount.call());
             let result = await bank.getBuyOrder(before);
-            console.log(result);
             
             assert.equal(before + 1, after, "don't add buyOrders with rate, count orders not equal");
             assert.isTrue( (result[0] == owner) && (result[1] == acc1) && 
@@ -153,14 +139,13 @@ contract('ComplexBank', function(accounts) {
             let amount = parseInt(web3.toWei(3,'ether'));
             await bank.sendTransaction({from: acc1, value: amount});
             sleep(1000);
-            await bank.requestUpdateRates();
+            await bank.requestUpdateRates({value: web3.toWei(0.01,'ether')});
             await bank.calcRates();
-            //await bank.processBuyQueue(0);
+            await bank.processBuyQueue(0);
             sleep(1000);
             let after = parseInt(await cash.balanceOf(acc1));
 
-            //assert.equal(before + amount, after, "Don't mint cash");
-            return true;
+            assert.equal(before + amount, after, "Don't mint cash");
         });
 
         it("mint with rate", async function() {
@@ -169,6 +154,8 @@ contract('ComplexBank', function(accounts) {
 
             let before = parseInt(await bank.getBalanceEther(owner));
             await bank.createBuyOrder(acc1, 10, {from: owner, value: web3.toWei(3,'ether')});
+            await bank.requestUpdateRates({value: web3.toWei(0.01,'ether')});
+            await bank.calcRates();
             await bank.processBuyQueue(0);
             let after = parseInt(await bank.getBalanceEther(owner));
 
@@ -183,6 +170,8 @@ contract('ComplexBank', function(accounts) {
             await bank.createBuyOrder(acc1, 10, {from: acc1, value: web3.toWei(3,'ether')});
             await bank.createBuyOrder(acc2, 10, {from: acc2, value: web3.toWei(3,'ether')});
 
+            await bank.requestUpdateRates({value: web3.toWei(0.01,'ether')});
+            await bank.calcRates();
             await bank.processBuyQueue(2);
             let order = await bank.getBuyOrder(2);
             assert.isTrue(order[1] != 0x0, "Don't proccessBuyQueue with limit! Order clear");
@@ -224,6 +213,8 @@ contract('ComplexBank', function(accounts) {
             let cash = await LibreCash.deployed();
 
             await bank.createBuyOrder(owner, 10, {from: owner, value: web3.toWei(3,'ether')});
+            await bank.requestUpdateRates({value: web3.toWei(0.1,'ether')});
+            await bank.calcRates();
             await bank.processBuyQueue(0);
             
             let before = parseInt(web3.eth.getBalance(owner));
@@ -244,26 +235,26 @@ contract('ComplexBank', function(accounts) {
             let bank = await ComplexBank.deployed();
             let cash = await LibreCash.deployed();
 
-            await cash.setBankAddress(bank.address);
+            await bank.setRelevancePeriod(0);
+            await bank.setQueuePeriod(0);
 
+            await cash.setBankAddress(bank.address);
+            
             oracles.forEach( async function(oracle) {
                 await oracle.deployed();
                 try {
-                    await bank.deleteOracle(oracle.address);
+                    await bank.disableOracle(oracle.address);
                 } catch(e) {}
             });
 
-            let oracleTest = await oracles[3].deployed();
-            //await oracleTest.setBank(bank.address);
-            //await bank.addOracle(oracleTest.address);
-
-            //await bank.requestUpdateRates();
-            //await bank.calcRates();
-            //console.log(await bank.cryptoFiatRateBuy.call());
-            //console.log(await bank.cryptoFiatRateSell.call());
-            
+            let oracleTest = await oracle1.deployed();
+            await oracleTest.setBank(bank.address);
             await bank.sendTransaction({from: owner, value: web3.toWei(7,'ether')});
+            await bank.requestUpdateRates({value: web3.toWei(0.01,'ether')});
+            sleep(3000);
+            await bank.calcRates();
             await bank.processBuyQueue(0);
+            sleep(3000);
         });
 
         beforeEach("clear orders", async function() {
@@ -272,13 +263,11 @@ contract('ComplexBank', function(accounts) {
             try {
                 await bank.unpause();
             } catch(e) {}
-
+            await bank.requestUpdateRates({value: web3.toWei(0.01,'ether')});
+            await bank.calcRates();
             try {
-                //console.log(
-                    await bank.processSellQueue(0);//);
-            } catch(e) {
-                //console.log(e);
-            }
+                await bank.processSellQueue(0);       
+            } catch(e) {}
         });
 
         it("add sellOrders", async function() {
@@ -288,6 +277,8 @@ contract('ComplexBank', function(accounts) {
             let before = parseInt(await bank.getSellOrdersCount.call());
             let tokenBefore = parseInt(await cash.balanceOf(owner));
 
+            console.log("balance",await cash.balanceOf(owner));
+            console.log("contractState",await bank.contractState.call());
             await bank.createSellOrder(owner, 12, 0);
 
             let after = parseInt(await bank.getSellOrdersCount.call());
@@ -337,6 +328,8 @@ contract('ComplexBank', function(accounts) {
             let tokenBefore = parseInt(await cash.balanceOf(owner));
 
             await bank.createSellOrder(acc1, tokenBefore/2, 0);
+            await bank.requestUpdateRates({value: web3.toWei(0.01,'ether')});
+            await bank.calcRates();
             await bank.processSellQueue(0);
 
             let tokenAfter = parseInt(await cash.balanceOf(owner));
@@ -351,6 +344,8 @@ contract('ComplexBank', function(accounts) {
             let before = parseInt(await cash.balanceOf(owner));
 
             await bank.createSellOrder(acc1, before/2, 110);
+            await bank.requestUpdateRates({value: web3.toWei(0.01,'ether')});
+            await bank.calcRates();
             await bank.processSellQueue(0);
 
             let after = parseInt(web3.eth.getBalance(owner));
@@ -366,11 +361,15 @@ contract('ComplexBank', function(accounts) {
             let cash = await LibreCash.deployed();
 
             await bank.createBuyOrder(owner, 10, {from: owner, value: web3.toWei(3,'ether')});
+            await bank.requestUpdateRates({value: web3.toWei(0.01,'ether')});
+            await bank.calcRates();
             await bank.processBuyQueue(0);
 
             await bank.createSellOrder(owner, 1, 90);
             await bank.createSellOrder(acc1, 1, 90);
             await bank.createSellOrder(acc2, 1, 90);
+            await bank.requestUpdateRates({value: web3.toWei(0.01,'ether')});
+            await bank.calcRates();
             await bank.processSellQueue(2);
 
             let order = await bank.getSellOrder(2);
@@ -390,6 +389,8 @@ contract('ComplexBank', function(accounts) {
             let cash = await LibreCash.deployed();
 
             await bank.createBuyOrder(owner, 10, {from: owner, value: web3.toWei(6,'ether')});
+            await bank.requestUpdateRates({value: web3.toWei(0.01,'ether')});
+            await bank.calcRates();
             await bank.processBuyQueue(0);
 
             await bank.createSellOrder(owner, 1, 90);
@@ -418,7 +419,7 @@ contract('ComplexBank', function(accounts) {
             let bank = await ComplexBank.deployed();
             await LibreCash.deployed();
 
-            await bank.setRelevancePeriod(0);
+            //await bank.setRelevancePeriod(0);
             
             oracles.forEach(async function(oracle) {
                 await oracle.deployed();
@@ -432,9 +433,9 @@ contract('ComplexBank', function(accounts) {
             let bank = await ComplexBank.deployed();
             let oracle1 = await oracles[0].deployed();
 
-            let before = parseInt(await bank.getOracleCount.call());
+            let before = parseInt(await bank.countOracles.call());
             await bank.addOracle(oracle1.address);
-            let after = parseInt(await bank.getOracleCount.call());
+            let after = parseInt(await bank.countOracles.call());
 
             let oracleData = await bank.oracles.call(oracle1.address);
             let nameOracle = await oracle1.oracleName.call();
@@ -451,9 +452,9 @@ contract('ComplexBank', function(accounts) {
 
             await bank.addOracle(oracle1.address);
             await bank.addOracle(oracle2.address);
-            let before = parseInt(await bank.getOracleCount.call());
+            let before = parseInt(await bank.countOracles.call());
             await bank.deleteOracle(oracle2.address);
-            let after = parseInt(await bank.getOracleCount.call());
+            let after = parseInt(await bank.countOracles.call());
 
             assert.equal(before - 1, after, "don't remove Oracle");
         });
@@ -675,7 +676,7 @@ contract('ComplexBank', function(accounts) {
             throw new Error("calcRate start without Oracles!");
         });
 
-        it.only("set scheduler",async function() {
+        it("set scheduler",async function() {
             let bank = await ComplexBank.deployed();
             let before = await bank.scheduler.call();
 
@@ -687,7 +688,7 @@ contract('ComplexBank', function(accounts) {
             assert.equal(scheduler, after, "setScheduler not work!")
         });
 
-        it.only("refundOracles", async function() {
+        it("refundOracles", async function() {
             let bank = await ComplexBank.deployed();
             let testOracle = await oracle1.deployed();
             await bank.sendTransaction({from: acc1, value: web3.toWei(5,'ether')});
@@ -707,9 +708,9 @@ contract('ComplexBank', function(accounts) {
         before("reset limit to zero",async function(){
             let bank = await ComplexBank.deployed();
             await bank.setMinBuyLimit(0);
-            await bank.setMaxBuyLimit(web3.toWei(100,'ether'));
+            await bank.setMaxBuyLimit(web3.toWei(400 * 100,'ether'));
             await bank.setMinSellLimit(0);
-            await bank.setMaxSellLimit(100 * 10**18);
+            await bank.setMaxSellLimit(web3.toWei(400 * 100,'ether'));
         });
         it("Limits equals zero",async function(){
             let bank = await ComplexBank.deployed();
@@ -718,10 +719,7 @@ contract('ComplexBank', function(accounts) {
                 sellLimits: await bank.sellLimit.call()
             }
             assert.equal(limits.buyLimits[0],0,"Min buy limit not zero");
-            assert.equal(limits.buyLimits[1],web3.toWei(100,'ether'),"Max buy limit not zero");
             assert.equal(limits.buyLimits[0],0,"Min sell limit not zero");
-            assert.equal(limits.buyLimits[1],100 * 10**18,"Max sell limit not zero");
-            return true;
         });
         it("Min buy limit sets properly",async function(){
             let limitAmount = web3.toWei(12,'ether');
@@ -745,7 +743,7 @@ contract('ComplexBank', function(accounts) {
             assert.equal(minSellLimit,limitAmount,"Min sell tokens set properly");
         });
         it("Max sell limit sets properly",async function(){
-            let limitAmount = 120 * 10**18;
+            let limitAmount = 450 *100 * 10**18;
             let bank = await ComplexBank.deployed();
             await bank.setMaxSellLimit(limitAmount);
             let maxSellLimit = (await bank.sellLimit.call())[1];

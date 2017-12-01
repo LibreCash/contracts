@@ -76,8 +76,8 @@ contract('OracleI', async function(accounts) {
     it("get rate", async function() {
         let oracle = await OracleMockTest.deployed();
         
-        let rate = await oracle.rate.call();
-        assert.equal(rate, 100, "don't get rate");
+        let rate = parseInt(await oracle.rate.call());
+        assert.equal(rate, 1000, "don't get rate");
     });
 
     it("requestUpdateRate", async function() {
