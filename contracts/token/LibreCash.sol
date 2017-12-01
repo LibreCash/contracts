@@ -1,7 +1,6 @@
 pragma solidity ^0.4.10;
 
-//import "../zeppelin/token/StandardToken.sol";
-import "../erc223/StandardToken223.sol";
+import "../zeppelin/token/StandardToken.sol";
 import "../zeppelin/ownership/Ownable.sol";
 import "../erc223/ERC223_receiving_contract.sol";
 
@@ -10,7 +9,7 @@ import "../erc223/ERC223_receiving_contract.sol";
  *
  * @dev ERC20 token contract.
  */
-contract LibreCash is StandardToken223, Ownable {
+contract LibreCash is StandardToken, Ownable {
     string public version = "0.1.1";
     string public constant name = "LibreCash Token";
     string public constant symbol = "LCT";
@@ -54,7 +53,7 @@ contract LibreCash is StandardToken223, Ownable {
         totalSupply = totalSupply.add(_amount);
         balances[_to] = balances[_to].add(_amount);
         Mint(_to, _amount);
-        Transfer(address(this), _to, _amount, 0);
+        Transfer(address(this), _to, _amount);
         return true;
     }
 

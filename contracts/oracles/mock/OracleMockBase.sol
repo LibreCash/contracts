@@ -20,7 +20,7 @@ contract OracleMockBase is Ownable {
     address public bankAddress;
     bytes32 queryId = 0x0;
     bool public waitQuery = false;
-    uint price = 10;
+    uint public price = 10000000000;
     
     modifier onlyBank() {
         require(msg.sender == bankAddress);

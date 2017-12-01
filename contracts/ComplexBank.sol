@@ -547,6 +547,8 @@ contract ComplexBank is Pausable,BankI {
     Limit buyFeeLimit = Limit(0, MAX_FEE);
     Limit sellFeeLimit = Limit(0, MAX_FEE);
 
+    address public scheduler;
+
     /**
      * @dev Returns enabled oracles count.
      */
@@ -725,6 +727,38 @@ contract ComplexBank is Pausable,BankI {
         }
     }
 
+    /**
+     * @dev Sends money to oracles and start requestUpdateRates.
+     */
+    function schedulerUpdateRate() public {
+        schedulerUpdateRate(0);
+    }
+
+    /**
+     * @dev Sends money to oracles and start requestUpdateRates.
+     * @param fund Desired balance of every oracle.
+     */
+    function schedulerUpdateRate(uint256 fund) public {
+        require(msg.sender == scheduler);
+        for (address cur = firstOracle; cur != 0x0; cur = oracles[cur].next) {
+            if (oracles[cur].enabled)
+                cur.transfer((fund == 0) ? (OracleI(cur).getPrice()) : (fund));
+        }
+
+        requestUpdateRates();
+    }
+
+    /**
+     * @dev Set scheduler
+     * @param _scheduler new scheduler address
+     */
+    function setScheduler(address _scheduler) onlyOwner {
+        scheduler = _scheduler;
+    }
+    
+    /**
+     * @dev Get need money for oracles.
+     */
     function getOracleDeficit() public view returns (uint256) {
         uint256 deficit = 0;
         for (address curr = firstOracle; curr != 0x0; curr = oracles[curr].next) {
@@ -742,31 +776,19 @@ contract ComplexBank is Pausable,BankI {
     /**
      * @dev Requests every enabled oracle to get the actual rate.
      */
-
-    function requestUpdateRates() public payable {//canStartEmission {
-        require(canStartEmission());
-        uint sendValue = msg.value;
-
-        for (address curr = firstOracle; curr != 0x0; curr = oracles[curr].next) {
-            if (oracles[curr].enabled) {
-                OracleI oracle = OracleI(curr);
-                uint callPrice = oracle.getPrice();
-                if (curr.balance < callPrice) {
-                    if (callPrice <= sendValue) {
-                        curr.transfer(callPrice);
-                        sendValue -= callPrice;
-                    } else 
-                        revert();
-                }
-            }
-            
-        } 
+    function requestUpdateRates() public payable canStartEmission {
+        uint256 sendValue = msg.value;
 
         for (address cur = firstOracle; cur != 0x0; cur = oracles[cur].next) {
             if (oracles[cur].enabled) {
-                OracleI currentOracle = OracleI(cur);
-                if ( !currentOracle.waitQuery()) {
-                    if (currentOracle.updateRate())
+                OracleI oracle = OracleI(cur);
+                uint callPrice = oracle.getPrice();
+                if (cur.balance < callPrice) {
+                    sendValue = sendValue.sub(callPrice);
+                    cur.transfer(callPrice);
+                }
+                if ( !oracle.waitQuery()) {
+                    if (oracle.updateRate())
                         OracleTouched(cur, oracles[cur].name);
                     else
                         OracleNotTouched(cur, oracles[cur].name);
