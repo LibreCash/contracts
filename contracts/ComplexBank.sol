@@ -771,7 +771,7 @@ contract ComplexBank is Pausable,BankI {
                     if (oracle.updateRate())
                         OracleTouched(cur, oracles[cur].name);
                     else
-                        OracleNotTouched(cur, oracles[cur].name);
+                        revert();
                 }
             }
         } // foreach oracles
