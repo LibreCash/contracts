@@ -24,10 +24,9 @@ pragma solidity ^0.4.0;
 
 contract OraclizeI {
     address public cbAddress;
-    function query(uint _timestamp, string _datasource, string _arg) payable returns (bytes32 _id);
-//    function query_withGasLimit(uint _timestamp, string _datasource, string _arg, uint _gaslimit) payable returns (bytes32 _id);
-    function getPrice(string _datasource) returns (uint _dsprice);
-//    function getPrice(string _datasource, uint gaslimit) returns (uint _dsprice);
+//    function query(uint _timestamp, string _datasource, string _arg) payable returns (bytes32 _id);
+    function query_withGasLimit(uint _timestamp, string _datasource, string _arg, uint _gaslimit) payable returns (bytes32 _id);
+    function getPrice(string _datasource, uint gaslimit) returns (uint _dsprice);
     function setProofType(byte _proofType);
 //    function setConfig(bytes32 _config);
     function setCustomGasPrice(uint _gasPrice);
@@ -103,29 +102,22 @@ contract usingOraclize {
     function __callback(bytes32 myid, string result, bytes proof) public {
     }
 
-    function oraclize_getPrice(string datasource) oraclizeAPI internal returns (uint){
-        return oraclize.getPrice(datasource);
-    }
-
-/* возможно, понадобится
     function oraclize_getPrice(string datasource, uint gaslimit) oraclizeAPI internal returns (uint){
         return oraclize.getPrice(datasource, gaslimit);
     }
-*/
 
-    function oraclize_query(uint timestamp, string datasource, string arg) oraclizeAPI internal returns (bytes32 id){
+/*    function oraclize_query(uint timestamp, string datasource, string arg) oraclizeAPI internal returns (bytes32 id){
         uint price = oraclize.getPrice(datasource);
         if (price > 1 ether + tx.gasprice*200000) return 0; // unexpectedly high price
         return oraclize.query.value(price)(timestamp, datasource, arg);
     }
+*/
 
-/* возможно, понадобится
     function oraclize_query(uint timestamp, string datasource, string arg, uint gaslimit) oraclizeAPI internal returns (bytes32 id){
         uint price = oraclize.getPrice(datasource, gaslimit);
         if (price > 1 ether + tx.gasprice*gaslimit) return 0; // unexpectedly high price
         return oraclize.query_withGasLimit.value(price)(timestamp, datasource, arg, gaslimit);
     }
-*/
 
     function oraclize_cbAddress() oraclizeAPI internal returns (address){
         return oraclize.cbAddress();
