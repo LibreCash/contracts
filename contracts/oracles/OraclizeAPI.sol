@@ -24,11 +24,9 @@ pragma solidity ^0.4.0;
 
 contract OraclizeI {
     address public cbAddress;
-//    function query(uint _timestamp, string _datasource, string _arg) payable returns (bytes32 _id);
     function query_withGasLimit(uint _timestamp, string _datasource, string _arg, uint _gaslimit) payable returns (bytes32 _id);
     function getPrice(string _datasource, uint gaslimit) returns (uint _dsprice);
     function setProofType(byte _proofType);
-//    function setConfig(bytes32 _config);
     function setCustomGasPrice(uint _gasPrice);
 }
 
@@ -47,8 +45,6 @@ contract usingOraclize {
     OraclizeAddrResolverI OAR;
     OraclizeI oraclize;
 
-    string oraclize_network_name;
-
     modifier oraclizeAPI {
         if ((address(OAR)==0)||(getCodeSize(address(OAR))==0))
             oraclize_setNetworkAuto();
@@ -62,22 +58,18 @@ contract usingOraclize {
     function oraclize_setNetworkAuto() internal returns(bool){
         if (getCodeSize(0x1d3B2638a7cC9f2CB3D298A3DA7a90B67E5506ed)>0){ //mainnet
             OAR = OraclizeAddrResolverI(0x1d3B2638a7cC9f2CB3D298A3DA7a90B67E5506ed);
-            oraclize_setNetworkName("eth_mainnet");
             return true;
         }
         if (getCodeSize(0xc03A2615D5efaf5F49F60B7BB6583eaec212fdf1)>0){ //ropsten testnet
             OAR = OraclizeAddrResolverI(0xc03A2615D5efaf5F49F60B7BB6583eaec212fdf1);
-            oraclize_setNetworkName("eth_ropsten3");
             return true;
         }
         if (getCodeSize(0xB7A07BcF2Ba2f2703b24C0691b5278999C59AC7e)>0){ //kovan testnet
             OAR = OraclizeAddrResolverI(0xB7A07BcF2Ba2f2703b24C0691b5278999C59AC7e);
-            oraclize_setNetworkName("eth_kovan");
             return true;
         }
         if (getCodeSize(0x146500cfd35B22E4A392Fe0aDc06De1a1368Ed48)>0){ //rinkeby testnet
             OAR = OraclizeAddrResolverI(0x146500cfd35B22E4A392Fe0aDc06De1a1368Ed48);
-            oraclize_setNetworkName("eth_rinkeby");
             return true;
         }
         if (getCodeSize(0x6f485C8BF6fc43eA212E93BBF8ce046C7f1cb475)>0){ //ethereum-bridge
@@ -95,23 +87,9 @@ contract usingOraclize {
         return false;
     }
 
-    function __callback(bytes32 myid, string result) public {
-        __callback(myid, result, new bytes(0));
-    }
-    
-    function __callback(bytes32 myid, string result, bytes proof) public {
-    }
-
     function oraclize_getPrice(string datasource, uint gaslimit) oraclizeAPI internal returns (uint){
         return oraclize.getPrice(datasource, gaslimit);
     }
-
-/*    function oraclize_query(uint timestamp, string datasource, string arg) oraclizeAPI internal returns (bytes32 id){
-        uint price = oraclize.getPrice(datasource);
-        if (price > 1 ether + tx.gasprice*200000) return 0; // unexpectedly high price
-        return oraclize.query.value(price)(timestamp, datasource, arg);
-    }
-*/
 
     function oraclize_query(string datasource, string arg, uint gaslimit) oraclizeAPI internal returns (bytes32 id){
         uint price = oraclize.getPrice(datasource, gaslimit);
@@ -131,24 +109,9 @@ contract usingOraclize {
         return oraclize.setCustomGasPrice(gasPrice);
     }
 
-/*
-    function oraclize_setConfig(bytes32 config) oraclizeAPI internal {
-        return oraclize.setConfig(config);
-    }
-*/
-
     function getCodeSize(address _addr) constant internal returns(uint _size) {
         assembly {
             _size := extcodesize(_addr)
         }
     }
-
-    function oraclize_setNetworkName(string _network_name) internal {
-        oraclize_network_name = _network_name;
-    }
-/* unused getter    
-    function oraclize_getNetworkName() internal returns (string) {
-        return oraclize_network_name;
-    }
-*/
 }
