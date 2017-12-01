@@ -50,7 +50,7 @@ async function testFeesCascade() {
 }
 
 async function testRequestUpdateRates() {
-    var weiStr = prompt('send wei with requestUpdateRates ("." to send current deficit):', "0");
+    var weiStr = prompt('send wei with requestUpdateRates ("." to send current deficit):', ".");
     var wei = (weiStr == ".") ? (await contract.getOracleDeficit.call()).toNumber() : parseInt(weiStr);
     console.log("Wei to send: ", wei);
     var acc1 = web3.eth.accounts[0];
@@ -68,7 +68,7 @@ async function testCalcRates() {
 async function testSetRelevancePeriod() {
     var period = parseInt(prompt("new relevance period: ", "0"));
     console.log(contract.relevancePeriod().toString(10));
-    var setRelevancePeriodAddr = await contract.setRelevancePeriod(500);
+    var setRelevancePeriodAddr = await contract.setRelevancePeriod(period);
     var setRelevancePeriodMined = await web3.eth.getTransactionReceiptMined(setRelevancePeriodAddr);
     logTransactionByReceipt(setRelevancePeriodAddr);
 }
