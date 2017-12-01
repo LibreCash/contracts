@@ -236,6 +236,8 @@ contract ComplexBank is Pausable,BankI {
     // end public for tests only
 
     mapping (address => uint256) balanceEther; // возврат средств
+    // убрать паблик после тестов
+    uint256 public overallRefundValue = 0;
 
     /**
      * @dev Sends refund.
@@ -244,8 +246,10 @@ contract ComplexBank is Pausable,BankI {
         if (this.balance < balanceEther[msg.sender]) {
             SendEtherError("У контракта недостаточно средств!", msg.sender);
         } else {
-            if (msg.sender.send(balanceEther[msg.sender]))
+            if (msg.sender.send(balanceEther[msg.sender])) {
+                overallRefundValue = overallRefundValue.sub(balanceEther[msg.sender]);
                 balanceEther[msg.sender] = 0;
+            }
             else
                 SendEtherError("Ошибка при отправке средств!", msg.sender);
         }
@@ -274,6 +278,7 @@ contract ComplexBank is Pausable,BankI {
             return false;
 
         balanceEther[buyOrders[_orderID].senderAddress] = balanceEther[buyOrders[_orderID].senderAddress].add(buyOrders[_orderID].orderAmount);
+        overallRefundValue = overallRefundValue.add(buyOrders[_orderID].orderAmount);
         buyOrders[_orderID].recipientAddress = 0x0;
 
         return true;
@@ -374,6 +379,7 @@ contract ComplexBank is Pausable,BankI {
             libreToken.mint(senderAddress, tokensAmount);
         } else {
             balanceEther[senderAddress] = balanceEther[senderAddress].add(cryptoAmount);
+            overallRefundValue = overallRefundValue.add(cryptoAmount);
             LogSell(recipientAddress, tokensAmount, cryptoAmount, cryptoFiatRateBuy);
         }      
         return true;
@@ -734,6 +740,7 @@ contract ComplexBank is Pausable,BankI {
 
             uint256 canGetCryptoBySellingTokens = (libreToken.getTokensAmount() * RATE_MULTIPLIER).div(cryptoFiatRateSell);
             reserve = (reserveBalance * REVERSE_PERCENT * 100).div(canGetCryptoBySellingTokens);
+            reserve = reserve.sub(overallRefundValue);
         }
         return reserve;
     }
