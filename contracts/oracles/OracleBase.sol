@@ -133,23 +133,6 @@ contract OracleBase is Ownable, usingOraclize, OracleI {
         waitQuery = false;
     }
 
-/*
-СНЕСТИ ПОТОМ
-    bytes32 constant DUMMY_ID = 0xcc00cc00cc00;
-    function __callbackEstimate(bytes32 myid, string result, bytes proof) public {
-        require(validIds[DUMMY_ID]);
-        require(msg.sender == oraclize_cbAddress2());
-        rate = Helpers.parseIntRound(result, 3); // save it in storage as 1/1000 of $
-        NewPriceTicker(result);
-        delete(validIds[myid]);
-        updateTime = now;
-        waitQuery = false;
-    }
-
-    function addQueryIdDummy() public {
-        validIds[DUMMY_ID] = true;
-    }*/
-
     /**
     * @dev Oraclize default callback without the proof set.
     * @param myid The callback ID.
