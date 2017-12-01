@@ -98,7 +98,7 @@ contract OracleBase is Ownable, usingOraclize, OracleI {
      * @dev oraclize getPrice.
      */
     function getPrice() view public returns (uint) {
-        return oraclize_getPrice(oracleConfig.datasource);
+        return oraclize_getPrice(oracleConfig.datasource, gasLimit);
     }
 
     /**
@@ -133,6 +133,8 @@ contract OracleBase is Ownable, usingOraclize, OracleI {
         waitQuery = false;
     }
 
+/*
+СНЕСТИ ПОТОМ
     bytes32 constant DUMMY_ID = 0xcc00cc00cc00;
     function __callbackEstimate(bytes32 myid, string result, bytes proof) public {
         require(validIds[DUMMY_ID]);
@@ -146,7 +148,7 @@ contract OracleBase is Ownable, usingOraclize, OracleI {
 
     function addQueryIdDummy() public {
         validIds[DUMMY_ID] = true;
-    }
+    }*/
 
     /**
     * @dev Oraclize default callback without the proof set.

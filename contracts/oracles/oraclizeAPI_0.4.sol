@@ -67,7 +67,7 @@ contract usingOraclize {
 
     OraclizeAddrResolverI OAR;
 
-    address public cbAddress2 = 0xeab18325ad08515CC777B12Eb440855a3880a303;
+ //   address public cbAddress2 = 0xeab18325ad08515CC777B12Eb440855a3880a303;
 
     OraclizeI oraclize;
     modifier oraclizeAPI {
@@ -515,9 +515,9 @@ contract usingOraclize {
     function oraclize_cbAddress() oraclizeAPI internal returns (address){
         return oraclize.cbAddress();
     }
-    function oraclize_cbAddress2() oraclizeAPI internal returns (address){
+/*   function oraclize_cbAddress2() oraclizeAPI internal returns (address){
         return cbAddress2;
-    }
+    }*/
     function oraclize_setProof(byte proofP) oraclizeAPI internal {
         return oraclize.setProofType(proofP);
     }
