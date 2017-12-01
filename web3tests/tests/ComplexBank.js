@@ -68,7 +68,7 @@ async function testCalcRates() {
 async function testSetRelevancePeriod() {
     var period = parseInt(prompt("new relevance period: ", "0"));
     console.log(contract.relevancePeriod().toString(10));
-    var setRelevancePeriodAddr = await contract.setRelevancePeriod(500);
+    var setRelevancePeriodAddr = await contract.setRelevancePeriod(period);
     var setRelevancePeriodMined = await web3.eth.getTransactionReceiptMined(setRelevancePeriodAddr);
     logTransactionByReceipt(setRelevancePeriodAddr);
 }
