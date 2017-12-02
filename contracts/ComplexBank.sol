@@ -506,12 +506,11 @@ contract ComplexBank is Pausable,BankI {
 
     struct OracleData {
         bytes32 name;
-        uint256 rating;
         bool enabled;
         address next;
     }
 
-    mapping (address => OracleData) public oracles;
+    mapping (address => OracleData) oracles;
     uint256 public countOracles;
     address public firstOracle = 0x0;
     //address lastOracle = 0x0;
@@ -521,13 +520,20 @@ contract ComplexBank is Pausable,BankI {
     uint256 public cryptoFiatRate;
     uint256 public buyFee = 0;
     uint256 public sellFee = 0;
-    uint constant MAX_ORACLE_RATING = 10000;
     uint256 constant MAX_FEE = 7000; // 70%
 
     Limit buyFeeLimit = Limit(0, MAX_FEE);
     Limit sellFeeLimit = Limit(0, MAX_FEE);
 
     address public scheduler;
+
+    /**
+     * @dev Gets oracle data.
+     * @param _address Oracle address.
+     */
+    function getOracleData(address _address) public view returns (bytes32, bool, address) {
+
+    }
 
     /**
      * @dev Returns enabled oracles count.
@@ -620,7 +626,6 @@ contract ComplexBank is Pausable,BankI {
         bytes32 oracleName = currentOracle.oracleName();
         OracleData memory newOracle = OracleData({
             name: oracleName,
-            rating: MAX_ORACLE_RATING.div(2),
             enabled: true,
             next: 0x0
         });
@@ -677,24 +682,6 @@ contract ComplexBank is Pausable,BankI {
         countOracles--;
     }
     
-    /**
-     * @dev Gets oracle rating.
-     * @param _address The oracle address.
-     */
-    function getOracleRating(address _address) internal view returns(uint256) {
-        return oracles[_address].rating;
-    }
-
-    /**
-     * @dev Sets oracle rating.
-     * @param _address The oracle address.
-     * @param _rating Value of rating
-     */
-    function setOracleRating(address _address, uint256 _rating) internal {
-        require((oracleExists(_address)) && (_rating > 0) && (_rating <= MAX_ORACLE_RATING));
-        oracles[_address].rating = _rating;
-    }
-
     /**
      * @dev Sends money to oracles.
      * @param _fundToOracle Desired balance of every oracle.
