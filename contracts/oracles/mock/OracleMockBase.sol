@@ -45,8 +45,8 @@ contract OracleMockBase is Ownable {
     /**
      * @dev oraclize getPrice.
      */
-    function getPrice() public returns (uint) {
-        return price++;
+    function getPrice() public view returns (uint) {
+        return price;
     }
 
     /**
