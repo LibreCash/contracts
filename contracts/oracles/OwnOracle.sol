@@ -13,9 +13,7 @@ import "../interfaces/I_Oracle.sol";
  */
 contract OwnOracle is Ownable, OracleI {
     event NewOraclizeQuery(string description);
-    event NewPriceTicker(bytes32 oracleName, uint256 price, uint256 timestamp);
     event NewPriceTicker(uint256 price);
-    event Log(string description);
     event BankSet(address bankAddress);
     event UpdaterAddressSet(address _updaterAddress);
 
@@ -25,7 +23,7 @@ contract OwnOracle is Ownable, OracleI {
     address public bankAddress;
     uint256 public rate;
     bool public waitQuery = false;
-    address updaterAddress;
+    address public updaterAddress;
 
     modifier onlyBank() {
         require(msg.sender == bankAddress);
@@ -64,6 +62,7 @@ contract OwnOracle is Ownable, OracleI {
      */
     function setUpdaterAddress(address _address) public onlyOwner {
         updaterAddress = _address;
+        UpdaterAddressSet(updaterAddress)
     }
 
     /**
