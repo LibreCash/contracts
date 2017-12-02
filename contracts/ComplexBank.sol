@@ -294,8 +294,8 @@ contract ComplexBank is Pausable,BankI {
         if (sellOrders[_orderID].recipientAddress == 0x0)
             return false;
 
-        address sender = buyOrders[_orderID].senderAddress;
-        uint256 tokensAmount = buyOrders[_orderID].orderAmount;
+        address sender = sellOrders[_orderID].senderAddress;
+        uint256 tokensAmount = sellOrders[_orderID].orderAmount;
 
         libreToken.mint(sender, tokensAmount);
         sellOrders[_orderID].recipientAddress = 0x0; // Mark order as completed or canceled

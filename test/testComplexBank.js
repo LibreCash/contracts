@@ -400,7 +400,6 @@ contract('ComplexBank', function(accounts) {
             } catch(e) {
                 throw new Error("Don't work cancelSellOrderOwner!");
             }
-
             try {
                 await bank.cancelSellOrderOwner(1);
             } catch(e) {

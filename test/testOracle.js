@@ -121,7 +121,7 @@ contract('OracleI', async function(accounts) {
         } catch(e) {
             let after = parseInt(await oracle.rate.call());
 
-            assert.equal(before + 12000, after, "don't set rate");
+            assert.equal(before + 12, after, "don't set rate");
             return true;
         }
 
