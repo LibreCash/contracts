@@ -675,36 +675,7 @@ contract ComplexBank is Pausable,BankI {
         delete oracles[_address];
         countOracles--;
     }
-    
-    /**
-     * @dev Gets oracle rating.
-     * @param _address The oracle address.
-     */
-    function getOracleRating(address _address) internal view returns(uint256) {
-        return oracles[_address].rating;
-    }
 
-    /**
-     * @dev Sets oracle rating.
-     * @param _address The oracle address.
-     * @param _rating Value of rating
-     */
-    function setOracleRating(address _address, uint256 _rating) internal {
-        require((oracleExists(_address)) && (_rating > 0) && (_rating <= MAX_ORACLE_RATING));
-        oracles[_address].rating = _rating;
-    }
-
-    /**
-     * @dev Sends money to oracles.
-     * @param _fundToOracle Desired balance of every oracle.
-     */
-    function fundOracles(uint256 _fundToOracle) public payable onlyOwner {
-        for (address cur = firstOracle; cur != 0x0; cur = oracles[cur].next) {
-            if (oracles[cur].enabled && cur.balance < _fundToOracle) {
-               cur.transfer(_fundToOracle.sub(cur.balance));
-            }
-        }
-    }
     /**
      * @dev Get need money for oracles.
      */
@@ -817,8 +788,6 @@ contract ComplexBank is Pausable,BankI {
     }   
 
     // 05-monitoring end
-    
-
 
     // sytem methods start
 
