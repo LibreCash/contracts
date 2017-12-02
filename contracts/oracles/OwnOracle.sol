@@ -62,7 +62,7 @@ contract OwnOracle is Ownable, OracleI {
      */
     function setUpdaterAddress(address _address) public onlyOwner {
         updaterAddress = _address;
-        UpdaterAddressSet(updaterAddress)
+        UpdaterAddressSet(updaterAddress);
     }
 
     /**
