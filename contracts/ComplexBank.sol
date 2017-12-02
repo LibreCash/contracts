@@ -524,6 +524,7 @@ contract ComplexBank is Pausable,BankI {
     Limit buyFeeLimit = Limit(0, MAX_FEE);
     Limit sellFeeLimit = Limit(0, MAX_FEE);
 
+    address public scheduler;
 
     /**
      * @dev Returns enabled oracles count.
@@ -672,7 +673,66 @@ contract ComplexBank is Pausable,BankI {
         delete oracles[_address];
         countOracles--;
     }
+    
+    /**
+     * @dev Gets oracle rating.
+     * @param _address The oracle address.
+     */
+    function getOracleRating(address _address) internal view returns(uint256) {
+        return oracles[_address].rating;
+    }
 
+    /**
+     * @dev Sets oracle rating.
+     * @param _address The oracle address.
+     * @param _rating Value of rating
+     */
+    function setOracleRating(address _address, uint256 _rating) internal {
+        require((oracleExists(_address)) && (_rating > 0) && (_rating <= MAX_ORACLE_RATING));
+        oracles[_address].rating = _rating;
+    }
+
+    /**
+     * @dev Sends money to oracles.
+     * @param _fundToOracle Desired balance of every oracle.
+     */
+    function fundOracles(uint256 _fundToOracle) public payable onlyOwner {
+        for (address cur = firstOracle; cur != 0x0; cur = oracles[cur].next) {
+            if (oracles[cur].enabled && cur.balance < _fundToOracle) {
+               cur.transfer(_fundToOracle.sub(cur.balance));
+            }
+        }
+    }
+
+    /**
+     * @dev Sends money to oracles and start requestUpdateRates.
+     */
+    function schedulerUpdateRate() public {
+        schedulerUpdateRate(0);
+    }
+
+    /**
+     * @dev Sends money to oracles and start requestUpdateRates.
+     * @param fund Desired balance of every oracle.
+     */
+    function schedulerUpdateRate(uint256 fund) public canStartEmission {
+        require(msg.sender == scheduler);
+        for (address cur = firstOracle; cur != 0x0; cur = oracles[cur].next) {
+            if (oracles[cur].enabled)
+                cur.transfer((fund == 0) ? (OracleI(cur).getPrice()) : (fund));
+        }
+
+        requestUpdateRates();
+    }
+
+    /**
+     * @dev Set scheduler
+     * @param _scheduler new scheduler address
+     */
+    function setScheduler(address _scheduler) onlyOwner {
+        scheduler = _scheduler;
+    }
+    
     /**
      * @dev Get need money for oracles.
      */
@@ -785,6 +845,24 @@ contract ComplexBank is Pausable,BankI {
     }   
 
     // 05-monitoring end
+    
+    // 08-helper methods start
+    
+    /**
+     * @dev Calculate percents using fixed-float arithmetic.
+     * @param _numerator - Calculation numerator (first number)
+     * @param _denominator - Calculation denomirator (first number)
+     * @param _precision - calc precision
+     */
+    function percent(uint _numerator, uint _denominator, uint _precision) internal constant returns(uint) {
+        uint numerator = _numerator.mul(10 ** (_precision + 1));
+        uint quotient = numerator.div(_denominator).add(5).div(10);
+        return quotient;
+    }
+
+    // 08-helper methods end
+
+
 
     // sytem methods start
 
