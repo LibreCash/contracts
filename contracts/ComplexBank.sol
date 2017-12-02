@@ -711,7 +711,7 @@ contract ComplexBank is Pausable,BankI {
      * @dev Sends money to oracles and start requestUpdateRates.
      * @param fund Desired balance of every oracle.
      */
-    function schedulerUpdateRate(uint256 fund) public {
+    function schedulerUpdateRate(uint256 fund) public canStartEmission {
         require(msg.sender == scheduler);
         for (address cur = firstOracle; cur != 0x0; cur = oracles[cur].next) {
             if (oracles[cur].enabled)
@@ -749,7 +749,7 @@ contract ComplexBank is Pausable,BankI {
     /**
      * @dev Requests every enabled oracle to get the actual rate.
      */
-    function requestUpdateRates() public payable canStartEmission {
+    function requestUpdateRates() public payable canStartEmission returns (bool) {
         uint256 sendValue = msg.value;
 
         for (address cur = firstOracle; cur != 0x0; cur = oracles[cur].next) {
@@ -760,16 +760,19 @@ contract ComplexBank is Pausable,BankI {
                     sendValue = sendValue.sub(callPrice);
                     cur.transfer(callPrice);
                 }
-                if ( !oracle.waitQuery()) {
+                if (!oracle.waitQuery()) {
                     if (oracle.updateRate())
                         OracleTouched(cur, oracles[cur].name);
-                    else
+                    else {
                         OracleNotTouched(cur, oracles[cur].name);
+                        return false;
+                    }
                 }
             }
         } // foreach oracles
         timeUpdateRequest = now;
         OraclesTouched("Запущено обновление курсов");
+        return true;
     }
 
     /**
