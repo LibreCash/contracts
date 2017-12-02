@@ -527,7 +527,6 @@ contract ComplexBank is Pausable,BankI {
     Limit buyFeeLimit = Limit(0, MAX_FEE);
     Limit sellFeeLimit = Limit(0, MAX_FEE);
 
-    address public scheduler;
 
     /**
      * @dev Returns enabled oracles count.
@@ -706,36 +705,6 @@ contract ComplexBank is Pausable,BankI {
             }
         }
     }
-
-    /**
-     * @dev Sends money to oracles and start requestUpdateRates.
-     */
-    function schedulerUpdateRate() public {
-        schedulerUpdateRate(0);
-    }
-
-    /**
-     * @dev Sends money to oracles and start requestUpdateRates.
-     * @param fund Desired balance of every oracle.
-     */
-    function schedulerUpdateRate(uint256 fund) public canStartEmission {
-        require(msg.sender == scheduler);
-        for (address cur = firstOracle; cur != 0x0; cur = oracles[cur].next) {
-            if (oracles[cur].enabled)
-                cur.transfer((fund == 0) ? (OracleI(cur).getPrice()) : (fund));
-        }
-
-        requestUpdateRates();
-    }
-
-    /**
-     * @dev Set scheduler
-     * @param _scheduler new scheduler address
-     */
-    function setScheduler(address _scheduler) onlyOwner {
-        scheduler = _scheduler;
-    }
-    
     /**
      * @dev Get need money for oracles.
      */
