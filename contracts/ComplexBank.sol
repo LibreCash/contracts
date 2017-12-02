@@ -46,7 +46,7 @@ contract ComplexBank is Pausable,BankI {
                                                // и requestUpdateRates() следующего
     uint256 public queuePeriod = 60 minutes;
 
-// после тестов убрать public
+    // после тестов убрать public
     uint256 public timeUpdateRequest = 0; // the time of requestUpdateRates()
 
     enum ProcessState {
@@ -79,7 +79,9 @@ contract ComplexBank is Pausable,BankI {
     }
 
     modifier orderCreationAllowed() {
-        require(contractState == ProcessState.ORDER_CREATION || (now >= timeUpdateRequest + queuePeriod));
+        require(contractState == ProcessState.ORDER_CREATION || 
+                (now >= timeUpdateRequest + queuePeriod) ||
+                (sellNextOrder == 0 && buyNextOrder == 0));
         _;
         if (now >= timeUpdateRequest + relevancePeriod)
             contractState = ProcessState.REQUEST_UPDATE_RATE;

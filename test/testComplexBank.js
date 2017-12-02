@@ -36,16 +36,17 @@ contract('ComplexBank', function(accounts) {
 
             await cash.setBankAddress(bank.address);
             
-            oracles.forEach( async function(oracle) {
-                await oracle.deployed();
+            for (let i = 0; i < oracles.length; i++) {
+                await oracles[i].deployed();
                 try {
-                    await bank.disableOracle(oracle.address);
+                    await bank.deleteOracle(oracle[i].address);
                 } catch(e) {}
-            });
+            }
 
             let oracleTest = await oracle1.deployed();
+            await bank.addOracle(oracle1.address);
             await oracleTest.setBank(bank.address);
-            sleep(3000);
+            //sleep(3000);
         });
 
         beforeEach("clear orders", async function() {
@@ -60,7 +61,6 @@ contract('ComplexBank', function(accounts) {
             try {
                 await bank.processBuyQueue(0);
             } catch(e) {
-                //console.log(e);
                 console.log("beforeEach:",parseInt(await bank.getBuyOrdersCount.call()));
             }
             
@@ -240,21 +240,21 @@ contract('ComplexBank', function(accounts) {
 
             await cash.setBankAddress(bank.address);
             
-            oracles.forEach( async function(oracle) {
-                await oracle.deployed();
+            for (let i = 0; i < oracles.length; i++) {
+                await oracles[i].deployed();
                 try {
-                    await bank.disableOracle(oracle.address);
+                    await bank.deleteOracle(oracle[i].address);
                 } catch(e) {}
-            });
+            }
 
             let oracleTest = await oracle1.deployed();
+            await bank.addOracle(oracle1.address);
             await oracleTest.setBank(bank.address);
+
             await bank.sendTransaction({from: owner, value: web3.toWei(7,'ether')});
             await bank.requestUpdateRates({value: web3.toWei(0.01,'ether')});
-            sleep(3000);
             await bank.calcRates();
             await bank.processBuyQueue(0);
-            sleep(3000);
         });
 
         beforeEach("clear orders", async function() {
@@ -277,8 +277,6 @@ contract('ComplexBank', function(accounts) {
             let before = parseInt(await bank.getSellOrdersCount.call());
             let tokenBefore = parseInt(await cash.balanceOf(owner));
 
-            console.log("balance",await cash.balanceOf(owner));
-            console.log("contractState",await bank.contractState.call());
             await bank.createSellOrder(owner, 12, 0);
 
             let after = parseInt(await bank.getSellOrdersCount.call());
