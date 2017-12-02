@@ -14,7 +14,7 @@ import "../interfaces/I_Oracle.sol";
 contract OwnOracle is Ownable, OracleI {
     event NewOraclizeQuery(string description);
     event NewPriceTicker(bytes32 oracleName, uint256 price, uint256 timestamp);
-    event NewPriceTicker(string price);
+    event NewPriceTicker(uint256 price);
     event Log(string description);
     event BankSet(address bankAddress);
     event UpdaterAddressSet(address _updaterAddress);
@@ -87,9 +87,9 @@ contract OwnOracle is Ownable, OracleI {
     * @dev Oracle default callback.
     * @param result The callback data.
     */
-    function __callback(string result) public {
+    function __callback(uint256 result) public {
         require(msg.sender == updaterAddress);
-        rate = Helpers.parseIntRound(result, 3); // save it in storage as 1/1000 of $
+        rate = result;
         NewPriceTicker(result);
         updateTime = now;
         waitQuery = false;
