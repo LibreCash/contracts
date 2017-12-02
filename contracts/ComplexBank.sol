@@ -531,8 +531,19 @@ contract ComplexBank is Pausable,BankI {
      * @dev Gets oracle data.
      * @param _address Oracle address.
      */
-    function getOracleData(address _address) public view returns (bytes32, bool, address) {
+    function getOracleData(address _address) public view returns (bytes32, bool, bool, uint256, address) {
+                                                                /* name, enabled, waiting, rate, next */
+        OracleI currentOracle = OracleI(_address);
+        uint256 rate = currentOracle.rate();
+        bool waiting = currentOracle.waitQuery();
 
+        return(
+            oracles[_address].name,
+            oracles[_address].enabled,
+            waiting,
+            rate,
+            oracles[_address].next
+        );
     }
 
     /**
