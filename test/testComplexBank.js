@@ -651,7 +651,7 @@ contract('ComplexBank', function(accounts) {
             throw new Error("calcRate start without Oracles!");
         });
 
-        it.only("set scheduler",async function() {
+        it("set scheduler",async function() {
             let bank = await ComplexBank.deployed();
             let before = await bank.scheduler.call();
 
@@ -663,7 +663,7 @@ contract('ComplexBank', function(accounts) {
             assert.equal(scheduler, after, "setScheduler not work!")
         });
 
-        it.only("refundOracles", async function() {
+        it("refundOracles", async function() {
             let bank = await ComplexBank.deployed();
             let testOracle = await oracle1.deployed();
             await bank.sendTransaction({from: acc1, value: web3.toWei(5,'ether')});
