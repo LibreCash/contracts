@@ -348,13 +348,13 @@ contract ComplexBank is Pausable,BankI {
             processBuyOrder(i);
         }
 
-        if (buyNextOrder == 0 || lastOrder == buyNextOrder) {
+        if (lastOrder == buyNextOrder) {
             buyOrderIndex = 0;
             buyNextOrder = 0;
-            OrderQueueGeneral("Очередь ордеров на покупку очищена");
+            OrderQueueGeneral("Order queue for buy cleared");
         } else {
             buyOrderIndex = lastOrder;
-            OrderQueueGeneral("Очередь ордеров на покупку очищена не до конца");
+            OrderQueueGeneral("The order queue for buy is not cleared up to the end");
         }
     }
 
@@ -400,10 +400,10 @@ contract ComplexBank is Pausable,BankI {
         if (lastOrder == sellNextOrder) {
             sellOrderIndex = 0;
             sellNextOrder = 0;
-            OrderQueueGeneral("Очередь ордеров на продажу очищена");
+            OrderQueueGeneral("Order queue for sell cleared");
         } else {
             sellOrderIndex = lastOrder;
-            OrderQueueGeneral("Очередь ордеров на продажу очищена не до конца");
+            OrderQueueGeneral("The order queue for sell is not cleared up to the end");
         }
     }
     // 02-queue end

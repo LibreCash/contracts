@@ -697,7 +697,6 @@ contract('ComplexBank', function(accounts) {
             await bank.schedulerUpdateRate(0,{from:acc1});
             let after = web3.eth.getBalance(oracle);
 
-            //console.log(before,after,cost);
             assert.isTrue(after > before, "Don't fund oralces!");
         });
     });
