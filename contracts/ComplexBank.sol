@@ -24,7 +24,6 @@ contract ComplexBank is Pausable,BankI {
     event SellOrderCanceled(uint orderId,address beneficiary,uint amount);
     event SendEtherError(string error, address _addr);
     
-    uint256 constant MIN_ENABLED_ORACLES = 0; //2;
     uint256 constant MIN_READY_ORACLES = 1; //2;
     uint256 constant COUNT_EVENT_ORACLES = MIN_READY_ORACLES + 1;
     uint256 constant MAX_RELEVANCE_PERIOD = 48 hours;
@@ -88,11 +87,6 @@ contract ComplexBank is Pausable,BankI {
             (!queueProcessingFinished) &&
             (calcRatesDone)
         );
-        _;
-    }
-
-    modifier positiveRates() {
-        require((cryptoFiatRateBuy != 0) && (cryptoFiatRateSell != 0));
         _;
     }
 
@@ -227,8 +221,8 @@ contract ComplexBank is Pausable,BankI {
     uint256 buyOrderIndex = 0; // Хранит первый номер ордера
     uint256 sellOrderIndex = 0;
     // public for tests only
-    uint256 public buyNextOrder = 0; // Хранит следующий за последним номер ордера
-    uint256 public sellNextOrder = 0;
+    uint256 buyNextOrder = 0; // Хранит следующий за последним номер ордера
+    uint256 sellNextOrder = 0;
     // end public for tests only
 
     mapping (address => uint256) balanceEther; // возврат средств
@@ -238,12 +232,12 @@ contract ComplexBank is Pausable,BankI {
      */
     function getEther() public {
         if (this.balance < balanceEther[msg.sender]) {
-            SendEtherError("У контракта недостаточно средств!", msg.sender);
+            SendEtherError("The contract does not have enough funds!", msg.sender);
         } else {
             if (msg.sender.send(balanceEther[msg.sender]))
                 balanceEther[msg.sender] = 0;
             else
-                SendEtherError("Ошибка при отправке средств!", msg.sender);
+                SendEtherError("Error sending money!", msg.sender);
         }
     }
 
@@ -546,9 +540,10 @@ contract ComplexBank is Pausable,BankI {
     function numReadyOracles() public onlyOwner view returns (uint256) {
         uint256 numOracles = 0;
         for (address current = firstOracle; current != 0x0; current = oracles[current].next) {
-            OracleData memory currentOracleData = oracles[current];
+            if (oracles[current].enabled) 
+                continue;
             OracleI currentOracle = OracleI(current);
-            if ((currentOracleData.enabled) && (currentOracle.rate() != 0) && (currentOracle.waitQuery() == false)) 
+            if ((currentOracle.rate() != 0) && !currentOracle.waitQuery() ) 
                 numOracles++;
         }
         
@@ -690,18 +685,6 @@ contract ComplexBank is Pausable,BankI {
     function setOracleRating(address _address, uint256 _rating) internal {
         require((oracleExists(_address)) && (_rating > 0) && (_rating <= MAX_ORACLE_RATING));
         oracles[_address].rating = _rating;
-    }
-
-    /**
-     * @dev Sends money to oracles.
-     * @param _fundToOracle Desired balance of every oracle.
-     */
-    function fundOracles(uint256 _fundToOracle) public payable onlyOwner {
-        for (address cur = firstOracle; cur != 0x0; cur = oracles[cur].next) {
-            if (oracles[cur].enabled && cur.balance < _fundToOracle) {
-               cur.transfer(_fundToOracle.sub(cur.balance));
-            }
-        }
     }
 
     /**
@@ -871,13 +854,6 @@ contract ComplexBank is Pausable,BankI {
      */
     function totalTokenCount() public view returns (uint256) {
         return libreToken.getTokensAmount();
-    }
-
-    /**
-     * @dev Returns total tokens price in Wei.
-     */
-    function totalTokensPrice() public view returns (uint256) {
-        return totalTokenCount().mul(cryptoFiatRateSell);
     }
 
     // TODO: удалить после тестов, нужен чтобы возвращать эфир с контракта
