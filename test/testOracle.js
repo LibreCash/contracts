@@ -88,6 +88,8 @@ contract('OracleI', async function(accounts) {
         let before = parseInt(web3.eth.getBalance(oracle));
 
         try {
+            console.log("contractState", parseInt(await bank.contractState.call()));
+            console.log("getOracleDeficit", parseInt(await bank.getOracleDeficit.call()));
             await bank.requestUpdateRates({value: web3.toWei(1,'ether')});
         } catch(e) {
             throw new Error("requestUpdateRate don't work if send ether!!");

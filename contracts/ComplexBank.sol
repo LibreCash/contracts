@@ -748,7 +748,7 @@ contract ComplexBank is Pausable,BankI {
     /**
      * @dev Requests every enabled oracle to get the actual rate.
      */
-    function requestUpdateRates() public payable canStartEmission returns (bool) {
+    function requestUpdateRates() public payable canStartEmission {
         uint256 sendValue = msg.value;
 
         for (address cur = firstOracle; cur != 0x0; cur = oracles[cur].next) {
@@ -764,14 +764,12 @@ contract ComplexBank is Pausable,BankI {
                         OracleTouched(cur, oracles[cur].name);
                     else {
                         OracleNotTouched(cur, oracles[cur].name);
-                        return false;
+                        break;
                     }
                 }
             }
         } // foreach oracles
-        timeUpdateRequest = now;
         OraclesTouched("Запущено обновление курсов");
-        return true;
     }
 
     /**

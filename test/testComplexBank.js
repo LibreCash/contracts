@@ -33,8 +33,6 @@ contract('ComplexBank', function(accounts) {
 
             await bank.setRelevancePeriod(0);
             await bank.setQueuePeriod(0);
-
-            await cash.setBankAddress(bank.address);
             
             for (let i = 0; i < oracles.length; i++) {
                 await oracles[i].deployed();
@@ -46,7 +44,7 @@ contract('ComplexBank', function(accounts) {
             let oracleTest = await oracle1.deployed();
             await bank.addOracle(oracle1.address);
             await oracleTest.setBank(bank.address);
-            //sleep(3000);
+            await cash.setBankAddress(bank.address);
         });
 
         beforeEach("clear orders", async function() {
