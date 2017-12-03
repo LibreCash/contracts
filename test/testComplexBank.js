@@ -53,7 +53,7 @@ contract('ComplexBank', function(accounts) {
             try {
                 await bank.unpause();
             } catch(e) {}
-
+            
             await bank.requestUpdateRates({value: web3.toWei(0.01,'ether')});
             await bank.calcRates();
             try {

@@ -25,7 +25,7 @@ contract ComplexBank is Pausable,BankI {
     event SendEtherError(string error, address _addr);
     
     uint256 constant MIN_ENABLED_ORACLES = 0; //2;
-    uint256 constant MIN_READY_ORACLES = 0; //2;
+    uint256 constant MIN_READY_ORACLES = 1; //2;
     uint256 constant COUNT_EVENT_ORACLES = MIN_READY_ORACLES + 1;
 
     uint256 constant MAX_RELEVANCE_PERIOD = 48 hours;
@@ -541,7 +541,7 @@ contract ComplexBank is Pausable,BankI {
     function numReadyOracles() public onlyOwner view returns (uint256) {
         uint256 numOracles = 0;
         for (address current = firstOracle; current != 0x0; current = oracles[current].next) {
-            if (oracles[current].enabled) 
+            if (!oracles[current].enabled) 
                 continue;
             OracleI currentOracle = OracleI(current);
             if ((currentOracle.rate() != 0) && !currentOracle.waitQuery() ) 
@@ -815,13 +815,12 @@ contract ComplexBank is Pausable,BankI {
      * @dev Checks the contract state.
      */
     function checkContract() public {
-        // TODO: Добавить проверки
         uint256 countOracles = numReadyOracles();
         require (countOracles >= MIN_READY_ORACLES);
         if (countOracles < COUNT_EVENT_ORACLES) {
             OracleReadyNearToMin(countOracles);
         }
-    }   
+    }  
 
     // 05-monitoring end
     
