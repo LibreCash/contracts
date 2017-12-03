@@ -77,8 +77,8 @@ contract('OracleI', async function(accounts) {
     it("get rate", async function() {
         let oracle = await OracleMockTest.deployed();
         
-        let rate = await oracle.rate.call();
-        assert.equal(rate, 100, "don't get rate");
+        let rate = parseInt(await oracle.rate.call());
+        assert.equal(rate, 1000, "don't get rate");
     });
 
     it("requestUpdateRate", async function() {
@@ -88,6 +88,8 @@ contract('OracleI', async function(accounts) {
         let before = parseInt(web3.eth.getBalance(oracle));
 
         try {
+            console.log("contractState", parseInt(await bank.contractState.call()));
+            console.log("getOracleDeficit", parseInt(await bank.getOracleDeficit.call()));
             await bank.requestUpdateRates({value: web3.toWei(1,'ether')});
         } catch(e) {
             throw new Error("requestUpdateRate don't work if send ether!!");
@@ -121,7 +123,7 @@ contract('OracleI', async function(accounts) {
         } catch(e) {
             let after = parseInt(await oracle.rate.call());
 
-            assert.equal(before + 12000, after, "don't set rate");
+            assert.equal(before + 12, after, "don't set rate");
             return true;
         }
 

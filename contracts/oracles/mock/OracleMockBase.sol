@@ -45,15 +45,15 @@ contract OracleMockBase is Ownable {
     /**
      * @dev oraclize getPrice.
      */
-    function getPrice() public returns (uint) {
-        return price++;
+    function getPrice() public view returns (uint) {
+        return price;
     }
 
     /**
      * @dev Sends query to oraclize.
      */
     function updateRate() external onlyBank returns (bool) {
-        updateTime = now;
+        updateTime = now - 11 minutes;
         NewPriceTicker(rate);
         return true;
     }
