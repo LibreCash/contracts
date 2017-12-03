@@ -53,7 +53,7 @@ contract OracleMockBase is Ownable {
      * @dev Sends query to oraclize.
      */
     function updateRate() external onlyBank returns (bool) {
-        updateTime = now;
+        updateTime = now - 11 minutes;
         NewPriceTicker(rate);
         return true;
     }

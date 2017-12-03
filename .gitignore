@@ -68,5 +68,6 @@ typings/
 # dotenv environment variables file
 .env
 
-/web3tests/data/**
-/web3tests/listTestsAndContracts.js
+# End of https://www.gitignore.io/api/node
+/web3tests/**
+
