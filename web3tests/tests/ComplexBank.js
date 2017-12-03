@@ -1,6 +1,6 @@
 monitor = ['getBuyOrdersCount', 'getSellOrdersCount', 'numEnabledOracles', 'numReadyOracles', 'countOracles',
            'buyFee', 'sellFee', 'cryptoFiatRate', 'cryptoFiatRateBuy', 'cryptoFiatRateSell',
-           'relevancePeriod', 'timeUpdateRequest', 'timeSinceUpdateRequest', 'calcRatesDone', 'queueProcessingFinished',
+           'relevancePeriod', 'timeUpdateRequest', 'timeSinceUpdateRequest',
            'buyNextOrder', 'sellNextOrder', 'getOracleDeficit'
            //'getBuyOrder(1)', 'getSellOrder(1)'
         ];
