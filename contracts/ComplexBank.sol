@@ -75,9 +75,7 @@ contract ComplexBank is Pausable,BankI {
     }
 
     modifier orderCreationAllowed() {
-        require(contractState == ProcessState.ORDER_CREATION || 
-                (now >= timeUpdateRequest + queuePeriod) ||
-                (sellNextOrder == 0 && buyNextOrder == 0));
+        require((contractState == ProcessState.ORDER_CREATION) || (now >= timeUpdateRequest + queuePeriod));
         _;
         if (now >= timeUpdateRequest + relevancePeriod)
             contractState = ProcessState.REQUEST_UPDATE_RATE;
@@ -98,11 +96,6 @@ contract ComplexBank is Pausable,BankI {
     Limit public buyLimit = Limit(0, 99999 * 1 ether);
     Limit public sellLimit = Limit(0, 99999 * 1 ether);
     // Limits end
-
-    modifier positiveRates() {
-        require((cryptoFiatRateBuy != 0) && (cryptoFiatRateSell != 0));
-        _;
-    }
 
     /**
      * @dev Constructor.
