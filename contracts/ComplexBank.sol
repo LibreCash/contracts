@@ -29,7 +29,7 @@ contract ComplexBank is Pausable,BankI {
     uint256 constant COUNT_EVENT_ORACLES = MIN_READY_ORACLES + 1;
 
     uint256 constant MAX_RELEVANCE_PERIOD = 48 hours;
-    uint256 constant MAX_QUEUE_PERIOD = 60 minutes;
+    uint256 constant MIN_QUEUE_PERIOD = 10 minutes;
 
     uint256 constant REVERSE_PERCENT = 100;
     uint256 constant RATE_MULTIPLIER = 1000; // doubling in oracleBase __callback as parseIntRound(..., 3) as 3
@@ -64,7 +64,10 @@ contract ComplexBank is Pausable,BankI {
     modifier calcRatesAllowed() {
         require(contractState == ProcessState.CALC_RATE);
         _;
-        contractState = ProcessState.PROCESS_ORDERS;
+        if (sellNextOrder == 0 && buyNextOrder == 0)
+            contractState = ProcessState.ORDER_CREATION;
+        else
+            contractState = ProcessState.PROCESS_ORDERS;
     }
 
     modifier queueProcessingAllowed() {
@@ -75,9 +78,7 @@ contract ComplexBank is Pausable,BankI {
     }
 
     modifier orderCreationAllowed() {
-        require(contractState == ProcessState.ORDER_CREATION || 
-                (now >= timeUpdateRequest + queuePeriod) ||
-                (sellNextOrder == 0 && buyNextOrder == 0));
+        require((contractState == ProcessState.ORDER_CREATION) || (now >= timeUpdateRequest + queuePeriod));
         _;
         if (now >= timeUpdateRequest + relevancePeriod)
             contractState = ProcessState.REQUEST_UPDATE_RATE;
@@ -493,12 +494,11 @@ contract ComplexBank is Pausable,BankI {
 
     struct OracleData {
         bytes32 name;
-        uint256 rating;
         bool enabled;
         address next;
     }
 
-    mapping (address => OracleData) public oracles;
+    mapping (address => OracleData) oracles;
     uint256 public countOracles;
     address public firstOracle = 0x0;
 
@@ -507,13 +507,32 @@ contract ComplexBank is Pausable,BankI {
     uint256 public cryptoFiatRate;
     uint256 public buyFee = 0;
     uint256 public sellFee = 0;
-    uint constant MAX_ORACLE_RATING = 10000;
     uint256 constant MAX_FEE = 7000; // 70%
 
     Limit buyFeeLimit = Limit(0, MAX_FEE);
     Limit sellFeeLimit = Limit(0, MAX_FEE);
 
     address public scheduler;
+
+    /**
+     * @dev Gets oracle data.
+     * @param _address Oracle address.
+     */
+    function getOracleData(address _address) public view returns (bytes32, bytes32, uint256, bool, bool, uint256, address) {
+                                                                /* name, type, upd_time, enabled, waiting, rate, next */
+        OracleI currentOracle = OracleI(_address);
+        OracleData memory oracle = oracles[_address];
+
+        return(
+            oracle.name,
+            currentOracle.oracleType(),
+            currentOracle.updateTime(),
+            oracle.enabled,
+            currentOracle.waitQuery(),
+            currentOracle.rate(),
+            oracle.next
+        );
+    }
 
     /**
      * @dev Returns enabled oracles count.
@@ -556,10 +575,10 @@ contract ComplexBank is Pausable,BankI {
 
     /**
      * @dev Lets owner to set queue period.
-     * @param _period Period up to MAX_QUEUE_PERIOD.
+     * @param _period Period from MIN_QUEUE_PERIOD.
      */
     function setQueuePeriod(uint256 _period) public onlyOwner {
-        require(_period < MAX_QUEUE_PERIOD);
+        require(_period >= MIN_QUEUE_PERIOD);
         queuePeriod = _period;
     }
 
@@ -607,7 +626,6 @@ contract ComplexBank is Pausable,BankI {
         bytes32 oracleName = currentOracle.oracleName();
         OracleData memory newOracle = OracleData({
             name: oracleName,
-            rating: MAX_ORACLE_RATING.div(2),
             enabled: true,
             next: 0x0
         });
@@ -662,24 +680,6 @@ contract ComplexBank is Pausable,BankI {
         
         delete oracles[_address];
         countOracles--;
-    }
-    
-    /**
-     * @dev Gets oracle rating.
-     * @param _address The oracle address.
-     */
-    function getOracleRating(address _address) internal view returns(uint256) {
-        return oracles[_address].rating;
-    }
-
-    /**
-     * @dev Sets oracle rating.
-     * @param _address The oracle address.
-     * @param _rating Value of rating
-     */
-    function setOracleRating(address _address, uint256 _rating) internal {
-        require((oracleExists(_address)) && (_rating > 0) && (_rating <= MAX_ORACLE_RATING));
-        oracles[_address].rating = _rating;
     }
 
     /**
