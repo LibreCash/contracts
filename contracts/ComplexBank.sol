@@ -64,7 +64,10 @@ contract ComplexBank is Pausable,BankI {
     modifier calcRatesAllowed() {
         require(contractState == ProcessState.CALC_RATE);
         _;
-        contractState = ProcessState.PROCESS_ORDERS;
+        if (sellNextOrder == 0 && buyNextOrder == 0)
+            contractState = ProcessState.ORDER_CREATION;
+        else
+            contractState = ProcessState.PROCESS_ORDERS;
     }
 
     modifier queueProcessingAllowed() {
