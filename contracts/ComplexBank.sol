@@ -230,8 +230,8 @@ contract ComplexBank is Pausable,BankI {
     uint256 buyOrderIndex = 0; // Хранит первый номер ордера
     uint256 sellOrderIndex = 0;
 
-    uint256 buyNextOrder = 0; // Хранит следующий за последним номер ордера
-    uint256 sellNextOrder = 0;
+    uint256 private buyNextOrder = 0; // Хранит следующий за последним номер ордера
+    uint256 private sellNextOrder = 0;
 
     mapping (address => uint256) balanceEther; // возврат средств
 

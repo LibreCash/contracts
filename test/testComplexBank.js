@@ -32,7 +32,7 @@ contract('ComplexBank', function(accounts) {
             let cash = await LibreCash.deployed();
 
             await bank.setRelevancePeriod(0);
-            await bank.setQueuePeriod(0);
+            await bank.setQueuePeriod(600);
             
             for (let i = 0; i < oracles.length; i++) {
                 await oracles[i].deployed();
@@ -234,7 +234,7 @@ contract('ComplexBank', function(accounts) {
             let cash = await LibreCash.deployed();
 
             await bank.setRelevancePeriod(0);
-            await bank.setQueuePeriod(0);
+            await bank.setQueuePeriod(600);
 
             await cash.setBankAddress(bank.address);
             
