@@ -24,7 +24,6 @@ contract ComplexBank is Pausable,BankI {
     event SellOrderCanceled(uint orderId,address beneficiary,uint amount);
     event SendEtherError(string error, address _addr);
     
-    uint256 constant MIN_ENABLED_ORACLES = 0; //2;
     uint256 constant MIN_READY_ORACLES = 1; //2;
     uint256 constant COUNT_EVENT_ORACLES = MIN_READY_ORACLES + 1;
 
