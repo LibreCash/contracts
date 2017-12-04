@@ -29,7 +29,7 @@ contract ComplexBank is Pausable,BankI {
     uint256 constant COUNT_EVENT_ORACLES = MIN_READY_ORACLES + 1;
 
     uint256 constant MAX_RELEVANCE_PERIOD = 48 hours;
-    uint256 constant MAX_QUEUE_PERIOD = 60 minutes;
+    uint256 constant MIN_QUEUE_PERIOD = 10 minutes;
 
     uint256 constant REVERSE_PERCENT = 100;
     uint256 constant RATE_MULTIPLIER = 1000; // doubling in oracleBase __callback as parseIntRound(..., 3) as 3
@@ -575,10 +575,10 @@ contract ComplexBank is Pausable,BankI {
 
     /**
      * @dev Lets owner to set queue period.
-     * @param _period Period up to MAX_QUEUE_PERIOD.
+     * @param _period Period from MIN_QUEUE_PERIOD.
      */
     function setQueuePeriod(uint256 _period) public onlyOwner {
-        require(_period < MAX_QUEUE_PERIOD);
+        require(_period >= MIN_QUEUE_PERIOD);
         queuePeriod = _period;
     }
 
