@@ -45,7 +45,6 @@ contract ComplexBank is Pausable,BankI {
     uint256 public timeUpdateRequest = 0; // the time of requestUpdateRates()
 
     enum ProcessState {
-        REQUEST_UPDATE_RATE,
         CALC_RATE,
         PROCESS_ORDERS,
         ORDER_CREATION
@@ -54,7 +53,7 @@ contract ComplexBank is Pausable,BankI {
     ProcessState public contractState;
 
     modifier canStartEmission() {
-        require(contractState == ProcessState.REQUEST_UPDATE_RATE || (now >= timeUpdateRequest + relevancePeriod));
+        require(now >= timeUpdateRequest + relevancePeriod);
         _;
         contractState = ProcessState.CALC_RATE;
         timeUpdateRequest = now;
@@ -79,10 +78,7 @@ contract ComplexBank is Pausable,BankI {
     modifier orderCreationAllowed() {
         require((contractState == ProcessState.ORDER_CREATION) || (now >= timeUpdateRequest + queuePeriod));
         _;
-        if (now >= timeUpdateRequest + relevancePeriod)
-            contractState = ProcessState.REQUEST_UPDATE_RATE;
-        else
-            contractState = ProcessState.ORDER_CREATION;
+        contractState = ProcessState.ORDER_CREATION;
     }
 
 // for tests
