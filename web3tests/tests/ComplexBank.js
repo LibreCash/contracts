@@ -1,6 +1,6 @@
 monitor = ['getBuyOrdersCount', 'getSellOrdersCount', 'numEnabledOracles', 'numReadyOracles', 'countOracles',
 'buyFee', 'sellFee', 'cryptoFiatRate', 'cryptoFiatRateBuy', 'cryptoFiatRateSell',
-'relevancePeriod', 'timeUpdateRequest', 'timeSinceUpdateRequest',
+'relevancePeriod', 'queuePeriod', 'timeUpdateRequest', 'timeSinceUpdateRequest',
 'buyNextOrder', 'sellNextOrder', 'getOracleDeficit', 'contractState'
            //'getBuyOrder(1)', 'getSellOrder(1)'
         ];
@@ -71,6 +71,14 @@ async function testSetRelevancePeriod() {
     var setRelevancePeriodAddr = await contract.setRelevancePeriod(period);
     var setRelevancePeriodMined = await web3.eth.getTransactionReceiptMined(setRelevancePeriodAddr);
     logTransactionByReceipt(setRelevancePeriodAddr);
+}
+
+async function testSetQueuePeriod() {
+    var period = parseInt(prompt("new queue period, minutes (min 10): ", "10"));
+    console.log(contract.queuePeriod().toString(10));
+    var setQueuePeriodAddr = await contract.setQueuePeriod(period * 60);
+    var setQueuePeriodMined = await web3.eth.getTransactionReceiptMined(setQueuePeriodAddr);
+    logTransactionByReceipt(setQueuePeriodAddr);
 }
 
 async function testBuyQueue() {
