@@ -99,11 +99,6 @@ contract ComplexBank is Pausable,BankI {
     Limit public sellLimit = Limit(0, 99999 * 1 ether);
     // Limits end
 
-    modifier positiveRates() {
-        require((cryptoFiatRateBuy != 0) && (cryptoFiatRateSell != 0));
-        _;
-    }
-
     /**
      * @dev Constructor.
      */
@@ -234,10 +229,9 @@ contract ComplexBank is Pausable,BankI {
     OrderData[] private sellOrders; // очередь ордеров на продажу
     uint256 buyOrderIndex = 0; // Хранит первый номер ордера
     uint256 sellOrderIndex = 0;
-    // public for tests only
+
     uint256 buyNextOrder = 0; // Хранит следующий за последним номер ордера
     uint256 sellNextOrder = 0;
-    // end public for tests only
 
     mapping (address => uint256) balanceEther; // возврат средств
 
@@ -363,6 +357,7 @@ contract ComplexBank is Pausable,BankI {
      * @param _orderID The order ID.
      */
     function processSellOrder(uint256 _orderID) internal {
+        require(cryptoFiatRateSell != 0);
         if (sellOrders[_orderID].recipientAddress == 0x0)
             return;
         
