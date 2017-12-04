@@ -357,7 +357,6 @@ contract ComplexBank is Pausable,BankI {
      * @param _orderID The order ID.
      */
     function processSellOrder(uint256 _orderID) internal {
-        require(cryptoFiatRateSell != 0);
         if (sellOrders[_orderID].recipientAddress == 0x0)
             return;
         
