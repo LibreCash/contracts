@@ -582,10 +582,9 @@ contract ComplexBank is Pausable,BankI {
      * @param _oracle The oracle's address.
      */
     function oracleExists(address _oracle) internal view returns (bool) {
-        for (address current = firstOracle; current != 0x0; current = oracles[current].next) {
-            if (current == _oracle) 
-                return true;
-        }
+        if(oracles[_oracle].name == bytes32(0))
+            return true;
+
         return false;
     }
 
@@ -803,18 +802,6 @@ contract ComplexBank is Pausable,BankI {
     
     // 08-helper methods start
     
-    /**
-     * @dev Calculate percents using fixed-float arithmetic.
-     * @param _numerator - Calculation numerator (first number)
-     * @param _denominator - Calculation denomirator (first number)
-     * @param _precision - calc precision
-     */
-    function percent(uint _numerator, uint _denominator, uint _precision) internal constant returns(uint) {
-        uint numerator = _numerator.mul(10 ** (_precision + 1));
-        uint quotient = numerator.div(_denominator).add(5).div(10);
-        return quotient;
-    }
-
     // 08-helper methods end
 
 

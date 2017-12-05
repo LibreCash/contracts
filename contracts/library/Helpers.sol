@@ -31,4 +31,17 @@ library Helpers {
 		return mint;
 	}
 
+	 /**
+     * @dev Calculate percents using fixed-float arithmetic.
+     * @param _numerator - Calculation numerator (first number)
+     * @param _denominator - Calculation denomirator (first number)
+     * @param _precision - calc precision
+     */
+    function percent(uint _numerator, uint _denominator, uint _precision) internal constant returns(uint) {
+        uint numerator = _numerator.mul(10 ** (_precision + 1));
+        uint quotient = numerator.div(_denominator).add(5).div(10);
+        return quotient;
+    }
+
+
 }
