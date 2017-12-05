@@ -442,9 +442,9 @@ contract ComplexBank is Pausable,BankI {
     }
 
     /**
-     * @dev Gets sell order count (by the owner).
+     * @dev Gets sell order count.
      */
-    function getSellOrdersCount() public onlyOwner view returns(uint256) {
+    function getSellOrdersCount() public view returns(uint256) {
         uint256 count = 0;
         for (uint256 i = sellOrderIndex; i < sellNextOrder; i++) {
             if (sellOrders[i].recipientAddress != 0x0) 
@@ -454,9 +454,9 @@ contract ComplexBank is Pausable,BankI {
     }
 
     /**
-     * @dev Gets buy order count (by the owner).
+     * @dev Gets buy order count.
      */
-    function getBuyOrdersCount() public onlyOwner view returns(uint256) {
+    function getBuyOrdersCount() public view returns(uint256) {
         uint256 count = 0;
         for (uint256 i = buyOrderIndex; i < buyNextOrder; i++) {
             if (buyOrders[i].recipientAddress != 0x0) 
@@ -688,7 +688,7 @@ contract ComplexBank is Pausable,BankI {
      * @dev Sends money to oracles and start requestUpdateRates.
      * @param fund Desired balance of every oracle.
      */
-    function schedulerUpdateRate(uint256 fund) public canStartEmission {
+    function schedulerUpdateRate(uint256 fund) public {
         require(msg.sender == scheduler);
         for (address cur = firstOracle; cur != 0x0; cur = oracles[cur].next) {
             if (oracles[cur].enabled)
