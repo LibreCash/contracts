@@ -603,8 +603,8 @@ contract ComplexBank is Pausable,BankI {
     function addOracle(address _address) public onlyOwner {
         require((_address != 0x0) && (!oracleExists(_address)));
         OracleI currentOracle = OracleI(_address);
-        
         bytes32 oracleName = currentOracle.oracleName();
+        require(oracleName != bytes32(0));
         OracleData memory newOracle = OracleData({
             name: oracleName,
             enabled: true,
