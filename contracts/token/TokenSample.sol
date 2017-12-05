@@ -34,10 +34,10 @@ library SafeMath {
   }
 }
 
-contract ERC20 {
+contract ERC20Token {
     using SafeMath for uint256;
-    string public name = "Token Name";
-    string public symbol = "SYM";
+    string public name;
+    string public symbol;
     uint8 public constant decimals = 18;
     uint public totalSupply;
 
@@ -47,7 +47,7 @@ contract ERC20 {
     event Transfer(address indexed _from, address indexed _to, uint _value);
     event Approval(address indexed owner, address indexed spender, uint value);
 
-    function ERC20(string tokenName, string tokenSymbol, uint emissionAmount) {
+    function ERC20Token(string tokenName, string tokenSymbol, uint emissionAmount) {
         name = tokenName;
         symbol = tokenSymbol;
         totalSupply = emissionAmount * 10 ** uint(decimals);
@@ -90,4 +90,24 @@ contract ERC20 {
     function allowance(address _owner, address _spender) constant returns (uint remaining) {
         return allowed[_owner][_spender];
     }
+
+    function increaseApproval (address _spender, uint _addedValue) 
+        returns (bool success) {
+        allowed[msg.sender][_spender] = allowed[msg.sender][_spender].add(_addedValue);
+        Approval(msg.sender, _spender, allowed[msg.sender][_spender]);
+        return true;
+    }
+
+    function decreaseApproval (address _spender, uint _subtractedValue) 
+        returns (bool success) {
+        uint oldValue = allowed[msg.sender][_spender];
+        if (_subtractedValue > oldValue) {
+            allowed[msg.sender][_spender] = 0;
+        } else {
+        allowed[msg.sender][_spender] = oldValue.sub(_subtractedValue);
+        }
+        Approval(msg.sender, _spender, allowed[msg.sender][_spender]);
+        return true;
+  }
+
 }
