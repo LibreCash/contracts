@@ -778,7 +778,6 @@ contract ComplexBank is Pausable,BankI {
      */
     function calcRates() public calcRatesAllowed {
         processWaitingOracles(); // выкинет если есть оракулы, ждущие менее 10 минут
-        checkContract();
         uint256 minimalRate = 2**256 - 1; // Max for UINT256
         uint256 maximalRate = 0;
 
@@ -799,17 +798,6 @@ contract ComplexBank is Pausable,BankI {
     // 04-spread calc end
 
     // 05-monitoring start
-    
-    /**
-     * @dev Checks the contract state.
-     */
-    function checkContract() public {
-        uint256 countOracles = numReadyOracles();
-        require (countOracles >= MIN_READY_ORACLES);
-        if (countOracles < COUNT_EVENT_ORACLES) {
-            OracleReadyNearToMin(countOracles);
-        }
-    }  
 
     // 05-monitoring end
     
