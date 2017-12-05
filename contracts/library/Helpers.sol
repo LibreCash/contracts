@@ -1,7 +1,7 @@
 pragma solidity ^0.4.10;
-
+import "../zeppelin/math/SafeMath.sol";
 library Helpers {
-
+	using SafeMath for uint256;
 	function parseIntRound(string _a, uint256 _b) internal pure returns (uint256) {
 		bytes memory bresult = bytes(_a);
 		uint256 mint = 0;
