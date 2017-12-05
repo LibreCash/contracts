@@ -495,6 +495,7 @@ contract ComplexBank is Pausable,BankI {
 
     mapping (address => OracleData) oracles;
     uint256 public countOracles;
+    uint256 public numEnabledOracles;
     address public firstOracle = 0x0;
 
     uint256 public cryptoFiatRateBuy = 1000;
@@ -527,20 +528,6 @@ contract ComplexBank is Pausable,BankI {
             currentOracle.rate(),
             oracle.next
         );
-    }
-
-    /**
-     * @dev Returns enabled oracles count.
-     */
-    function numEnabledOracles() public onlyOwner view returns (uint256) {
-        uint256 numOracles = 0;
-
-        for (address current = firstOracle; current != 0x0; current = oracles[current].next) {
-            if (oracles[current].enabled == true)
-                numOracles++;
-        }
-        
-        return numOracles;
     }
 
     /**
@@ -583,9 +570,9 @@ contract ComplexBank is Pausable,BankI {
      */
     function oracleExists(address _oracle) internal view returns (bool) {
         if(oracles[_oracle].name == bytes32(0))
-            return true;
+            return false;
 
-        return false;
+        return true;
     }
 
     /**
@@ -634,6 +621,7 @@ contract ComplexBank is Pausable,BankI {
         }
 
         countOracles++;
+        numEnabledOracles++;
         OracleAdded(_address, oracleName);
     }
 
@@ -644,6 +632,7 @@ contract ComplexBank is Pausable,BankI {
     function disableOracle(address _address) public onlyOwner {
         require((oracleExists(_address)) && (oracles[_address].enabled));
         oracles[_address].enabled = false;
+        numEnabledOracles--;
         OracleDisabled(_address, oracles[_address].name);
     }
 
@@ -654,6 +643,7 @@ contract ComplexBank is Pausable,BankI {
     function enableOracle(address _address) public onlyOwner {
         require((oracleExists(_address)) && (!oracles[_address].enabled));
         oracles[_address].enabled = true;
+        numEnabledOracles++;
         OracleEnabled(_address, oracles[_address].name);
     }
 
@@ -674,6 +664,7 @@ contract ComplexBank is Pausable,BankI {
         
         delete oracles[_address];
         countOracles--;
+        numEnabledOracles--;
     }
 
     /**
