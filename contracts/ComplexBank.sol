@@ -837,7 +837,7 @@ contract ComplexBank is Pausable,BankI {
      * @dev Returns total tokens count.
      */
     function totalTokenCount() public view returns (uint256) {
-        return libreToken.getTokensAmount();
+        return libreToken.totalSupply();
     }
 
     // TODO: удалить после тестов, нужен чтобы возвращать эфир с контракта
