@@ -45,6 +45,7 @@ contract ComplexBank is Pausable,BankI {
     uint256 public timeUpdateRequest = 0; // the time of requestUpdateRates()
 
     enum ProcessState {
+        REQUEST_UPDATE_RATES,
         CALC_RATE,
         PROCESS_ORDERS,
         ORDER_CREATION
@@ -53,7 +54,7 @@ contract ComplexBank is Pausable,BankI {
     ProcessState public contractState;
 
     modifier canStartEmission() {
-        require(now >= timeUpdateRequest + relevancePeriod);
+        require( (now >= timeUpdateRequest + relevancePeriod) || (contractState == ProcessState.REQUEST_UPDATE_RATES));
         _;
         contractState = ProcessState.CALC_RATE;
         timeUpdateRequest = now;
@@ -64,7 +65,7 @@ contract ComplexBank is Pausable,BankI {
 
         processWaitingOracles(); // выкинет если есть оракулы, ждущие менее 10 минут
         if (numReadyOracles() < MIN_READY_ORACLES) {
-            timeUpdateRequest = 0;
+            contractState = ProcessState.REQUEST_UPDATE_RATES;
             return;
         }
         
