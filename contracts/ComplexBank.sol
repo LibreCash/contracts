@@ -25,7 +25,7 @@ contract ComplexBank is Pausable,BankI {
     event SendEtherError(string error, address _addr);
     
     uint256 constant MIN_READY_ORACLES = 1; //2;
-    uint256 constant MIN_ORACLES_COUNT = 2;
+    uint256 constant MIN_ORACLES_ENABLED = 2;
     uint256 constant COUNT_EVENT_ORACLES = MIN_READY_ORACLES + 1;
 
     uint256 constant MAX_RELEVANCE_PERIOD = 48 hours;
@@ -718,7 +718,7 @@ contract ComplexBank is Pausable,BankI {
      * @dev Requests every enabled oracle to get the actual rate.
      */
     function requestUpdateRates() public payable canStartEmission {
-        require(numEnabledOracles >= MIN_ORACLES_COUNT);
+        require(numEnabledOracles >= MIN_ORACLES_ENABLED);
         uint256 sendValue = msg.value;
 
         for (address cur = firstOracle; cur != 0x0; cur = oracles[cur].next) {
