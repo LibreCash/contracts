@@ -718,7 +718,7 @@ contract ComplexBank is Pausable,BankI {
      * @dev Requests every enabled oracle to get the actual rate.
      */
     function requestUpdateRates() public payable canStartEmission {
-        require(countOracles >= MIN_ORACLES_COUNT);
+        require(numEnabledOracles >= MIN_ORACLES_COUNT);
         uint256 sendValue = msg.value;
 
         for (address cur = firstOracle; cur != 0x0; cur = oracles[cur].next) {
