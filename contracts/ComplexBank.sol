@@ -25,7 +25,6 @@ contract ComplexBank is Pausable,BankI {
     event SendEtherError(string error, address _addr);
     
     uint256 constant MIN_READY_ORACLES = 1; //2;
-    uint256 constant COUNT_EVENT_ORACLES = MIN_READY_ORACLES + 1;
 
     uint256 constant MAX_RELEVANCE_PERIOD = 48 hours;
     uint256 constant MIN_QUEUE_PERIOD = 10 minutes;
@@ -61,7 +60,15 @@ contract ComplexBank is Pausable,BankI {
 
     modifier calcRatesAllowed() {
         require(contractState == ProcessState.CALC_RATE);
+
+        processWaitingOracles(); // выкинет если есть оракулы, ждущие менее 10 минут
+        if (numReadyOracles() < MIN_READY_ORACLES) {
+            timeUpdateRequest = 0;
+            return;
+        }
+        
         _;
+        
         if (sellNextOrder == 0 && buyNextOrder == 0)
             contractState = ProcessState.ORDER_CREATION;
         else
@@ -767,7 +774,6 @@ contract ComplexBank is Pausable,BankI {
      * @dev Processes data from ready oracles to get rates.
      */
     function calcRates() public calcRatesAllowed {
-        processWaitingOracles(); // выкинет если есть оракулы, ждущие менее 10 минут
         uint256 minimalRate = 2**256 - 1; // Max for UINT256
         uint256 maximalRate = 0;
 
