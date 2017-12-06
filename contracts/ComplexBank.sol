@@ -495,6 +495,7 @@ contract ComplexBank is Pausable,BankI {
 
     mapping (address => OracleData) oracles;
     uint256 public countOracles;
+    uint256 public numEnabledOracles;
     address public firstOracle = 0x0;
 
     uint256 public cryptoFiatRateBuy = 1000;
@@ -527,20 +528,6 @@ contract ComplexBank is Pausable,BankI {
             currentOracle.rate(),
             oracle.next
         );
-    }
-
-    /**
-     * @dev Returns enabled oracles count.
-     */
-    function numEnabledOracles() public onlyOwner view returns (uint256) {
-        uint256 numOracles = 0;
-
-        for (address current = firstOracle; current != 0x0; current = oracles[current].next) {
-            if (oracles[current].enabled == true)
-                numOracles++;
-        }
-        
-        return numOracles;
     }
 
     /**
@@ -582,11 +569,10 @@ contract ComplexBank is Pausable,BankI {
      * @param _oracle The oracle's address.
      */
     function oracleExists(address _oracle) internal view returns (bool) {
-        for (address current = firstOracle; current != 0x0; current = oracles[current].next) {
-            if (current == _oracle) 
-                return true;
-        }
-        return false;
+        if(oracles[_oracle].name == bytes32(0))
+            return false;
+
+        return true;
     }
 
     /**
@@ -617,8 +603,8 @@ contract ComplexBank is Pausable,BankI {
     function addOracle(address _address) public onlyOwner {
         require((_address != 0x0) && (!oracleExists(_address)));
         OracleI currentOracle = OracleI(_address);
-        
         bytes32 oracleName = currentOracle.oracleName();
+        require(oracleName != bytes32(0));
         OracleData memory newOracle = OracleData({
             name: oracleName,
             enabled: true,
@@ -635,6 +621,7 @@ contract ComplexBank is Pausable,BankI {
         }
 
         countOracles++;
+        numEnabledOracles++;
         OracleAdded(_address, oracleName);
     }
 
@@ -645,6 +632,7 @@ contract ComplexBank is Pausable,BankI {
     function disableOracle(address _address) public onlyOwner {
         require((oracleExists(_address)) && (oracles[_address].enabled));
         oracles[_address].enabled = false;
+        numEnabledOracles--;
         OracleDisabled(_address, oracles[_address].name);
     }
 
@@ -655,6 +643,7 @@ contract ComplexBank is Pausable,BankI {
     function enableOracle(address _address) public onlyOwner {
         require((oracleExists(_address)) && (!oracles[_address].enabled));
         oracles[_address].enabled = true;
+        numEnabledOracles++;
         OracleEnabled(_address, oracles[_address].name);
     }
 
@@ -675,6 +664,7 @@ contract ComplexBank is Pausable,BankI {
         
         delete oracles[_address];
         countOracles--;
+        numEnabledOracles--;
     }
 
     /**
@@ -778,7 +768,6 @@ contract ComplexBank is Pausable,BankI {
      */
     function calcRates() public calcRatesAllowed {
         processWaitingOracles(); // выкинет если есть оракулы, ждущие менее 10 минут
-        checkContract();
         uint256 minimalRate = 2**256 - 1; // Max for UINT256
         uint256 maximalRate = 0;
 
@@ -799,34 +788,11 @@ contract ComplexBank is Pausable,BankI {
     // 04-spread calc end
 
     // 05-monitoring start
-    
-    /**
-     * @dev Checks the contract state.
-     */
-    function checkContract() public {
-        uint256 countOracles = numReadyOracles();
-        require (countOracles >= MIN_READY_ORACLES);
-        if (countOracles < COUNT_EVENT_ORACLES) {
-            OracleReadyNearToMin(countOracles);
-        }
-    }  
 
     // 05-monitoring end
     
     // 08-helper methods start
     
-    /**
-     * @dev Calculate percents using fixed-float arithmetic.
-     * @param _numerator - Calculation numerator (first number)
-     * @param _denominator - Calculation denomirator (first number)
-     * @param _precision - calc precision
-     */
-    function percent(uint _numerator, uint _denominator, uint _precision) internal constant returns(uint) {
-        uint numerator = _numerator.mul(10 ** (_precision + 1));
-        uint quotient = numerator.div(_denominator).add(5).div(10);
-        return quotient;
-    }
-
     // 08-helper methods end
 
 
@@ -837,7 +803,7 @@ contract ComplexBank is Pausable,BankI {
      * @dev Returns total tokens count.
      */
     function totalTokenCount() public view returns (uint256) {
-        return libreToken.getTokensAmount();
+        return libreToken.totalSupply();
     }
 
     // TODO: удалить после тестов, нужен чтобы возвращать эфир с контракта
