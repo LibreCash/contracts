@@ -58,13 +58,6 @@ contract LibreCash is StandardToken, Ownable {
     }
 
     /**
-     * @dev Returns total coin supply.
-     */
-    function getTokensAmount() public view returns(uint256) {
-        return totalSupply;
-    }
-
-    /**
      * @dev Burns a specific amount of tokens.
      * @param _burner The account there tokens should be burned.
      * @param _value The amount of token to be burned.
