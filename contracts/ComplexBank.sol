@@ -26,7 +26,6 @@ contract ComplexBank is Pausable,BankI {
     
     uint256 constant MIN_READY_ORACLES = 1; //2;
     uint256 constant MIN_ORACLES_ENABLED = 2;
-    uint256 constant COUNT_EVENT_ORACLES = MIN_READY_ORACLES + 1;
 
     uint256 constant MAX_RELEVANCE_PERIOD = 48 hours;
     uint256 constant MIN_QUEUE_PERIOD = 10 minutes;
@@ -46,6 +45,7 @@ contract ComplexBank is Pausable,BankI {
     uint256 public timeUpdateRequest = 0; // the time of requestUpdateRates()
 
     enum ProcessState {
+        REQUEST_UPDATE_RATES,
         CALC_RATE,
         PROCESS_ORDERS,
         ORDER_CREATION
@@ -54,7 +54,7 @@ contract ComplexBank is Pausable,BankI {
     ProcessState public contractState;
 
     modifier canStartEmission() {
-        require(now >= timeUpdateRequest + relevancePeriod);
+        require( (now >= timeUpdateRequest + relevancePeriod) || (contractState == ProcessState.REQUEST_UPDATE_RATES));
         _;
         contractState = ProcessState.CALC_RATE;
         timeUpdateRequest = now;
@@ -62,7 +62,15 @@ contract ComplexBank is Pausable,BankI {
 
     modifier calcRatesAllowed() {
         require(contractState == ProcessState.CALC_RATE);
+
+        processWaitingOracles(); // выкинет если есть оракулы, ждущие менее 10 минут
+        if (numReadyOracles() < MIN_READY_ORACLES) {
+            contractState = ProcessState.REQUEST_UPDATE_RATES;
+            return;
+        }
+        
         _;
+        
         if (sellNextOrder == 0 && buyNextOrder == 0)
             contractState = ProcessState.ORDER_CREATION;
         else
@@ -769,7 +777,6 @@ contract ComplexBank is Pausable,BankI {
      * @dev Processes data from ready oracles to get rates.
      */
     function calcRates() public calcRatesAllowed {
-        processWaitingOracles(); // выкинет если есть оракулы, ждущие менее 10 минут
         uint256 minimalRate = 2**256 - 1; // Max for UINT256
         uint256 maximalRate = 0;
 
