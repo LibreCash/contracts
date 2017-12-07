@@ -746,7 +746,7 @@ contract ComplexBank is Pausable,BankI {
                 }
             }
         } // foreach oracles
-        OraclesTouched("Course update started");
+        OraclesTouched("Rate update started");
     }
 
     /**
