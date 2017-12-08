@@ -20,7 +20,7 @@ contract OracleMockBase is Ownable {
     address public bankAddress;
     bytes32 queryId = 0x0;
     bool public waitQuery = false;
-    uint price = 10;
+    uint public price = 10000000000;
     
     modifier onlyBank() {
         require(msg.sender == bankAddress);
@@ -45,15 +45,15 @@ contract OracleMockBase is Ownable {
     /**
      * @dev oraclize getPrice.
      */
-    function getPrice() public returns (uint) {
-        return price++;
+    function getPrice() public view returns (uint) {
+        return price;
     }
 
     /**
      * @dev Sends query to oraclize.
      */
     function updateRate() external onlyBank returns (bool) {
-        updateTime = now;
+        updateTime = now - 11 minutes;
         NewPriceTicker(rate);
         return true;
     }

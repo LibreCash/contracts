@@ -1,7 +1,6 @@
 pragma solidity ^0.4.10;
 
-//import "../zeppelin/token/StandardToken.sol";
-import "../erc223/StandardToken.sol";
+import "../zeppelin/token/StandardToken.sol";
 import "../zeppelin/ownership/Ownable.sol";
 import "../erc223/ERC223_receiving_contract.sol";
 
@@ -54,15 +53,8 @@ contract LibreCash is StandardToken, Ownable {
         totalSupply = totalSupply.add(_amount);
         balances[_to] = balances[_to].add(_amount);
         Mint(_to, _amount);
-        Transfer(address(this), _to, _amount, 0);
+        Transfer(address(this), _to, _amount);
         return true;
-    }
-
-    /**
-     * @dev Returns total coin supply.
-     */
-    function getTokensAmount() public view returns(uint256) {
-        return totalSupply;
     }
 
     /**
