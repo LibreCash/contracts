@@ -279,14 +279,14 @@ contract ComplexBank is Pausable,BankI {
         if (buyOrders[_orderID].recipientAddress == 0x0)
             return false;
 
-        overallRefundValue = overallRefundValue.add(buyOrders[_orderID].orderAmount);
-
         address sender = buyOrders[_orderID].senderAddress;
         uint256 orderAmount = buyOrders[_orderID].orderAmount;
 
         balanceEther[sender] = balanceEther[sender].add(orderAmount);
-        buyOrders[_orderID].recipientAddress = 0x0; // Mark order as completed or canceled
-        BuyOrderCanceled(_orderID,sender,orderAmount);
+        buyOrders[_orderID].recipientAddress = 0x0; // Mark order as completed or cancelled
+        BuyOrderCanceled(_orderID, sender, orderAmount);
+        overallRefundValue = overallRefundValue.add(orderAmount);
+
         return true;
     }
     
@@ -731,7 +731,7 @@ contract ComplexBank is Pausable,BankI {
     /**
      * @dev Gets bank reserve.
      */
-    function getReserve() public view returns (uint256) {
+    function getReservePercent() public view returns (uint256) {
         uint256 reserve = 0;
         if ((this.balance != 0) && (cryptoFiatRateSell != 0)) {
             uint256 reserveBalance = this.balance;
