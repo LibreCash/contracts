@@ -239,8 +239,7 @@ contract ComplexBank is Pausable,BankI {
     uint256 private sellNextOrder = 0;
 
     mapping (address => uint256) balanceEther; // возврат средств
-    // убрать паблик после тестов
-    uint256 public overallRefundValue = 0;
+    uint256  overallRefundValue = 0;
 
     /**
      * @dev Sends refund.
