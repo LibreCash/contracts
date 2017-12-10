@@ -13,6 +13,7 @@ contract LibreCash is StandardToken, Ownable {
     string public constant name = "LibreCash Token";
     string public constant symbol = "LCT";
     uint32 public constant decimals = 18;
+    uint256 public totalSupply;
     address public bankAddress;
     
     event Mint(address indexed to, uint256 amount);

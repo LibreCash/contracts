@@ -44,7 +44,7 @@ contract('LibreCash', async function(accounts) {
             let cash = await LibreCash.deployed();
             let amount = 100;
             
-            let before = await cash.totalSupply();
+            let before = await cash.totalSupply.call();
             await cash.mint(owner, amount);
             let after = parseInt(await cash.totalSupply.call());
 
