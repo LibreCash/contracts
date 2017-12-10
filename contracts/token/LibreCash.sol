@@ -67,6 +67,7 @@ contract LibreCash is StandardToken, Ownable {
         balances[_burner] = balances[_burner].sub(_value);
         totalSupply = totalSupply.sub(_value);
         Burn(_burner, _value);
+        Transfer(_burner,0x0,_value);
     }
 
     /**
