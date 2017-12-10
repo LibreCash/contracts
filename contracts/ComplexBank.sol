@@ -295,10 +295,10 @@ contract ComplexBank is Pausable,BankI {
 
         address sender = sellOrders[_orderID].senderAddress;
         uint256 tokensAmount = sellOrders[_orderID].orderAmount;
-
-        libreToken.mint(sender, tokensAmount);
+        
         sellOrders[_orderID].recipientAddress = 0x0; // Mark order as completed or canceled
         BuyOrderCanceled(_orderID,sender,tokensAmount);
+        libreToken.mint(sender, tokensAmount);
         return true;
     }
 
@@ -318,8 +318,8 @@ contract ComplexBank is Pausable,BankI {
         if ((maxRate != 0) && (cryptoFiatRateBuy > maxRate)) {
             cancelBuyOrder(_orderID);
         } else {
-            libreToken.mint(recipientAddress, tokensAmount);
             buyOrders[_orderID].recipientAddress = 0x0; // Mark order as completed or canceled
+            libreToken.mint(recipientAddress, tokensAmount);
             LogBuy(recipientAddress, tokensAmount, cryptoAmount, cryptoFiatRateBuy);
         }
     }
