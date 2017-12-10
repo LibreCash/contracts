@@ -18,6 +18,15 @@ function sleep(miliseconds) {
     while (currentTime + miliseconds >= new Date().getTime()) {
     }
  }
+ const OracleENUM = {
+     name:0,
+     oracleType:1,
+     updateTime:2,
+     enabled:3,
+     waitQuery:4,
+     rate:5,
+     next:6
+};
 
 contract('ComplexBank', function(accounts) {
     var owner = accounts[0];
@@ -425,19 +434,19 @@ contract('ComplexBank', function(accounts) {
         });
 
         it("add Oracle", async function() {
-            let bank = await ComplexBank.deployed();
-            let oracle1 = await oracles[0].deployed();
+            let 
+                bank = await ComplexBank.deployed(),
+                oracle1 = await oracles[0].deployed(),
+                before = parseInt(await bank.countOracles.call());
 
-            let before = parseInt(await bank.countOracles.call());
-            await bank.addOracle(oracle1.address);
-            let after = parseInt(await bank.countOracles.call());
-
-            let oracleData = await bank.oracles.call(oracle1.address);
-            let nameOracle = await oracle1.oracleName.call();
+            await bank.addOracle(oracle1.address);  
+            let after = parseInt(await bank.countOracles.call()),
+                oracleData = await bank.oracles.call(oracle1.address),
+                nameOracle = await oracle1.oracleName.call();
 
             assert.equal(before + 1 , after, "don't added Oracle");
-            assert.equal(oracleData[0], nameOracle, "don't set name for added oracle");
-            assert.equal(oracleData[2], true, "don't enable added Oracle");
+            assert.equal(oracleData[OracleENUM.name], nameOracle, "don't set name for added oracle");
+            assert.equal(oracleData[OracleENUM.enabled], true, "don't enable added Oracle");
         });
 
         it("remove Oracle", async function() {
@@ -501,9 +510,9 @@ contract('ComplexBank', function(accounts) {
             let oracle1 = await oracles[0].deployed();
 
             
-            let before = parseInt(await bank.numEnabledOracles.call());
+            let before = parseInt(await bank.numEnabledOracles());
             await bank.addOracle(oracle1.address);
-            let after = parseInt(await bank.numEnabledOracles.call());
+            let after = parseInt(await bank.numEnabledOracles());
 
             assert.equal(before + 1, after, "don't disable Oracle");
         });
