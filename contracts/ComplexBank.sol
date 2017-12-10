@@ -373,7 +373,6 @@ contract ComplexBank is Pausable,BankI {
 
         if ((minRate != 0) && (cryptoFiatRateSell < minRate)) {
             cancelSellOrder(_orderID);
-            libreToken.mint(senderAddress, tokensAmount);
         } else {
             balanceEther[senderAddress] = balanceEther[senderAddress].add(cryptoAmount);
             LogSell(recipientAddress, tokensAmount, cryptoAmount, cryptoFiatRateBuy);
