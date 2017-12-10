@@ -2,7 +2,6 @@ pragma solidity ^0.4.10;
 
 import "../zeppelin/token/StandardToken.sol";
 import "../zeppelin/ownership/Ownable.sol";
-import "../erc223/ERC223_receiving_contract.sol";
 
 /**
  * @title LibreCash token contract.
