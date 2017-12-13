@@ -68,9 +68,9 @@ contract('ComplexBank', function(accounts) {
             try {
                 await bank.processBuyQueue(0);
             } catch(e) {
-                console.log("beforeEach:",parseInt(await bank.getBuyOrdersCount.call()));
+                //console.log("beforeEach:",parseInt(await bank.getBuyOrdersCount.call()));
             }
-            
+
         });
 
         it("add buyOrders", async function() {
@@ -441,7 +441,7 @@ contract('ComplexBank', function(accounts) {
 
             await bank.addOracle(oracle1.address);  
             let after = parseInt(await bank.countOracles.call()),
-                oracleData = await bank.oracles.call(oracle1.address),
+                oracleData = await bank.getOracleData(oracle1.address),
                 nameOracle = await oracle1.oracleName.call();
 
             assert.equal(before + 1 , after, "don't added Oracle");
