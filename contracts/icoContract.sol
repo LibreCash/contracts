@@ -49,6 +49,7 @@ contract Ownable {
  */
 contract ERC20Basic {
   uint256 public totalSupply;
+  uint256 public decimlas;
   function balanceOf(address who) public constant returns (uint256);
   function transfer(address to, uint256 value) public returns (bool);
   event Transfer(address indexed from, address indexed to, uint256 value);
@@ -105,7 +106,7 @@ contract LibertyPreSale is Ownable {
     uint256 public constant dateEnd = 1515283200;
 
     // Max mount of ether allowed to collect during pre-sale
-    uint256 public saleCap = 100 * (10**18); 
+    uint256 public saleCap = 100 * (10**token.decimlas()); 
 
     // The flag indicates that ALL pre-sale actions is done
     // * payment is not accpepted anymore
@@ -160,6 +161,7 @@ contract LibertyPreSale is Ownable {
 
     function buyTokens(address recipient) public payable {
         require(
+            getTime() > dateStart &&
             getTime() < dateEnd &&
             weiRaised < saleCap &&
             msg.value > 0

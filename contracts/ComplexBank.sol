@@ -25,7 +25,7 @@ contract ComplexBank is Pausable,BankI {
     event SendEtherError(string error, address _addr);
     
     uint256 constant MIN_READY_ORACLES = 1; //2;
-    uint256 constant MIN_ORACLES_ENABLED = 2;
+    uint256 constant MIN_ORACLES_ENABLED = 1;//2;
 
     uint256 constant MAX_RELEVANCE_PERIOD = 48 hours;
     uint256 constant MIN_QUEUE_PERIOD = 10 minutes;
@@ -300,10 +300,10 @@ contract ComplexBank is Pausable,BankI {
 
         address sender = sellOrders[_orderID].senderAddress;
         uint256 tokensAmount = sellOrders[_orderID].orderAmount;
-
-        libreToken.mint(sender, tokensAmount);
+        
         sellOrders[_orderID].recipientAddress = 0x0; // Mark order as completed or canceled
         BuyOrderCanceled(_orderID,sender,tokensAmount);
+        libreToken.mint(sender, tokensAmount);
         return true;
     }
 
@@ -323,8 +323,8 @@ contract ComplexBank is Pausable,BankI {
         if ((maxRate != 0) && (cryptoFiatRateBuy > maxRate)) {
             cancelBuyOrder(_orderID);
         } else {
-            libreToken.mint(recipientAddress, tokensAmount);
             buyOrders[_orderID].recipientAddress = 0x0; // Mark order as completed or canceled
+            libreToken.mint(recipientAddress, tokensAmount);
             LogBuy(recipientAddress, tokensAmount, cryptoAmount, cryptoFiatRateBuy);
         }
     }
@@ -378,11 +378,9 @@ contract ComplexBank is Pausable,BankI {
 
         if ((minRate != 0) && (cryptoFiatRateSell < minRate)) {
             cancelSellOrder(_orderID);
-            libreToken.mint(senderAddress, tokensAmount);
         } else {
-            balanceEther[senderAddress] = balanceEther[senderAddress].add(cryptoAmount);
-            overallRefundValue = overallRefundValue.add(cryptoAmount);
-            LogSell(recipientAddress, tokensAmount, cryptoAmount, cryptoFiatRateBuy);
+            balanceEther[recipientAddress] = balanceEther[recipientAddress].add(cryptoAmount);
+            LogSell(recipientAddress, tokensAmount, cryptoAmount, cryptoFiatRateSell);
         }      
     }
 
@@ -679,7 +677,7 @@ contract ComplexBank is Pausable,BankI {
         
         delete oracles[_address];
         countOracles--;
-        numEnabledOracles--;
+        if(oracles[_address].enabled) numEnabledOracles--;
     }
 
     /**

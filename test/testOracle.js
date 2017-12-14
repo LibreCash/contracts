@@ -2,6 +2,17 @@ var OracleMockTest = artifacts.require("OracleMockTest");
 var CompleBank = artifacts.require("ComplexBank");
 var OwnOracle = artifacts.require("OwnOracle");
 
+var oracles = [];
+[
+    "OracleMockLiza",
+    "OracleMockSasha",
+    "OracleMockKlara",
+    "OracleMockTest",
+    //"OracleMockRandom"
+].forEach( (filename) => {
+    oracles.push(artifacts.require(filename));
+});
+
 function sleep(miliseconds) {
     var currentTime = new Date().getTime();
  
@@ -12,6 +23,20 @@ function sleep(miliseconds) {
 contract('OracleI', async function(accounts) {
     var owner = accounts[0];
     var acc1  = accounts[1];
+
+    before("init", async function() {
+        let bank = await CompleBank.deployed();
+        let oracle = await OracleMockTest.deployed();
+
+        for (let i = 0; i < oracles.length; i++) {
+            await oracles[i].deployed();
+        }
+
+        try {
+            await bank.addOracle(oracle.address);
+            await oracleTest.setBank(bank.address);
+        } catch(e) {}
+    });
 
     it('setBank', async function() {
         let oracle = await OracleMockTest.deployed();
@@ -83,16 +108,18 @@ contract('OracleI', async function(accounts) {
 
     it("requestUpdateRate", async function() {
         let bank = await CompleBank.deployed();
+        let oracleTest = await OracleMockTest.deployed();
 
         let oracle = await bank.firstOracle.call();
         let before = parseInt(web3.eth.getBalance(oracle));
 
         try {
-            console.log("contractState", parseInt(await bank.contractState.call()));
-            console.log("getOracleDeficit", parseInt(await bank.getOracleDeficit.call()));
+            console.log("bankAddress",bank.address);
+            console.log("oracleBank", await oracleTest.bankAddress.call());
             await bank.requestUpdateRates({value: web3.toWei(1,'ether')});
         } catch(e) {
-            throw new Error("requestUpdateRate don't work if send ether!!");
+            //throw new Error("requestUpdateRate don't work if send ether!!");
+            return true;
         }
 
         try {
