@@ -239,6 +239,7 @@ contract ComplexBank is Pausable,BankI {
     uint256 private sellNextOrder = 0;
 
     mapping (address => uint256) balanceEther; // возврат средств
+    uint256  overallRefundValue = 0;
 
     /**
      * @dev Sends refund.
@@ -247,8 +248,10 @@ contract ComplexBank is Pausable,BankI {
         if (this.balance < balanceEther[msg.sender]) {
             SendEtherError("The contract does not have enough funds!", msg.sender);
         } else {
-            if (msg.sender.send(balanceEther[msg.sender]))
+            if (msg.sender.send(balanceEther[msg.sender])) {
+                overallRefundValue = overallRefundValue.sub(balanceEther[msg.sender]);
                 balanceEther[msg.sender] = 0;
+            }
             else
                 SendEtherError("Error sending money!", msg.sender);
         }
@@ -280,8 +283,10 @@ contract ComplexBank is Pausable,BankI {
         uint256 orderAmount = buyOrders[_orderID].orderAmount;
 
         balanceEther[sender] = balanceEther[sender].add(orderAmount);
-        buyOrders[_orderID].recipientAddress = 0x0; // Mark order as completed or canceled
-        BuyOrderCanceled(_orderID,sender,orderAmount);
+        buyOrders[_orderID].recipientAddress = 0x0; // Mark order as completed or cancelled
+        BuyOrderCanceled(_orderID, sender, orderAmount);
+        overallRefundValue = overallRefundValue.add(orderAmount);
+
         return true;
     }
     
@@ -719,6 +724,25 @@ contract ComplexBank is Pausable,BankI {
             }   
         }
         return deficit;
+    }
+
+    /**
+     * @dev Gets bank reserve.
+     */
+    function getReservePercent() public view returns (uint256) {
+        uint256 reserve = 0;
+        if ((this.balance != 0) && (cryptoFiatRateSell != 0)) {
+            uint256 reserveBalance = this.balance;
+            for (uint i = buyOrderIndex; i < buyNextOrder; i++) {
+                if (buyOrders[i].recipientAddress != 0x0) {
+                    reserveBalance = reserveBalance.sub(buyOrders[i].orderAmount);
+                }
+            }
+            reserveBalance = reserveBalance.sub(overallRefundValue);
+            uint256 canGetCryptoBySellingTokens = (libreToken.totalSupply() * RATE_MULTIPLIER).div(cryptoFiatRateSell);
+            reserve = (reserveBalance * REVERSE_PERCENT * 100).div(canGetCryptoBySellingTokens);
+        }
+        return reserve;
     }
 
     /**

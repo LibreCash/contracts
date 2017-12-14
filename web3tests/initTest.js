@@ -32,7 +32,7 @@ monitor.forEach(function(variable) {
     allTimers.push(setInterval(
         function() {
             divWatch.innerText = variable + ": " + contract[variable]().toString(10);
-        }, 500
+        }, 2000
     ));
     //console.log(contract[variable]().toString(10));
 });

@@ -1,9 +1,8 @@
 monitor = ['getBuyOrdersCount', 'getSellOrdersCount', 'numEnabledOracles', 'numReadyOracles', 'countOracles',
-'buyFee', 'sellFee', 'cryptoFiatRate', 'cryptoFiatRateBuy', 'cryptoFiatRateSell',
-'relevancePeriod', 'queuePeriod', 'timeUpdateRequest', 'timeSinceUpdateRequest',
-'buyNextOrder', 'sellNextOrder', 'getOracleDeficit', 'contractState'
-           //'getBuyOrder(1)', 'getSellOrder(1)'
-        ];
+           'buyFee', 'sellFee', 'cryptoFiatRate', 'cryptoFiatRateBuy', 'cryptoFiatRateSell',
+           'relevancePeriod', 'queuePeriod', 'timeUpdateRequest', 'timeSinceUpdateRequest',
+           'buyNextOrder', 'sellNextOrder', 'getOracleDeficit', 'getReserve', 'contractState'
+          ];
 
 async function main() {
     contract = web3.eth.contract(JSON.parse(contractABI)).at(contractAddress); 
