@@ -25,7 +25,7 @@ contract ComplexBank is Pausable,BankI {
     event SendEtherError(string error, address _addr);
     
     uint256 constant MIN_READY_ORACLES = 1; //2;
-    uint256 constant MIN_ORACLES_ENABLED = 2;
+    uint256 constant MIN_ORACLES_ENABLED = 1;//2;
 
     uint256 constant MAX_RELEVANCE_PERIOD = 48 hours;
     uint256 constant MIN_QUEUE_PERIOD = 10 minutes;
