@@ -15,14 +15,15 @@ contract ComplexBank is Pausable,BankI {
     LibreTokenI libreToken;
     
     // TODO; Check that all evetns used and delete unused
-    event BuyOrderCreated(uint256 amount);
-    event SellOrderCreated(uint256 amount);
+    event BuyOrderCreated(uint256 etherAmount);
+    event SellOrderCreated(uint256 tokensAmount);
     event LogBuy(address clientAddress, uint256 tokenAmount, uint256 cryptoAmount, uint256 buyPrice);
     event LogSell(address clientAddress, uint256 tokenAmount, uint256 cryptoAmount, uint256 sellPrice);
     event OrderQueueGeneral(string description);
     event BuyOrderCanceled(uint orderId,address beneficiary,uint amount);
     event SellOrderCanceled(uint orderId,address beneficiary,uint amount);
     event SendEtherError(string error, address _addr);
+    event BalanceRefill(address from,uint256 amount);
     
     uint256 constant MIN_READY_ORACLES = 1; //2;
     uint256 constant MIN_ORACLES_ENABLED = 1;//2;
@@ -40,7 +41,7 @@ contract ComplexBank is Pausable,BankI {
     uint256 public relevancePeriod = 23 hours; // Минимальное время между calcRates() прошлого раунда
                                                // и requestUpdateRates() следующего
     uint256 public queuePeriod = 60 minutes;
-
+    uint256 public balanceEtherCap; // Contract balance ether cap.
     // после тестов убрать public
     uint256 public timeUpdateRequest = 0; // the time of requestUpdateRates()
 
@@ -844,6 +845,18 @@ contract ComplexBank is Pausable,BankI {
      */
     function withdrawBalance() public onlyOwner {
         owner.transfer(this.balance);
+    }
+
+    function setBalanceCap(int256 capInWei) {
+        require(capInWei > 0);
+        balanceEtherCap = capInWei;
+    }
+
+     /**
+     * @dev Used to refill contract balance from escrow multisig wallet.
+     */
+    function refillBalance() public payable {
+        BalanceRefill(msg.sender,msg.value);
     }
     // system methods end
 }
