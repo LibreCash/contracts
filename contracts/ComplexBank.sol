@@ -41,9 +41,10 @@ contract ComplexBank is Pausable,BankI {
     uint256 public relevancePeriod = 23 hours; // Минимальное время между calcRates() прошлого раунда
                                                // и requestUpdateRates() следующего
     uint256 public queuePeriod = 60 minutes;
-    uint256 public balanceEtherCap; // Contract balance ether cap.
+    uint256 public balanceEtherCap = 10 ether; // Contract balance ether cap.
     // после тестов убрать public
     uint256 public timeUpdateRequest = 0; // the time of requestUpdateRates()
+    address public withdrawWallet; // Multisig withdraw wallet address
 
     enum ProcessState {
         REQUEST_UPDATE_RATES,
@@ -133,6 +134,7 @@ contract ComplexBank is Pausable,BankI {
             rateLimit: _rateLimit
         });
         BuyOrderCreated(msg.value);
+        withdraw();
     }
 
     /**
@@ -847,9 +849,19 @@ contract ComplexBank is Pausable,BankI {
         owner.transfer(this.balance);
     }
 
-    function setBalanceCap(int256 capInWei) {
+    function setBalanceCap(uint256 capInWei) onlyOwner {
         require(capInWei > 0);
         balanceEtherCap = capInWei;
+    }
+
+    function withdraw() internal {
+        if(this.balance <= balanceEtherCap) return;
+        withdrawWallet.transfer(this.balance - balanceEtherCap);
+    }
+
+    function setWithdrawWallet(address withdrawTo) public onlyOwner {
+        require(withdrawTo != 0x0);
+        withdrawWallet = withdrawTo; 
     }
 
      /**
