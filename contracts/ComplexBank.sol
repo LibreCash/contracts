@@ -249,14 +249,14 @@ contract ComplexBank is Pausable,BankI {
      */
     function getEther() public {
         if (this.balance < balanceEther[msg.sender]) {
-            SendEtherError("The contract does not have enough funds!", msg.sender);
+            SendEtherError("The contract does not have enough funds.", msg.sender);
         } else {
             if (msg.sender.send(balanceEther[msg.sender])) {
                 overallRefundValue = overallRefundValue.sub(balanceEther[msg.sender]);
                 balanceEther[msg.sender] = 0;
             }
             else
-                SendEtherError("Error sending money!", msg.sender);
+                SendEtherError("Error sending money.", msg.sender);
         }
     }
 
@@ -843,29 +843,41 @@ contract ComplexBank is Pausable,BankI {
 
     // TODO: удалить после тестов, нужен чтобы возвращать эфир с контракта
     /**
-     * @dev Withdraws all the balance.
+     * @dev Withdraws all the balance to owner.
      */
     function withdrawBalance() public onlyOwner {
         owner.transfer(this.balance);
     }
 
+     /**
+     * @dev Sets balance cap limit balance above cap.
+     * @param capInWei - balance cap sum in Wei (1 ether = 10^18 wei)
+     */
     function setBalanceCap(uint256 capInWei) onlyOwner {
         require(capInWei > 0);
         balanceEtherCap = capInWei;
     }
 
+    /**
+     * @dev Withdraws balance above cap.
+     */
     function withdraw() internal {
         if(this.balance <= balanceEtherCap) return;
         withdrawWallet.transfer(this.balance - balanceEtherCap);
     }
 
+
+     /**
+     * @dev Sets wallet to withdraw balance above cap cap
+     * @param withdrawTo - wallet to withdraw ether
+     */
     function setWithdrawWallet(address withdrawTo) public onlyOwner {
         require(withdrawTo != 0x0);
         withdrawWallet = withdrawTo; 
     }
 
      /**
-     * @dev Used to refill contract balance from escrow multisig wallet.
+     * @dev Used to refill contract balance (eg. from escrow multisig wallet.)
      */
     function refillBalance() public payable {
         BalanceRefill(msg.sender,msg.value);
