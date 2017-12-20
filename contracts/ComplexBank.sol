@@ -854,7 +854,7 @@ contract ComplexBank is Pausable,BankI {
      * @dev Sets balance cap limit balance above cap.
      * @param capInWei - balance cap sum in Wei (1 ether = 10^18 wei)
      */
-    function setBalanceCap(uint256 capInWei) onlyOwner {
+    function setBalanceCap(uint256 capInWei) public onlyOwner {
         require(capInWei > 0);
         balanceEtherCap = capInWei;
     }
@@ -882,6 +882,7 @@ contract ComplexBank is Pausable,BankI {
      */
     function refillBalance() public payable {
         BalanceRefill(msg.sender,msg.value);
+        withdraw();
     }
     // system methods end
     
