@@ -859,6 +859,7 @@ contract ComplexBank is Pausable,BankI {
     function setBalanceCap(uint256 capInWei) public onlyOwner {
         require(capInWei > 0);
         balanceEtherCap = capInWei;
+        withdraw();
     }
 
     /**
