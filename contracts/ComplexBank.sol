@@ -249,6 +249,7 @@ contract ComplexBank is Pausable,BankI {
      * @dev Sends refund.
      */
     function getEther() public {
+        // TODO: учесть средства на контракте кошелька и как-то их получить при необходимости или запросить
         if (this.balance < balanceEther[msg.sender]) {
             SendEtherError("The contract does not have enough funds.", msg.sender);
         } else {
@@ -735,8 +736,9 @@ contract ComplexBank is Pausable,BankI {
      */
     function getReservePercent() public view returns (uint256) {
         uint256 reserve = 0;
-        if ((this.balance != 0) && (cryptoFiatRateSell != 0)) {
-            uint256 reserveBalance = this.balance;
+        uint256 curBalance = this.balance + withdrawWallet.balance;
+        if ((curBalance != 0) && (cryptoFiatRateSell != 0)) {
+            uint256 reserveBalance = curBalance;
             for (uint i = buyOrderIndex; i < buyNextOrder; i++) {
                 if (buyOrders[i].recipientAddress != 0x0) {
                     reserveBalance = reserveBalance.sub(buyOrders[i].orderAmount);
