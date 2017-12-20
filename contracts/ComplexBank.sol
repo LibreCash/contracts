@@ -546,7 +546,7 @@ contract ComplexBank is Pausable,BankI {
     /**
      * @dev Returns ready (which have data to be used) oracles count.
      */
-    function numReadyOracles() public onlyOwner view returns (uint256) {
+    function numReadyOracles() public view returns (uint256) {
         uint256 numOracles = 0;
         for (address current = firstOracle; current != 0x0; current = oracles[current].next) {
             if (!oracles[current].enabled) 
