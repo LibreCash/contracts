@@ -45,6 +45,7 @@ contract ComplexBank is Pausable,BankI {
     // после тестов убрать public
     uint256 public timeUpdateRequest = 0; // the time of requestUpdateRates()
     address public withdrawWallet; // Multisig withdraw wallet address
+    bool public autoWithdraw = true;
 
     enum ProcessState {
         REQUEST_UPDATE_RATES,
@@ -862,7 +863,7 @@ contract ComplexBank is Pausable,BankI {
      * @dev Withdraws balance above cap.
      */
     function withdraw() internal {
-        if(this.balance <= balanceEtherCap) return;
+        if(!autoWithdraw || this.balance <= balanceEtherCap ) return;
         withdrawWallet.transfer(this.balance - balanceEtherCap);
     }
 
@@ -883,4 +884,12 @@ contract ComplexBank is Pausable,BankI {
         BalanceRefill(msg.sender,msg.value);
     }
     // system methods end
+    
+    /**
+     * @dev Used to switch (on\off) auto-widthdraw contract balance to multisig
+     */
+    function switchAutoWithdraw() onlyOwner {
+        autoWithdraw = !autoWithdraw;
+    }
+
 }
