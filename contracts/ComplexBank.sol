@@ -886,10 +886,11 @@ contract ComplexBank is Pausable,BankI {
     // system methods end
     
     /**
-     * @dev Used to switch (on\off) auto-widthdraw contract balance to multisig
+     * @dev Used to set auto-widthdraw status of contract balance to multisig
+     * @param _autoWithdraw Bool flag of auto-withdraw status.
      */
-    function switchAutoWithdraw() onlyOwner {
-        autoWithdraw = !autoWithdraw;
+    function setAutoWithdraw(bool _autoWithdraw) public onlyOwner {
+        autoWithdraw = _autoWithdraw;
     }
 
 }
