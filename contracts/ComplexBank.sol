@@ -341,12 +341,8 @@ contract ComplexBank is Pausable,BankI {
      * @param _limit Order limit.
      */
     function processBuyQueue(uint256 _limit) public whenNotPaused queueProcessingAllowed {
-        uint256 lastOrder;
-
-        if ((_limit == 0) || ((buyOrderIndex + _limit) > buyNextOrder))
-            lastOrder = buyNextOrder;
-        else
-            lastOrder = buyOrderIndex + _limit;
+        bool processAll = ((_limit == 0) || ((buyOrderIndex + _limit) > buyNextOrder));
+        uint256 lastOrder = processAll ? buyNextOrder : buyOrderIndex + _limit;
 
         for (uint i = buyOrderIndex; i < lastOrder; i++) {
             processBuyOrder(i);
@@ -389,12 +385,9 @@ contract ComplexBank is Pausable,BankI {
      * @param _limit Order limit.
      */
     function processSellQueue(uint256 _limit) public whenNotPaused queueProcessingAllowed {
-        uint256 lastOrder;
-
-        if ((_limit == 0) || ((sellOrderIndex + _limit) > sellNextOrder)) 
-            lastOrder = sellNextOrder;
-        else
-            lastOrder = sellOrderIndex + _limit;
+        
+        bool processAll = ((_limit == 0) || ((sellOrderIndex + _limit) > sellNextOrder));
+        uint256 lastOrder = processAll ? sellNextOrder : sellOrderIndex + _limit;
                 
         for (uint i = sellOrderIndex; i < lastOrder; i++) {
             processSellOrder(i);
