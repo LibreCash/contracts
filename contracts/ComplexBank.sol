@@ -9,7 +9,7 @@ import "./interfaces/I_Bank.sol";
 
 
 
-contract ComplexBank is Pausable,BankI {
+contract ComplexBank is Pausable, BankI {
     using SafeMath for uint256;
     address public tokenAddress;
     LibreTokenI libreToken;
@@ -58,7 +58,7 @@ contract ComplexBank is Pausable,BankI {
     ProcessState public contractState;
 
     modifier canStartEmission() {
-        require( (now >= timeUpdateRequest + relevancePeriod) || (contractState == ProcessState.REQUEST_UPDATE_RATES));
+        require((now >= timeUpdateRequest + relevancePeriod) || (contractState == ProcessState.REQUEST_UPDATE_RATES));
         _;
         contractState = ProcessState.CALC_RATE;
         timeUpdateRequest = now;
@@ -96,7 +96,7 @@ contract ComplexBank is Pausable,BankI {
     }
 
 // for tests
-    function timeSinceUpdateRequest() public view returns (uint256) {return now - timeUpdateRequest; }
+    function timeSinceUpdateRequest() public view returns (uint256) { return now - timeUpdateRequest; }
 // end for tests
 
     struct Limit {
@@ -108,13 +108,6 @@ contract ComplexBank is Pausable,BankI {
     Limit public buyLimit = Limit(0, 99999 * 1 ether);
     Limit public sellLimit = Limit(0, 99999 * 1 ether);
     // Limits end
-
-    /**
-     * @dev Constructor.
-     */
-    function ComplexBank() {
-        // Do something 
-    }
 
     // 01-emission start
 
@@ -253,14 +246,14 @@ contract ComplexBank is Pausable,BankI {
     function getEther() public {
         // TODO: учесть средства на контракте кошелька и как-то их получить при необходимости или запросить
         if (this.balance < balanceEther[msg.sender]) {
-            SendEtherError("The contract does not have enough funds.", msg.sender);
+            SendEtherError("The contract does not have enough funds", msg.sender);
         } else {
             if (msg.sender.send(balanceEther[msg.sender])) {
                 overallRefundValue = overallRefundValue.sub(balanceEther[msg.sender]);
                 balanceEther[msg.sender] = 0;
             }
             else
-                SendEtherError("Error sending money.", msg.sender);
+                SendEtherError("Error sending money", msg.sender);
         }
     }
 
@@ -527,9 +520,6 @@ contract ComplexBank is Pausable,BankI {
     uint256 public sellFee = 0;
     uint256 constant MAX_FEE = 7000; // 70%
 
-    Limit buyFeeLimit = Limit(0, MAX_FEE);
-    Limit sellFeeLimit = Limit(0, MAX_FEE);
-
     address public scheduler;
 
     /**
@@ -603,8 +593,8 @@ contract ComplexBank is Pausable,BankI {
      * @param _sellFee The sell fee.
      */
     function setFees(uint256 _buyFee, uint256 _sellFee) public onlyOwner {
-        require((_buyFee >= buyFeeLimit.min) && (_buyFee <= buyFeeLimit.max));
-        require((_sellFee >= sellFeeLimit.min) && (_sellFee <= sellFeeLimit.max));
+        require(_buyFee <= MAX_FEE);
+        require(_sellFee <= MAX_FEE);
 
         if (sellFee != _sellFee) {
             uint256 maximalOracleRate = cryptoFiatRateSell.mul(RATE_MULTIPLIER).mul(REVERSE_PERCENT).div(RATE_MULTIPLIER * REVERSE_PERCENT + sellFee * RATE_MULTIPLIER / REVERSE_PERCENT);
@@ -665,7 +655,7 @@ contract ComplexBank is Pausable,BankI {
     function enableOracle(address _address) public onlyOwner {
         require((oracleExists(_address)) && (!oracles[_address].enabled));
         oracles[_address].enabled = true;
-        numEnabledOracles++;
+        numEnabledOracles = numEnabledOracles.add(1);
         OracleEnabled(_address, oracles[_address].name);
     }
 
@@ -680,13 +670,14 @@ contract ComplexBank is Pausable,BankI {
             firstOracle = oracles[_address].next;
         } else {
             address prev = firstOracle;
-            for (; oracles[prev].next != _address; prev = oracles[prev].next) {}
+            for (; oracles[prev].next != _address; prev = oracles[prev].next) { }
             oracles[prev].next = oracles[_address].next;
         }
         
         delete oracles[_address];
-        countOracles--;
-        if(oracles[_address].enabled) numEnabledOracles--;
+        countOracles = countOracles.sub(1);
+        if (oracles[_address].enabled)
+            numEnabledOracles = numEnabledOracles.sub(1);
     }
 
     /**
@@ -714,7 +705,7 @@ contract ComplexBank is Pausable,BankI {
      * @dev Set scheduler
      * @param _scheduler new scheduler address
      */
-    function setScheduler(address _scheduler) onlyOwner {
+    function setScheduler(address _scheduler) public onlyOwner {
         scheduler = _scheduler;
     }
     
@@ -839,10 +830,10 @@ contract ComplexBank is Pausable,BankI {
 
 
 
-    // sytem methods start
+    // system methods start
 
     /**
-     * @dev Returns total tokens count.
+     * @dev Returns total token count.
      */
     function totalTokenCount() public view returns (uint256) {
         return libreToken.totalSupply();
@@ -870,12 +861,13 @@ contract ComplexBank is Pausable,BankI {
      * @dev Withdraws balance above cap.
      */
     function withdraw() internal {
-        if(!autoWithdraw || this.balance <= balanceEtherCap ) return;
+        if ((!autoWithdraw) || (this.balance <= balanceEtherCap))
+            return;
         withdrawWallet.transfer(this.balance - balanceEtherCap);
     }
 
 
-     /**
+    /**
      * @dev Sets wallet to withdraw balance above cap cap
      * @param withdrawTo - wallet to withdraw ether
      */
@@ -888,7 +880,7 @@ contract ComplexBank is Pausable,BankI {
      * @dev Used to refill contract balance (eg. from escrow multisig wallet.)
      */
     function refillBalance() public payable {
-        BalanceRefill(msg.sender,msg.value);
+        BalanceRefill(msg.sender, msg.value);
         withdraw();
     }
     // system methods end
