@@ -20,10 +20,11 @@ contract ComplexBank is Pausable,BankI {
     event LogBuy(address senderAddress, address clientAddress, uint256 tokenAmount, uint256 cryptoAmount, uint256 buyPrice);
     event LogSell(address senderAddress, address clientAddress, uint256 tokenAmount, uint256 cryptoAmount, uint256 sellPrice);
     event OrderQueueGeneral(string description);
-    event BuyOrderCanceled(uint orderId,address beneficiary,uint amount);
-    event SellOrderCanceled(uint orderId,address beneficiary,uint amount);
+    event BuyOrderCanceled(uint orderId, address beneficiary, uint amount);
+    event SellOrderCanceled(uint orderId, address beneficiary, uint amount);
     event SendEtherError(string error, address _addr);
-    event BalanceRefill(address from,uint256 amount);
+    event BalanceRefill(address from, uint256 amount);
+    event OracleProblem(string description);
     
     uint256 constant MIN_READY_ORACLES = 1; //2;
     uint256 constant MIN_ORACLES_ENABLED = 1;//2;
@@ -69,6 +70,7 @@ contract ComplexBank is Pausable,BankI {
         processWaitingOracles(); // выкинет если есть оракулы, ждущие менее 10 минут
         if (numReadyOracles() < MIN_READY_ORACLES) {
             contractState = ProcessState.REQUEST_UPDATE_RATES;
+            OracleProblem("Not enough ready oracles. Please, request update rates again");
             return;
         }
         
