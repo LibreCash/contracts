@@ -17,8 +17,8 @@ contract ComplexBank is Pausable,BankI {
     // TODO; Check that all evetns used and delete unused
     event BuyOrderCreated(uint256 etherAmount);
     event SellOrderCreated(uint256 tokensAmount);
-    event LogBuy(address clientAddress, uint256 tokenAmount, uint256 cryptoAmount, uint256 buyPrice);
-    event LogSell(address clientAddress, uint256 tokenAmount, uint256 cryptoAmount, uint256 sellPrice);
+    event LogBuy(address senderAddress, address clientAddress, uint256 tokenAmount, uint256 cryptoAmount, uint256 buyPrice);
+    event LogSell(address senderAddress, address clientAddress, uint256 tokenAmount, uint256 cryptoAmount, uint256 sellPrice);
     event OrderQueueGeneral(string description);
     event BuyOrderCanceled(uint orderId,address beneficiary,uint amount);
     event SellOrderCanceled(uint orderId,address beneficiary,uint amount);
@@ -322,6 +322,7 @@ contract ComplexBank is Pausable,BankI {
 
         uint256 cryptoAmount = buyOrders[_orderID].orderAmount;
         uint256 tokensAmount = cryptoAmount.mul(cryptoFiatRateBuy).div(RATE_MULTIPLIER);
+        address senderAddress = buyOrders[_orderID].senderAddress;
         address recipientAddress = buyOrders[_orderID].recipientAddress;
         uint256 maxRate = buyOrders[_orderID].rateLimit;
 
@@ -330,7 +331,7 @@ contract ComplexBank is Pausable,BankI {
         } else {
             buyOrders[_orderID].recipientAddress = 0x0; // Mark order as completed or canceled
             libreToken.mint(recipientAddress, tokensAmount);
-            LogBuy(recipientAddress, tokensAmount, cryptoAmount, cryptoFiatRateBuy);
+            LogBuy(senderAddress, recipientAddress, tokensAmount, cryptoAmount, cryptoFiatRateBuy);
         }
     }
 
@@ -385,7 +386,8 @@ contract ComplexBank is Pausable,BankI {
             cancelSellOrder(_orderID);
         } else {
             balanceEther[recipientAddress] = balanceEther[recipientAddress].add(cryptoAmount);
-            LogSell(recipientAddress, tokensAmount, cryptoAmount, cryptoFiatRateSell);
+            overallRefundValue = overallRefundValue.add(cryptoAmount);
+            LogSell(senderAddress, recipientAddress, tokensAmount, cryptoAmount, cryptoFiatRateSell);
         }      
     }
 
