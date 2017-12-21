@@ -581,10 +581,7 @@ contract ComplexBank is Pausable, BankI {
      * @param _oracle The oracle's address.
      */
     function oracleExists(address _oracle) internal view returns (bool) {
-        if(oracles[_oracle].name == bytes32(0))
-            return false;
-
-        return true;
+        return !(oracles[_oracle].name == bytes32(0));
     }
 
     /**
