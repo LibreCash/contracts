@@ -105,8 +105,8 @@ contract ComplexBank is Pausable, BankI {
     }
 
     // Limits start
-    Limit public buyLimit = Limit(0, 99999 * 1 ether);
-    Limit public sellLimit = Limit(0, 99999 * 1 ether);
+    Limit public buyLimit = Limit(1 wei, 99999 * 1 ether);
+    Limit public sellLimit = Limit(1 wei, 99999 * 1 ether);
     // Limits end
 
     // 01-emission start
@@ -117,7 +117,7 @@ contract ComplexBank is Pausable, BankI {
      * @param _rateLimit Max affordable buying rate, 0 to allow all.
      */
     function createBuyOrder(address _address, uint256 _rateLimit) payable public whenNotPaused orderCreationAllowed {
-        require((msg.value > buyLimit.min) && (msg.value < buyLimit.max));
+        require((msg.value >= buyLimit.min) && (msg.value <= buyLimit.max));
         require(_address != 0x0);
         if (buyNextOrder == buyOrders.length) {
             buyOrders.length += 1;
@@ -148,7 +148,7 @@ contract ComplexBank is Pausable, BankI {
      * @param _rateLimit Min affordable selling rate, 0 to allow all.
      */
     function createSellOrder(address _address, uint256 _tokensCount, uint256 _rateLimit) public whenNotPaused orderCreationAllowed {
-        require((_tokensCount > sellLimit.min) && (_tokensCount < sellLimit.max));
+        require((_tokensCount >= sellLimit.min) && (_tokensCount <= sellLimit.max));
         require(_address != 0x0);
         address tokenOwner = msg.sender;
         require(_tokensCount <= libreToken.balanceOf(tokenOwner));
@@ -184,20 +184,20 @@ contract ComplexBank is Pausable, BankI {
 
     /**
      * @dev Sets min buy sum (in Wei).
-     * @param _minBuyInWei - min buy sum in Wei.
+     * @param _minBuyLimit - min buy sum in Wei.
      */
-    function setMinBuyLimit(uint _minBuyInWei) public onlyOwner {
-        require(_minBuyInWei <= MAX_MINIMUM_BUY);
-        buyLimit.min = _minBuyInWei;
+    function setMinBuyLimit(uint _minBuyLimit) public onlyOwner {
+        require((_minBuyLimit <= MAX_MINIMUM_BUY) && (_minBuyLimit > 0));
+        buyLimit.min = _minBuyLimit;
     }
 
     /**
      * @dev Sets max buy sum (in Wei).
-     * @param _maxBuyInWei - max buy sum in Wei.
+     * @param _maxBuyLimit - max buy sum in Wei.
      */
-    function setMaxBuyLimit(uint _maxBuyInWei) public onlyOwner {
-        require(_maxBuyInWei >= MIN_MAXIMUM_BUY);
-        buyLimit.max = _maxBuyInWei;
+    function setMaxBuyLimit(uint _maxBuyLimit) public onlyOwner {
+        require(_maxBuyLimit >= MIN_MAXIMUM_BUY);
+        buyLimit.max = _maxBuyLimit;
     }
 
     /**
@@ -205,7 +205,7 @@ contract ComplexBank is Pausable, BankI {
      * @param _minSellLimit - min sell tokens.
      */
     function setMinSellLimit(uint _minSellLimit) public onlyOwner {
-        require(_minSellLimit <= MAX_MINIMUM_TOKENS_SELL);
+        require((_minSellLimit <= MAX_MINIMUM_TOKENS_SELL) && (_minSellLimit > 0));
         sellLimit.min = _minSellLimit;
     }
     
@@ -238,7 +238,7 @@ contract ComplexBank is Pausable, BankI {
     uint256 private sellNextOrder = 0;
 
     mapping (address => uint256) balanceEther; // возврат средств
-    uint256  overallRefundValue = 0;
+    uint256 overallRefundValue = 0;
 
     /**
      * @dev Sends refund.
@@ -439,7 +439,7 @@ contract ComplexBank is Pausable, BankI {
      * @param _orderID The order ID.
      */
     function getBuyOrder(uint256 _orderID) public onlyOwner view returns (address, address, uint256, uint256, uint256) {
-        require(buyNextOrder > 0 && buyNextOrder >= _orderID && buyOrderIndex <= _orderID);
+        require((buyNextOrder > 0) && (buyNextOrder >= _orderID) && (buyOrderIndex <= _orderID));
         return (buyOrders[_orderID].senderAddress, buyOrders[_orderID].recipientAddress,
                 buyOrders[_orderID].orderAmount, buyOrders[_orderID].orderTimestamp,
                 buyOrders[_orderID].rateLimit);
@@ -450,7 +450,7 @@ contract ComplexBank is Pausable, BankI {
      * @param _orderID The order ID.
      */
     function getSellOrder(uint256 _orderID) public onlyOwner view returns (address, address, uint256, uint256, uint256) {
-        require(sellNextOrder > 0 && sellNextOrder >= _orderID && sellOrderIndex <= _orderID);
+        require((sellNextOrder > 0) && (sellNextOrder >= _orderID) && (sellOrderIndex <= _orderID));
         return (sellOrders[_orderID].senderAddress, sellOrders[_orderID].recipientAddress,
                 sellOrders[_orderID].orderAmount, sellOrders[_orderID].orderTimestamp,
                 sellOrders[_orderID].rateLimit);
@@ -485,6 +485,7 @@ contract ComplexBank is Pausable, BankI {
      * @param _tokenAddress The token address.
      */
     function attachToken(address _tokenAddress) public onlyOwner {
+        require(_tokenAddress != 0x0);
         tokenAddress = _tokenAddress;
         libreToken = LibreTokenI(tokenAddress);
     }
@@ -554,7 +555,6 @@ contract ComplexBank is Pausable, BankI {
             if ((currentOracle.rate() != 0) && !currentOracle.waitQuery() ) 
                 numOracles++;
         }
-        
         return numOracles;
     }
 
@@ -563,7 +563,7 @@ contract ComplexBank is Pausable, BankI {
      * @param _period Period up to MAX_RELEVANCE_PERIOD hours.
      */
     function setRelevancePeriod(uint256 _period) public onlyOwner {
-        require(_period < MAX_RELEVANCE_PERIOD);
+        require(_period <= MAX_RELEVANCE_PERIOD);
         relevancePeriod = _period;
     }
 
@@ -641,7 +641,8 @@ contract ComplexBank is Pausable, BankI {
     function disableOracle(address _address) public onlyOwner {
         require((oracleExists(_address)) && (oracles[_address].enabled));
         oracles[_address].enabled = false;
-        numEnabledOracles--;
+        if (numEnabledOracles != 0)
+            numEnabledOracles--;
         OracleDisabled(_address, oracles[_address].name);
     }
 
@@ -652,7 +653,7 @@ contract ComplexBank is Pausable, BankI {
     function enableOracle(address _address) public onlyOwner {
         require((oracleExists(_address)) && (!oracles[_address].enabled));
         oracles[_address].enabled = true;
-        numEnabledOracles = numEnabledOracles.add(1);
+        numEnabledOracles++;
         OracleEnabled(_address, oracles[_address].name);
     }
 
@@ -672,9 +673,10 @@ contract ComplexBank is Pausable, BankI {
         }
         
         delete oracles[_address];
-        countOracles = countOracles.sub(1);
-        if (oracles[_address].enabled)
-            numEnabledOracles = numEnabledOracles.sub(1);
+        if (countOracles != 0)
+            countOracles = countOracles--;
+        if ((oracles[_address].enabled) && (numEnabledOracles != 0))
+            numEnabledOracles--;
     }
 
     /**
