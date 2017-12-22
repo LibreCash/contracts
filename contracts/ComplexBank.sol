@@ -24,7 +24,6 @@ contract ComplexBank is Pausable, BankI {
     event SellOrderCanceled(uint orderId, address beneficiary, uint amount);
     event SendEtherError(string error, address _addr);
     event BalanceRefill(address from, uint256 amount);
-    event OracleProblem(string description);
     
     uint256 constant MIN_READY_ORACLES = 1; //2;
     uint256 constant MIN_ORACLES_ENABLED = 1;//2;
@@ -503,7 +502,8 @@ contract ComplexBank is Pausable, BankI {
     event OraclesTouched(string message);
     event OracleTouched(address indexed _address, bytes32 name);
     event OracleNotTouched(address indexed _address, bytes32 name);
-    event OracleReadyNearToMin(uint256 count);
+    event OracleProblem(string description);
+    
 
     struct OracleData {
         bytes32 name;
@@ -780,15 +780,16 @@ contract ComplexBank is Pausable, BankI {
      */
     function processWaitingOracles() internal {
         for (address cur = firstOracle; cur != 0x0; cur = oracles[cur].next) {
-            if (oracles[cur].enabled) {
-                OracleI currentOracle = OracleI(cur);
-                if (currentOracle.waitQuery()) {
-                    // если оракул ждёт 10 минут и больше
-                    if (currentOracle.updateTime() < now - 10 minutes) {
-                        currentOracle.clearState(); // но не ждать
-                    } else {
-                        revert(); // не даём завершить, пока есть ждущие менее 10 минут оракулы
-                    }
+            if (!oracles[cur].enabled) 
+                continue;
+
+            OracleI currentOracle = OracleI(cur);
+            if (currentOracle.waitQuery()) {
+                // если оракул ждёт 10 минут и больше
+                if (currentOracle.updateTime() < now - 10 minutes) {
+                    currentOracle.clearState(); // но не ждать
+                } else {
+                    revert(); // не даём завершить, пока есть ждущие менее 10 минут оракулы
                 }
             }
         } // foreach oracles
