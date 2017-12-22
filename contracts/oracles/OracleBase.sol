@@ -30,7 +30,6 @@ contract OracleBase is Ownable, usingOraclize, OracleI {
     mapping(bytes32=>bool) validIds; // ensure that each query response is processed only once
     address public bankAddress;
     uint256 public rate;
-    bytes32 queryId;
     bool public waitQuery = false;
     OracleConfig public oracleConfig; // заполняется конструктором потомка константами из него же
 
@@ -109,7 +108,7 @@ contract OracleBase is Ownable, usingOraclize, OracleI {
             NewOraclizeQuery("Oraclize query was NOT sent, please add some ETH to cover for the query fee");
             return false;
         } else {
-            queryId = oraclize_query(oracleConfig.datasource, oracleConfig.arguments, gasLimit);
+            bytes32 queryId = oraclize_query(oracleConfig.datasource, oracleConfig.arguments, gasLimit);
             NewOraclizeQuery("Oraclize query was sent, standing by for the answer...");
             validIds[queryId] = true;
             waitQuery = true;
