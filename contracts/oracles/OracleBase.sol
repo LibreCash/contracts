@@ -131,7 +131,7 @@ contract OracleBase is Ownable, usingOraclize, OracleI {
         rate = Helpers.parseIntRound(result, 3); // save it in storage as 1/1000 of $
         NewPriceTicker(result);
         delete(validIds[myid]);
-        callbackTime = now();
+        callbackTime = now;
         waitQuery = false;
     }
 
