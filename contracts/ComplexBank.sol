@@ -245,16 +245,18 @@ contract ComplexBank is Pausable, BankI {
      */
     function getEther() public {
         // TODO: учесть средства на контракте кошелька и как-то их получить при необходимости или запросить
-        if (this.balance < balanceEther[msg.sender]) {
-            SendEtherError("The contract does not have enough funds", msg.sender);
-        } else {
-            if (msg.sender.send(balanceEther[msg.sender])) {
-                overallRefundValue = overallRefundValue.sub(balanceEther[msg.sender]);
-                balanceEther[msg.sender] = 0;
-            }
-            else
-                SendEtherError("Error sending money", msg.sender);
+        uint256 sendBalance = balanceEther[msg.sender];
+        if (this.balance < sendBalance) {
+            sendBalance = this.balance;
+            SendEtherError("The contract doesn't have enough funds, the payment will be fulfilled partly", msg.sender);
         }
+
+        if (msg.sender.send(sendBalance)) {
+            overallRefundValue = overallRefundValue.sub(sendBalance);
+            balanceEther[msg.sender] -= sendBalance;
+        }
+        else
+            SendEtherError("Error sending money", msg.sender);
     }
 
     /**
