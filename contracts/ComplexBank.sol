@@ -643,8 +643,7 @@ contract ComplexBank is Pausable, BankI {
     function disableOracle(address _address) public onlyOwner {
         require((oracleExists(_address)) && (oracles[_address].enabled));
         oracles[_address].enabled = false;
-        if (numEnabledOracles != 0)
-            numEnabledOracles--;
+        numEnabledOracles--;
         OracleDisabled(_address, oracles[_address].name);
     }
 
@@ -675,9 +674,8 @@ contract ComplexBank is Pausable, BankI {
         }
         
         delete oracles[_address];
-        if (countOracles != 0)
-            countOracles = countOracles--;
-        if ((oracles[_address].enabled) && (numEnabledOracles != 0))
+        countOracles--;
+        if (oracles[_address].enabled)
             numEnabledOracles--;
     }
 
