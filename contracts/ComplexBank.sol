@@ -500,7 +500,7 @@ contract ComplexBank is Pausable, BankI {
     event OraclesTouched(string message);
     event OracleTouched(address indexed _address, bytes32 name);
     event OracleNotTouched(address indexed _address, bytes32 name);
-    event OracleReadyNearToMin(uint256 count);
+    
 
     struct OracleData {
         bytes32 name;
