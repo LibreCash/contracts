@@ -9,20 +9,21 @@ import "./interfaces/I_Bank.sol";
 
 
 
-contract ComplexBank is Pausable,BankI {
+contract ComplexBank is Pausable, BankI {
     using SafeMath for uint256;
     address public tokenAddress;
     LibreTokenI libreToken;
     
     // TODO; Check that all evetns used and delete unused
-    event BuyOrderCreated(uint256 amount);
-    event SellOrderCreated(uint256 amount);
-    event LogBuy(address clientAddress, uint256 tokenAmount, uint256 cryptoAmount, uint256 buyPrice);
-    event LogSell(address clientAddress, uint256 tokenAmount, uint256 cryptoAmount, uint256 sellPrice);
+    event BuyOrderCreated(uint256 etherAmount);
+    event SellOrderCreated(uint256 tokensAmount);
+    event LogBuy(address senderAddress, address clientAddress, uint256 tokenAmount, uint256 cryptoAmount, uint256 buyPrice);
+    event LogSell(address senderAddress, address clientAddress, uint256 tokenAmount, uint256 cryptoAmount, uint256 sellPrice);
     event OrderQueueGeneral(string description);
-    event BuyOrderCanceled(uint orderId,address beneficiary,uint amount);
-    event SellOrderCanceled(uint orderId,address beneficiary,uint amount);
+    event BuyOrderCanceled(uint orderId, address beneficiary, uint amount);
+    event SellOrderCanceled(uint orderId, address beneficiary, uint amount);
     event SendEtherError(string error, address _addr);
+    event BalanceRefill(address from, uint256 amount);
     
     uint256 constant MIN_READY_ORACLES = 1; //2;
     uint256 constant MIN_ORACLES_ENABLED = 1;//2;
@@ -40,9 +41,11 @@ contract ComplexBank is Pausable,BankI {
     uint256 public relevancePeriod = 23 hours; // Минимальное время между calcRates() прошлого раунда
                                                // и requestUpdateRates() следующего
     uint256 public queuePeriod = 60 minutes;
-
+    uint256 public balanceEtherCap = 10 ether; // Contract balance ether cap.
     // после тестов убрать public
     uint256 public timeUpdateRequest = 0; // the time of requestUpdateRates()
+    address public withdrawWallet; // Multisig withdraw wallet address
+    bool public autoWithdraw = true;
 
     enum ProcessState {
         REQUEST_UPDATE_RATES,
@@ -54,7 +57,7 @@ contract ComplexBank is Pausable,BankI {
     ProcessState public contractState;
 
     modifier canStartEmission() {
-        require( (now >= timeUpdateRequest + relevancePeriod) || (contractState == ProcessState.REQUEST_UPDATE_RATES));
+        require((now >= timeUpdateRequest + relevancePeriod) || (contractState == ProcessState.REQUEST_UPDATE_RATES));
         _;
         contractState = ProcessState.CALC_RATE;
         timeUpdateRequest = now;
@@ -66,6 +69,7 @@ contract ComplexBank is Pausable,BankI {
         processWaitingOracles(); // выкинет если есть оракулы, ждущие менее 10 минут
         if (numReadyOracles() < MIN_READY_ORACLES) {
             contractState = ProcessState.REQUEST_UPDATE_RATES;
+            OracleProblem("Not enough ready oracles. Please, request update rates again");
             return;
         }
         
@@ -91,7 +95,7 @@ contract ComplexBank is Pausable,BankI {
     }
 
 // for tests
-    function timeSinceUpdateRequest() public view returns (uint256) {return now - timeUpdateRequest; }
+    function timeSinceUpdateRequest() public view returns (uint256) { return now - timeUpdateRequest; }
 // end for tests
 
     struct Limit {
@@ -100,16 +104,9 @@ contract ComplexBank is Pausable,BankI {
     }
 
     // Limits start
-    Limit public buyLimit = Limit(0, 99999 * 1 ether);
-    Limit public sellLimit = Limit(0, 99999 * 1 ether);
+    Limit public buyLimit = Limit(1 wei, 99999 * 1 ether);
+    Limit public sellLimit = Limit(1 wei, 99999 * 1 ether);
     // Limits end
-
-    /**
-     * @dev Constructor.
-     */
-    function ComplexBank() {
-        // Do something 
-    }
 
     // 01-emission start
 
@@ -119,7 +116,7 @@ contract ComplexBank is Pausable,BankI {
      * @param _rateLimit Max affordable buying rate, 0 to allow all.
      */
     function createBuyOrder(address _address, uint256 _rateLimit) payable public whenNotPaused orderCreationAllowed {
-        require((msg.value > buyLimit.min) && (msg.value < buyLimit.max));
+        require((msg.value >= buyLimit.min) && (msg.value <= buyLimit.max));
         require(_address != 0x0);
         if (buyNextOrder == buyOrders.length) {
             buyOrders.length += 1;
@@ -132,6 +129,7 @@ contract ComplexBank is Pausable,BankI {
             rateLimit: _rateLimit
         });
         BuyOrderCreated(msg.value);
+        withdraw();
     }
 
     /**
@@ -149,7 +147,7 @@ contract ComplexBank is Pausable,BankI {
      * @param _rateLimit Min affordable selling rate, 0 to allow all.
      */
     function createSellOrder(address _address, uint256 _tokensCount, uint256 _rateLimit) public whenNotPaused orderCreationAllowed {
-        require((_tokensCount > sellLimit.min) && (_tokensCount < sellLimit.max));
+        require((_tokensCount >= sellLimit.min) && (_tokensCount <= sellLimit.max));
         require(_address != 0x0);
         address tokenOwner = msg.sender;
         require(_tokensCount <= libreToken.balanceOf(tokenOwner));
@@ -185,20 +183,20 @@ contract ComplexBank is Pausable,BankI {
 
     /**
      * @dev Sets min buy sum (in Wei).
-     * @param _minBuyInWei - min buy sum in Wei.
+     * @param _minBuyLimit - min buy sum in Wei.
      */
-    function setMinBuyLimit(uint _minBuyInWei) public onlyOwner {
-        require(_minBuyInWei <= MAX_MINIMUM_BUY);
-        buyLimit.min = _minBuyInWei;
+    function setMinBuyLimit(uint _minBuyLimit) public onlyOwner {
+        require((_minBuyLimit <= MAX_MINIMUM_BUY) && (_minBuyLimit > 0));
+        buyLimit.min = _minBuyLimit;
     }
 
     /**
      * @dev Sets max buy sum (in Wei).
-     * @param _maxBuyInWei - max buy sum in Wei.
+     * @param _maxBuyLimit - max buy sum in Wei.
      */
-    function setMaxBuyLimit(uint _maxBuyInWei) public onlyOwner {
-        require(_maxBuyInWei >= MIN_MAXIMUM_BUY);
-        buyLimit.max = _maxBuyInWei;
+    function setMaxBuyLimit(uint _maxBuyLimit) public onlyOwner {
+        require(_maxBuyLimit >= MIN_MAXIMUM_BUY);
+        buyLimit.max = _maxBuyLimit;
     }
 
     /**
@@ -206,7 +204,7 @@ contract ComplexBank is Pausable,BankI {
      * @param _minSellLimit - min sell tokens.
      */
     function setMinSellLimit(uint _minSellLimit) public onlyOwner {
-        require(_minSellLimit <= MAX_MINIMUM_TOKENS_SELL);
+        require((_minSellLimit <= MAX_MINIMUM_TOKENS_SELL) && (_minSellLimit > 0));
         sellLimit.min = _minSellLimit;
     }
     
@@ -239,22 +237,25 @@ contract ComplexBank is Pausable,BankI {
     uint256 private sellNextOrder = 0;
 
     mapping (address => uint256) balanceEther; // возврат средств
-    uint256  overallRefundValue = 0;
+    uint256 overallRefundValue = 0;
 
     /**
      * @dev Sends refund.
      */
     function getEther() public {
-        if (this.balance < balanceEther[msg.sender]) {
-            SendEtherError("The contract does not have enough funds!", msg.sender);
-        } else {
-            if (msg.sender.send(balanceEther[msg.sender])) {
-                overallRefundValue = overallRefundValue.sub(balanceEther[msg.sender]);
-                balanceEther[msg.sender] = 0;
-            }
-            else
-                SendEtherError("Error sending money!", msg.sender);
+        // TODO: учесть средства на контракте кошелька и как-то их получить при необходимости или запросить
+        uint256 sendBalance = balanceEther[msg.sender];
+        if (this.balance < sendBalance) {
+            sendBalance = this.balance;
+            SendEtherError("The contract doesn't have enough funds, the payment will be fulfilled partly", msg.sender);
         }
+
+        if (msg.sender.send(sendBalance)) {
+            overallRefundValue = overallRefundValue.sub(sendBalance);
+            balanceEther[msg.sender] -= sendBalance;
+        }
+        else
+            SendEtherError("Error sending money", msg.sender);
     }
 
     /**
@@ -302,7 +303,7 @@ contract ComplexBank is Pausable,BankI {
         uint256 tokensAmount = sellOrders[_orderID].orderAmount;
         
         sellOrders[_orderID].recipientAddress = 0x0; // Mark order as completed or canceled
-        BuyOrderCanceled(_orderID,sender,tokensAmount);
+        SellOrderCanceled(_orderID, sender, tokensAmount);
         libreToken.mint(sender, tokensAmount);
         return true;
     }
@@ -316,7 +317,8 @@ contract ComplexBank is Pausable,BankI {
             return;
 
         uint256 cryptoAmount = buyOrders[_orderID].orderAmount;
-        uint256 tokensAmount = cryptoAmount.mul(cryptoFiatRateBuy).div(RATE_MULTIPLIER);
+        uint256 tokensAmount = cryptoAmount.mul(cryptoFiatRateBuy) / RATE_MULTIPLIER;
+        address senderAddress = buyOrders[_orderID].senderAddress;
         address recipientAddress = buyOrders[_orderID].recipientAddress;
         uint256 maxRate = buyOrders[_orderID].rateLimit;
 
@@ -325,7 +327,7 @@ contract ComplexBank is Pausable,BankI {
         } else {
             buyOrders[_orderID].recipientAddress = 0x0; // Mark order as completed or canceled
             libreToken.mint(recipientAddress, tokensAmount);
-            LogBuy(recipientAddress, tokensAmount, cryptoAmount, cryptoFiatRateBuy);
+            LogBuy(senderAddress, recipientAddress, tokensAmount, cryptoAmount, cryptoFiatRateBuy);
         }
     }
 
@@ -369,14 +371,15 @@ contract ComplexBank is Pausable,BankI {
         address recipientAddress = sellOrders[_orderID].recipientAddress;
         address senderAddress = sellOrders[_orderID].senderAddress;
         uint256 tokensAmount = sellOrders[_orderID].orderAmount;
-        uint256 cryptoAmount = tokensAmount.mul(RATE_MULTIPLIER).div(cryptoFiatRateSell);
+        uint256 cryptoAmount = tokensAmount.mul(RATE_MULTIPLIER) / cryptoFiatRateSell;
         uint256 minRate = sellOrders[_orderID].rateLimit;
 
         if ((minRate != 0) && (cryptoFiatRateSell < minRate)) {
             cancelSellOrder(_orderID);
         } else {
             balanceEther[recipientAddress] = balanceEther[recipientAddress].add(cryptoAmount);
-            LogSell(recipientAddress, tokensAmount, cryptoAmount, cryptoFiatRateSell);
+            overallRefundValue = overallRefundValue.add(cryptoAmount);
+            LogSell(senderAddress, recipientAddress, tokensAmount, cryptoAmount, cryptoFiatRateSell);
         }      
     }
 
@@ -430,7 +433,7 @@ contract ComplexBank is Pausable,BankI {
      * @param _orderID The order ID.
      */
     function getBuyOrder(uint256 _orderID) public onlyOwner view returns (address, address, uint256, uint256, uint256) {
-        require(buyNextOrder > 0 && buyNextOrder >= _orderID && buyOrderIndex <= _orderID);
+        require((buyNextOrder > 0) && (buyNextOrder >= _orderID) && (buyOrderIndex <= _orderID));
         return (buyOrders[_orderID].senderAddress, buyOrders[_orderID].recipientAddress,
                 buyOrders[_orderID].orderAmount, buyOrders[_orderID].orderTimestamp,
                 buyOrders[_orderID].rateLimit);
@@ -441,7 +444,7 @@ contract ComplexBank is Pausable,BankI {
      * @param _orderID The order ID.
      */
     function getSellOrder(uint256 _orderID) public onlyOwner view returns (address, address, uint256, uint256, uint256) {
-        require(sellNextOrder > 0 && sellNextOrder >= _orderID && sellOrderIndex <= _orderID);
+        require((sellNextOrder > 0) && (sellNextOrder >= _orderID) && (sellOrderIndex <= _orderID));
         return (sellOrders[_orderID].senderAddress, sellOrders[_orderID].recipientAddress,
                 sellOrders[_orderID].orderAmount, sellOrders[_orderID].orderTimestamp,
                 sellOrders[_orderID].rateLimit);
@@ -476,6 +479,7 @@ contract ComplexBank is Pausable,BankI {
      * @param _tokenAddress The token address.
      */
     function attachToken(address _tokenAddress) public onlyOwner {
+        require(_tokenAddress != 0x0);
         tokenAddress = _tokenAddress;
         libreToken = LibreTokenI(tokenAddress);
     }
@@ -491,7 +495,8 @@ contract ComplexBank is Pausable,BankI {
     event OraclesTouched(string message);
     event OracleTouched(address indexed _address, bytes32 name);
     event OracleNotTouched(address indexed _address, bytes32 name);
-    event OracleReadyNearToMin(uint256 count);
+    event OracleProblem(string description);
+    
 
     struct OracleData {
         bytes32 name;
@@ -510,9 +515,6 @@ contract ComplexBank is Pausable,BankI {
     uint256 public buyFee = 0;
     uint256 public sellFee = 0;
     uint256 constant MAX_FEE = 7000; // 70%
-
-    Limit buyFeeLimit = Limit(0, MAX_FEE);
-    Limit sellFeeLimit = Limit(0, MAX_FEE);
 
     address public scheduler;
 
@@ -548,7 +550,6 @@ contract ComplexBank is Pausable,BankI {
             if ((currentOracle.rate() != 0) && !currentOracle.waitQuery() ) 
                 numOracles++;
         }
-        
         return numOracles;
     }
 
@@ -557,7 +558,7 @@ contract ComplexBank is Pausable,BankI {
      * @param _period Period up to MAX_RELEVANCE_PERIOD hours.
      */
     function setRelevancePeriod(uint256 _period) public onlyOwner {
-        require(_period < MAX_RELEVANCE_PERIOD);
+        require(_period <= MAX_RELEVANCE_PERIOD);
         relevancePeriod = _period;
     }
 
@@ -575,10 +576,7 @@ contract ComplexBank is Pausable,BankI {
      * @param _oracle The oracle's address.
      */
     function oracleExists(address _oracle) internal view returns (bool) {
-        if(oracles[_oracle].name == bytes32(0))
-            return false;
-
-        return true;
+        return !(oracles[_oracle].name == bytes32(0));
     }
 
     /**
@@ -587,18 +585,18 @@ contract ComplexBank is Pausable,BankI {
      * @param _sellFee The sell fee.
      */
     function setFees(uint256 _buyFee, uint256 _sellFee) public onlyOwner {
-        require((_buyFee >= buyFeeLimit.min) && (_buyFee <= buyFeeLimit.max));
-        require((_sellFee >= sellFeeLimit.min) && (_sellFee <= sellFeeLimit.max));
+        require(_buyFee <= MAX_FEE);
+        require(_sellFee <= MAX_FEE);
 
         if (sellFee != _sellFee) {
-            uint256 maximalOracleRate = cryptoFiatRateSell.mul(RATE_MULTIPLIER).mul(REVERSE_PERCENT).div(RATE_MULTIPLIER * REVERSE_PERCENT + sellFee * RATE_MULTIPLIER / REVERSE_PERCENT);
+            uint256 maximalOracleRate = cryptoFiatRateSell.mul(RATE_MULTIPLIER).mul(REVERSE_PERCENT) / (RATE_MULTIPLIER * REVERSE_PERCENT + sellFee * RATE_MULTIPLIER / REVERSE_PERCENT);
             sellFee = _sellFee;
-            cryptoFiatRateSell = maximalOracleRate.mul(RATE_MULTIPLIER * REVERSE_PERCENT + sellFee * RATE_MULTIPLIER / REVERSE_PERCENT).div(RATE_MULTIPLIER * REVERSE_PERCENT);
+            cryptoFiatRateSell = maximalOracleRate.mul(RATE_MULTIPLIER * REVERSE_PERCENT + sellFee * RATE_MULTIPLIER / REVERSE_PERCENT) / (RATE_MULTIPLIER * REVERSE_PERCENT);
         }
         if (buyFee != _buyFee) {
-            uint256 minimalOracleRate = cryptoFiatRateBuy.mul(RATE_MULTIPLIER * REVERSE_PERCENT).div(RATE_MULTIPLIER * REVERSE_PERCENT - buyFee * RATE_MULTIPLIER / REVERSE_PERCENT);
+            uint256 minimalOracleRate = cryptoFiatRateBuy.mul(RATE_MULTIPLIER * REVERSE_PERCENT) / (RATE_MULTIPLIER * REVERSE_PERCENT - buyFee * RATE_MULTIPLIER / REVERSE_PERCENT);
             buyFee = _buyFee;
-            cryptoFiatRateBuy = minimalOracleRate.mul(RATE_MULTIPLIER * REVERSE_PERCENT - buyFee * RATE_MULTIPLIER / REVERSE_PERCENT).div(RATE_MULTIPLIER * REVERSE_PERCENT);
+            cryptoFiatRateBuy = minimalOracleRate.mul(RATE_MULTIPLIER * REVERSE_PERCENT - buyFee * RATE_MULTIPLIER / REVERSE_PERCENT) / (RATE_MULTIPLIER * REVERSE_PERCENT);
         }
     }
     
@@ -664,13 +662,14 @@ contract ComplexBank is Pausable,BankI {
             firstOracle = oracles[_address].next;
         } else {
             address prev = firstOracle;
-            for (; oracles[prev].next != _address; prev = oracles[prev].next) {}
+            for (; oracles[prev].next != _address; prev = oracles[prev].next) { }
             oracles[prev].next = oracles[_address].next;
         }
         
         delete oracles[_address];
         countOracles--;
-        if(oracles[_address].enabled) numEnabledOracles--;
+        if (oracles[_address].enabled)
+            numEnabledOracles--;
     }
 
     /**
@@ -698,7 +697,7 @@ contract ComplexBank is Pausable,BankI {
      * @dev Set scheduler
      * @param _scheduler new scheduler address
      */
-    function setScheduler(address _scheduler) onlyOwner {
+    function setScheduler(address _scheduler) public onlyOwner {
         scheduler = _scheduler;
     }
     
@@ -724,16 +723,17 @@ contract ComplexBank is Pausable,BankI {
      */
     function getReservePercent() public view returns (uint256) {
         uint256 reserve = 0;
-        if ((this.balance != 0) && (cryptoFiatRateSell != 0)) {
-            uint256 reserveBalance = this.balance;
+        uint256 curBalance = this.balance + withdrawWallet.balance;
+        if ((curBalance != 0) && (cryptoFiatRateSell != 0)) {
+            uint256 reserveBalance = curBalance;
             for (uint i = buyOrderIndex; i < buyNextOrder; i++) {
                 if (buyOrders[i].recipientAddress != 0x0) {
                     reserveBalance = reserveBalance.sub(buyOrders[i].orderAmount);
                 }
             }
             reserveBalance = reserveBalance.sub(overallRefundValue);
-            uint256 canGetCryptoBySellingTokens = (libreToken.totalSupply() * RATE_MULTIPLIER).div(cryptoFiatRateSell);
-            reserve = (reserveBalance * REVERSE_PERCENT * 100).div(canGetCryptoBySellingTokens);
+            uint256 canGetCryptoBySellingTokens = (libreToken.totalSupply() * RATE_MULTIPLIER) / cryptoFiatRateSell;
+            reserve = (reserveBalance * REVERSE_PERCENT * 100) / canGetCryptoBySellingTokens;
         }
         return reserve;
     }
@@ -758,7 +758,7 @@ contract ComplexBank is Pausable,BankI {
                         OracleTouched(cur, oracles[cur].name);
                     else {
                         OracleNotTouched(cur, oracles[cur].name);
-                        break;
+                        continue;
                     }
                 }
             }
@@ -771,15 +771,16 @@ contract ComplexBank is Pausable,BankI {
      */
     function processWaitingOracles() internal {
         for (address cur = firstOracle; cur != 0x0; cur = oracles[cur].next) {
-            if (oracles[cur].enabled) {
-                OracleI currentOracle = OracleI(cur);
-                if (currentOracle.waitQuery()) {
-                    // если оракул ждёт 10 минут и больше
-                    if (currentOracle.updateTime() < now - 10 minutes) {
-                        currentOracle.clearState(); // но не ждать
-                    } else {
-                        revert(); // не даём завершить, пока есть ждущие менее 10 минут оракулы
-                    }
+            if (!oracles[cur].enabled) 
+                continue;
+
+            OracleI currentOracle = OracleI(cur);
+            if (currentOracle.waitQuery()) {
+                // если оракул ждёт 10 минут и больше
+                if (currentOracle.updateTime() < now - 10 minutes) {
+                    currentOracle.clearState(); // но не ждать
+                } else {
+                    revert(); // не даём завершить, пока есть ждущие менее 10 минут оракулы
                 }
             }
         } // foreach oracles
@@ -806,9 +807,9 @@ contract ComplexBank is Pausable,BankI {
             }
         } // foreach oracles
 
-        cryptoFiatRate = minimalRate.add(maximalRate).div(2);
-        cryptoFiatRateBuy = minimalRate.mul(REVERSE_PERCENT * RATE_MULTIPLIER - buyFee * RATE_MULTIPLIER / REVERSE_PERCENT).div(REVERSE_PERCENT).div(RATE_MULTIPLIER);
-        cryptoFiatRateSell = maximalRate.mul(REVERSE_PERCENT * RATE_MULTIPLIER + sellFee * RATE_MULTIPLIER / REVERSE_PERCENT).div(REVERSE_PERCENT).div(RATE_MULTIPLIER);
+        cryptoFiatRate = minimalRate.add(maximalRate) / 2;
+        cryptoFiatRateBuy = minimalRate.mul(REVERSE_PERCENT * RATE_MULTIPLIER - buyFee * RATE_MULTIPLIER / REVERSE_PERCENT) / REVERSE_PERCENT / RATE_MULTIPLIER;
+        cryptoFiatRateSell = maximalRate.mul(REVERSE_PERCENT * RATE_MULTIPLIER + sellFee * RATE_MULTIPLIER / REVERSE_PERCENT) / REVERSE_PERCENT / RATE_MULTIPLIER;
     }
     // 04-spread calc end
 
@@ -822,10 +823,10 @@ contract ComplexBank is Pausable,BankI {
 
 
 
-    // sytem methods start
+    // system methods start
 
     /**
-     * @dev Returns total tokens count.
+     * @dev Returns total token count.
      */
     function totalTokenCount() public view returns (uint256) {
         return libreToken.totalSupply();
@@ -833,10 +834,56 @@ contract ComplexBank is Pausable,BankI {
 
     // TODO: удалить после тестов, нужен чтобы возвращать эфир с контракта
     /**
-     * @dev Withdraws all the balance.
+     * @dev Withdraws all the balance to owner.
      */
     function withdrawBalance() public onlyOwner {
         owner.transfer(this.balance);
     }
+
+     /**
+     * @dev Sets balance cap limit balance above cap.
+     * @param capInWei - balance cap sum in Wei (1 ether = 10^18 wei)
+     */
+    function setBalanceCap(uint256 capInWei) public onlyOwner {
+        require(capInWei > 0);
+        balanceEtherCap = capInWei;
+        withdraw();
+    }
+
+    /**
+     * @dev Withdraws balance above cap.
+     */
+    function withdraw() internal {
+        if ((!autoWithdraw) || (this.balance <= balanceEtherCap))
+            return;
+        withdrawWallet.transfer(this.balance - balanceEtherCap);
+    }
+
+
+    /**
+     * @dev Sets wallet to withdraw balance above cap cap
+     * @param withdrawTo - wallet to withdraw ether
+     */
+    function setWithdrawWallet(address withdrawTo) public onlyOwner {
+        require(withdrawTo != 0x0);
+        withdrawWallet = withdrawTo; 
+    }
+
+     /**
+     * @dev Used to refill contract balance (eg. from escrow multisig wallet.)
+     */
+    function refillBalance() public payable {
+        BalanceRefill(msg.sender, msg.value);
+        withdraw();
+    }
     // system methods end
+    
+    /**
+     * @dev Used to set auto-widthdraw status of contract balance to multisig
+     * @param _autoWithdraw Bool flag of auto-withdraw status.
+     */
+    function setAutoWithdraw(bool _autoWithdraw) public onlyOwner {
+        autoWithdraw = _autoWithdraw;
+    }
+
 }
