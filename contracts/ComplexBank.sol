@@ -243,6 +243,7 @@ contract ComplexBank is Pausable, BankI {
      * @dev Sends refund.
      */
     function getEther() public {
+        require(balanceEther[msg.sender] != 0);
         // TODO: учесть средства на контракте кошелька и как-то их получить при необходимости или запросить
         uint256 sendBalance = balanceEther[msg.sender];
         if (this.balance < sendBalance) {
