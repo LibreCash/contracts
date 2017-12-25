@@ -8,10 +8,10 @@ module.exports = async function(deployer, network) {
     contracts = contracts.concat(
       ['oracles/OracleBitfinex',
        'oracles/OracleBitstamp',
-       //'oracles/OracleWEX',
-       //'oracles/OracleGDAX',
-       //'oracles/OracleGemini',
-       //'oracles/OracleKraken',
+       'oracles/OracleWEX',
+       'oracles/OracleGDAX',
+       'oracles/OracleGemini',
+       'oracles/OracleKraken',
        //'oracles/OraclePoloniex'
       ]);
   } else {
