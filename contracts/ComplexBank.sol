@@ -20,8 +20,8 @@ contract ComplexBank is Pausable, BankI {
     event LogBuy(address senderAddress, address clientAddress, uint256 tokenAmount, uint256 cryptoAmount, uint256 buyPrice);
     event LogSell(address senderAddress, address clientAddress, uint256 tokenAmount, uint256 cryptoAmount, uint256 sellPrice);
     event OrderQueueGeneral(string description);
-    event BuyOrderCanceled(uint256 orderId, address beneficiary, uint256 amount, string reason, uint256 parameter);
-    event SellOrderCanceled(uint256 orderId, address beneficiary, uint256 amount, string reason, uint256 parameter);
+    event BuyOrderCanceled(uint256 orderId, address beneficiary, uint256 amount, uint256 parameter);
+    event SellOrderCanceled(uint256 orderId, address beneficiary, uint256 amount, uint256 parameter);
     event SendEtherError(string error, address _addr);
     event BalanceRefill(address from, uint256 amount);
     
@@ -276,10 +276,9 @@ contract ComplexBank is Pausable, BankI {
     /**
      * @dev Cancels buy order.
      * @param _orderID The ID of order.
-     * @param _reason The reason of cancellation.
      * @param _parameter More information on cancellation (for example, order limit).
      */
-    function cancelBuyOrder(uint256 _orderID, string _reason, uint256 _parameter) private returns (bool) {
+    function cancelBuyOrder(uint256 _orderID, uint256 _parameter) private returns (bool) {
         if (buyOrders[_orderID].recipientAddress == 0x0)
             return false;
 
@@ -288,7 +287,7 @@ contract ComplexBank is Pausable, BankI {
 
         balanceEther[sender] = balanceEther[sender].add(orderAmount);
         buyOrders[_orderID].recipientAddress = 0x0; // Mark order as completed or cancelled
-        BuyOrderCanceled(_orderID, sender, orderAmount, _reason, _parameter);
+        BuyOrderCanceled(_orderID, sender, orderAmount, _parameter);
         overallRefundValue = overallRefundValue.add(orderAmount);
 
         return true;
@@ -297,8 +296,9 @@ contract ComplexBank is Pausable, BankI {
     /**
      * @dev Cancels sell order.
      * @param _orderID The ID of order.
+     * @param _parameter More information on cancellation (for example, order limit).
      */
-   function cancelSellOrder(uint256 _orderID, string _reason, uint256 _parameter) private returns(bool) {
+   function cancelSellOrder(uint256 _orderID, uint256 _parameter) private returns(bool) {
         if (sellOrders[_orderID].recipientAddress == 0x0)
             return false;
 
@@ -306,7 +306,7 @@ contract ComplexBank is Pausable, BankI {
         uint256 tokensAmount = sellOrders[_orderID].orderAmount;
         
         sellOrders[_orderID].recipientAddress = 0x0; // Mark order as completed or canceled
-        SellOrderCanceled(_orderID, sender, tokensAmount, _reason, _parameter);
+        SellOrderCanceled(_orderID, sender, tokensAmount, _parameter);
         libreToken.mint(sender, tokensAmount);
         return true;
     }
@@ -326,7 +326,7 @@ contract ComplexBank is Pausable, BankI {
         uint256 maxRate = buyOrders[_orderID].rateLimit;
 
         if ((maxRate != 0) && (cryptoFiatRateBuy > maxRate)) {
-            cancelBuyOrder(_orderID, "Buy rate is more than order limit", maxRate);
+            cancelBuyOrder(_orderID, maxRate);
         } else {
             buyOrders[_orderID].recipientAddress = 0x0; // Mark order as completed or canceled
             libreToken.mint(recipientAddress, tokensAmount);
@@ -378,7 +378,7 @@ contract ComplexBank is Pausable, BankI {
         uint256 minRate = sellOrders[_orderID].rateLimit;
 
         if ((minRate != 0) && (cryptoFiatRateSell < minRate)) {
-            cancelSellOrder(_orderID, "Sell rate is less than order limit", minRate);
+            cancelSellOrder(_orderID, minRate);
         } else {
             balanceEther[recipientAddress] = balanceEther[recipientAddress].add(cryptoAmount);
             overallRefundValue = overallRefundValue.add(cryptoAmount);
@@ -418,7 +418,7 @@ contract ComplexBank is Pausable, BankI {
      * @param _orderID The order ID.
      */
     function cancelBuyOrderOwner(uint256 _orderID) public onlyOwner {
-        if (!cancelBuyOrder(_orderID, "Cancelled by the owner", 0))
+        if (!cancelBuyOrder(_orderID, 0))
             revert();
     }
 
@@ -427,7 +427,7 @@ contract ComplexBank is Pausable, BankI {
      * @param _orderID The order ID.
      */
     function cancelSellOrderOwner(uint256 _orderID) public onlyOwner {
-        if (!cancelSellOrder(_orderID, "Cancelled by the owner", 0))
+        if (!cancelSellOrder(_orderID, 0))
             revert();
     }
 
