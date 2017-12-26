@@ -374,7 +374,7 @@ contract ComplexBank is Pausable,BankI {
 
         if ((minRate != 0) && (cryptoFiatRateSell < minRate)) {
             cancelSellOrder(_orderID);
-        } else {OraclesTouched
+        } else {
             balanceEther[recipientAddress] = balanceEther[recipientAddress].add(cryptoAmount);
             LogSell(recipientAddress, cryptoAmount, cryptoFiatRateSell);
         }      
