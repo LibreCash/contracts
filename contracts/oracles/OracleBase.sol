@@ -27,10 +27,10 @@ contract OracleBase is Ownable, usingOraclize, OracleI {
     bytes32 public oracleName = "Base Oracle";
     bytes16 public oracleType = "Undefined";
     uint256 public updateTime;
+    uint256 public callbackTime;
     mapping(bytes32=>bool) validIds; // ensure that each query response is processed only once
     address public bankAddress;
     uint256 public rate;
-    bytes32 queryId;
     bool public waitQuery = false;
     OracleConfig public oracleConfig; // заполняется конструктором потомка константами из него же
 
@@ -83,6 +83,7 @@ contract OracleBase is Ownable, usingOraclize, OracleI {
         waitQuery = false;
         rate = 0;
         updateTime = 0;
+        callbackTime = 0;
     }
 
     /**
@@ -109,10 +110,11 @@ contract OracleBase is Ownable, usingOraclize, OracleI {
             NewOraclizeQuery("Oraclize query was NOT sent, please add some ETH to cover for the query fee");
             return false;
         } else {
-            queryId = oraclize_query(oracleConfig.datasource, oracleConfig.arguments, gasLimit);
+            bytes32 queryId = oraclize_query(oracleConfig.datasource, oracleConfig.arguments, gasLimit);
             NewOraclizeQuery("Oraclize query was sent, standing by for the answer...");
             validIds[queryId] = true;
             waitQuery = true;
+            updateTime = now;
             return true;
         }
     }
@@ -129,7 +131,7 @@ contract OracleBase is Ownable, usingOraclize, OracleI {
         rate = Helpers.parseIntRound(result, 3); // save it in storage as 1/1000 of $
         NewPriceTicker(result);
         delete(validIds[myid]);
-        updateTime = now;
+        callbackTime = now;
         waitQuery = false;
     }
 
