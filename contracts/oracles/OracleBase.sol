@@ -28,8 +28,7 @@ contract OracleBase is Ownable, usingOraclize, OracleI {
     bytes16 public oracleType = "Undefined";
     uint256 public updateTime;
     uint256 public callbackTime;
-    uint256 priceLimit = 1 ether;
-    uint256 constant MIN_PRICE_LIMIT = 10 finney; // 0.001 ether
+    uint256 public priceLimit = 1 ether;
 
     mapping(bytes32=>bool) validIds; // ensure that each query response is processed only once
     address public bankAddress;
@@ -65,7 +64,6 @@ contract OracleBase is Ownable, usingOraclize, OracleI {
      * @param _limit New limit.
      */
     function setPriceLimit(uint256 _limit) public onlyOwner {
-        require(_limit >= MIN_PRICE_LIMIT);
         priceLimit = _limit;
     }
 
