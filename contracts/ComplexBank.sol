@@ -17,8 +17,8 @@ contract ComplexBank is Pausable, BankI {
     // TODO; Check that all evetns used and delete unused
     event BuyOrderCreated(uint256 etherAmount);
     event SellOrderCreated(uint256 tokensAmount);
-    event LogBuy(address senderAddress, address clientAddress, uint256 tokenAmount, uint256 cryptoAmount, uint256 buyPrice);
-    event LogSell(address senderAddress, address clientAddress, uint256 tokenAmount, uint256 cryptoAmount, uint256 sellPrice);
+    event LogBuy(address senderAddress, address clientAddress, uint256 tokenAmount, uint256 buyPrice);
+    event LogSell(address senderAddress, address clientAddress, uint256 cryptoAmount, uint256 sellPrice);
     event OrderQueueGeneral(string description);
     event BuyOrderCanceled(uint orderId, address beneficiary, uint amount);
     event SellOrderCanceled(uint orderId, address beneficiary, uint amount);
@@ -327,7 +327,7 @@ contract ComplexBank is Pausable, BankI {
         } else {
             buyOrders[_orderID].recipientAddress = 0x0; // Mark order as completed or canceled
             libreToken.mint(recipientAddress, tokensAmount);
-            LogBuy(senderAddress, recipientAddress, tokensAmount, cryptoAmount, cryptoFiatRateBuy);
+            LogBuy(senderAddress, recipientAddress, tokensAmount, cryptoFiatRateBuy);
         }
     }
 
@@ -379,7 +379,7 @@ contract ComplexBank is Pausable, BankI {
         } else {
             balanceEther[recipientAddress] = balanceEther[recipientAddress].add(cryptoAmount);
             overallRefundValue = overallRefundValue.add(cryptoAmount);
-            LogSell(senderAddress, recipientAddress, tokensAmount, cryptoAmount, cryptoFiatRateSell);
+            LogSell(senderAddress, recipientAddress, cryptoAmount, cryptoFiatRateSell);
         }      
     }
 
@@ -496,7 +496,6 @@ contract ComplexBank is Pausable, BankI {
     event OracleTouched(address indexed _address, bytes32 name);
     event OracleNotTouched(address indexed _address, bytes32 name);
     event OracleProblem(string description);
-    
 
     struct OracleData {
         bytes32 name;
