@@ -335,13 +335,6 @@ contract ComplexBank is Pausable, BankI {
     }
 
     /**
-     * @dev Fill buy orders queue (alias with no order limit).
-     */
-    function processBuyQueue() public whenNotPaused queueProcessingAllowed {
-        return processBuyQueue(0);
-    }
-
-    /**
      * @dev Fill buy orders queue.
      * @param _limit Order limit.
      */
