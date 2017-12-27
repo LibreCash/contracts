@@ -802,7 +802,7 @@ contract ComplexBank is Pausable, BankI {
             OracleData memory currentOracleData = oracles[cur];
             OracleI currentOracle = OracleI(cur);
             uint256 _rate = currentOracle.rate();
-            if ((currentOracleData.enabled) && ( !currentOracle.waitQuery()) && (_rate != 0)) {
+            if ((currentOracleData.enabled) && (!currentOracle.waitQuery()) && (_rate != 0)) {
                 minimalRate = Math.min256(_rate, minimalRate);
                 maximalRate = Math.max256(_rate, maximalRate);
             }
