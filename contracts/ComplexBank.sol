@@ -78,14 +78,14 @@ contract ComplexBank is Pausable, BankI {
     }
 
     modifier queueProcessingAllowed() {
-        require(contractState == ProcessState.PROCESS_ORDERS);
+        require((contractState == ProcessState.PROCESS_ORDERS) && (now <= timeUpdateRequest + queuePeriod));
         _;
-        if ((sellNextOrder == 0 && buyNextOrder == 0) || (now >= timeUpdateRequest + queuePeriod))
+        if ((sellNextOrder == 0) && (buyNextOrder == 0))
             contractState = ProcessState.ORDER_CREATION;
     }
 
     modifier orderCreationAllowed() {
-        require((contractState == ProcessState.ORDER_CREATION) || (now >= timeUpdateRequest + queuePeriod));
+        require((contractState == ProcessState.ORDER_CREATION) || (now > timeUpdateRequest + queuePeriod));
         _;
         contractState = ProcessState.ORDER_CREATION;
     }
