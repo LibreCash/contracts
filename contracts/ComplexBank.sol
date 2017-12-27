@@ -700,6 +700,7 @@ contract ComplexBank is Pausable, BankI {
      * @param _scheduler new scheduler address
      */
     function setScheduler(address _scheduler) public onlyOwner {
+        require(_scheduler != 0x0);
         scheduler = _scheduler;
     }
     
