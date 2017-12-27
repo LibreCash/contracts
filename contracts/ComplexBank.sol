@@ -20,8 +20,8 @@ contract ComplexBank is Pausable, BankI {
     event LogBuy(address senderAddress, address clientAddress, uint256 tokenAmount, uint256 buyPrice);
     event LogSell(address senderAddress, address clientAddress, uint256 cryptoAmount, uint256 sellPrice);
     event OrderQueueGeneral(string description);
-    event BuyOrderCanceled(uint256 orderId, address beneficiary, uint256 amount, uint256 parameter);
-    event SellOrderCanceled(uint256 orderId, address beneficiary, uint256 amount, uint256 parameter);
+    event BuyOrderCancelled(uint256 orderId, address beneficiary, uint256 amount, uint256 parameter);
+    event SellOrderCancelled(uint256 orderId, address beneficiary, uint256 amount, uint256 parameter);
     event SendEtherError(string error, address _addr);
     event BalanceRefill(address from, uint256 amount);
     
@@ -287,7 +287,7 @@ contract ComplexBank is Pausable, BankI {
 
         balanceEther[sender] = balanceEther[sender].add(orderAmount);
         buyOrders[_orderID].recipientAddress = 0x0; // Mark order as completed or cancelled
-        BuyOrderCanceled(_orderID, sender, orderAmount, _parameter);
+        BuyOrderCancelled(_orderID, sender, orderAmount, _parameter);
         overallRefundValue = overallRefundValue.add(orderAmount);
 
         return true;
@@ -305,8 +305,8 @@ contract ComplexBank is Pausable, BankI {
         address sender = sellOrders[_orderID].senderAddress;
         uint256 tokensAmount = sellOrders[_orderID].orderAmount;
         
-        sellOrders[_orderID].recipientAddress = 0x0; // Mark order as completed or canceled
-        SellOrderCanceled(_orderID, sender, tokensAmount, _parameter);
+        sellOrders[_orderID].recipientAddress = 0x0; // Mark order as completed or cancelled
+        SellOrderCancelled(_orderID, sender, tokensAmount, _parameter);
         libreToken.mint(sender, tokensAmount);
         return true;
     }
@@ -328,7 +328,7 @@ contract ComplexBank is Pausable, BankI {
         if ((maxRate != 0) && (cryptoFiatRateBuy > maxRate)) {
             cancelBuyOrder(_orderID, maxRate);
         } else {
-            buyOrders[_orderID].recipientAddress = 0x0; // Mark order as completed or canceled
+            buyOrders[_orderID].recipientAddress = 0x0; // Mark order as completed or cancelled
             libreToken.mint(recipientAddress, tokensAmount);
             LogBuy(senderAddress, recipientAddress, tokensAmount, cryptoFiatRateBuy);
         }
