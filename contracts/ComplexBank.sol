@@ -495,7 +495,6 @@ contract ComplexBank is Pausable, BankI {
     event OracleEnabled(address indexed _address, bytes32 name);
     event OracleDisabled(address indexed _address, bytes32 name);
     event OracleDeleted(address indexed _address, bytes32 name);
-    event OraclesTouched(string message);
     event OracleTouched(address indexed _address, bytes32 name);
     event OracleNotTouched(address indexed _address, bytes32 name);
     event OracleProblem(string description);
@@ -766,7 +765,6 @@ contract ComplexBank is Pausable, BankI {
                 }
             }
         } // foreach oracles
-        OraclesTouched("Rate update started");
     }
 
     /**
