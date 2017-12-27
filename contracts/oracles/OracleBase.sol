@@ -28,6 +28,8 @@ contract OracleBase is Ownable, usingOraclize, OracleI {
     bytes16 public oracleType = "Undefined";
     uint256 public updateTime;
     uint256 public callbackTime;
+    uint256 public priceLimit = 1 ether;
+
     mapping(bytes32=>bool) validIds; // ensure that each query response is processed only once
     address public bankAddress;
     uint256 public rate;
@@ -55,6 +57,14 @@ contract OracleBase is Ownable, usingOraclize, OracleI {
         oraclize_setProof(proofType_TLSNotary | proofStorage_IPFS);
         bankAddress = _bankAddress;
         BankSet(_bankAddress);
+    }
+
+    /**
+     * @dev Sets oraclize price limit (maximum query cost).
+     * @param _limit New limit.
+     */
+    function setPriceLimit(uint256 _limit) public onlyOwner {
+        priceLimit = _limit;
     }
 
     /**
@@ -110,7 +120,11 @@ contract OracleBase is Ownable, usingOraclize, OracleI {
             NewOraclizeQuery("Oraclize query was NOT sent, please add some ETH to cover for the query fee");
             return false;
         } else {
-            bytes32 queryId = oraclize_query(oracleConfig.datasource, oracleConfig.arguments, gasLimit);
+            bytes32 queryId = oraclize_query(oracleConfig.datasource, oracleConfig.arguments, gasLimit, priceLimit);
+            if (queryId == bytes32(0)) {
+                NewOraclizeQuery("Oraclize query was NOT sent, unexpectedly high query price");
+                return false;
+            }
             NewOraclizeQuery("Oraclize query was sent, standing by for the answer...");
             validIds[queryId] = true;
             waitQuery = true;
