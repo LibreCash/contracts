@@ -3,6 +3,7 @@ pragma solidity ^0.4.10;
 import "../zeppelin/token/StandardToken.sol";
 import "../zeppelin/ownership/Ownable.sol";
 
+
 /**
  * @title LibreCash token contract.
  *
@@ -49,7 +50,7 @@ contract LibreCash is StandardToken, Ownable {
      * @param _to The address.
      * @param _amount The amount.
      */
-    function mint(address _to, uint256 _amount) onlyBank public returns (bool) {
+    function mint(address _to, uint256 _amount) public onlyBank returns (bool) {
         totalSupply = totalSupply.add(_amount);
         balances[_to] = balances[_to].add(_amount);
         Mint(_to, _amount);
@@ -62,12 +63,12 @@ contract LibreCash is StandardToken, Ownable {
      * @param _burner The account there tokens should be burned.
      * @param _value The amount of token to be burned.
      */
-    function burn(address _burner, uint256 _value) onlyBank public {
+    function burn(address _burner, uint256 _value) public onlyBank {
         require(_value > 0);
         balances[_burner] = balances[_burner].sub(_value);
         totalSupply = totalSupply.sub(_value);
         Burn(_burner, _value);
-        Transfer(_burner,0x0,_value);
+        Transfer(_burner, 0x0, _value);
     }
 
     /**

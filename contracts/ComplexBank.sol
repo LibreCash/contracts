@@ -8,7 +8,6 @@ import "./interfaces/I_Oracle.sol";
 import "./interfaces/I_Bank.sol";
 
 
-
 contract ComplexBank is Pausable, BankI {
     using SafeMath for uint256;
     address public tokenAddress;
@@ -27,10 +26,8 @@ contract ComplexBank is Pausable, BankI {
     
     uint256 constant MIN_READY_ORACLES = 1; //2;
     uint256 constant MIN_ORACLES_ENABLED = 1;//2;
-
     uint256 constant MAX_RELEVANCE_PERIOD = 48 hours;
     uint256 constant MIN_QUEUE_PERIOD = 10 minutes;
-
     uint256 constant REVERSE_PERCENT = 100;
     uint256 constant RATE_MULTIPLIER = 1000; // doubling in oracleBase __callback as parseIntRound(..., 3) as 3
     uint256 constant MAX_MINIMUM_BUY = 100 ether;
@@ -38,8 +35,7 @@ contract ComplexBank is Pausable, BankI {
     uint256 constant MAX_MINIMUM_TOKENS_SELL = 400 * 100 * 10**18; // 100 ether * 400 usd/eth
     uint256 constant MIN_MAXIMUM_TOKENS_SELL = 400 * 100 * 10**18; // 100 ether * 400 usd/eth
 
-    uint256 public relevancePeriod = 23 hours; // Минимальное время между calcRates() прошлого раунда
-                                               // и requestUpdateRates() следующего
+    uint256 public relevancePeriod = 23 hours;
     uint256 public queuePeriod = 60 minutes;
     uint256 public balanceEtherCap = 10 ether; // Contract balance ether cap.
     // после тестов убрать public
@@ -115,7 +111,7 @@ contract ComplexBank is Pausable, BankI {
      * @param _address Beneficiar.
      * @param _rateLimit Max affordable buying rate, 0 to allow all.
      */
-    function createBuyOrder(address _address, uint256 _rateLimit) payable public whenNotPaused orderCreationAllowed {
+    function createBuyOrder(address _address, uint256 _rateLimit) public payable whenNotPaused orderCreationAllowed {
         require((msg.value >= buyLimit.min) && (msg.value <= buyLimit.max));
         require(_address != 0x0);
         if (buyNextOrder == buyOrders.length) {
@@ -136,7 +132,7 @@ contract ComplexBank is Pausable, BankI {
      * @dev Creates buy order.
      * @param _rateLimit Max affordable buying rate, 0 to allow all.
      */
-    function createBuyOrder(uint256 _rateLimit) payable public whenNotPaused orderCreationAllowed {
+    function createBuyOrder(uint256 _rateLimit) public payable whenNotPaused orderCreationAllowed {
         createBuyOrder(msg.sender, _rateLimit);
     }
 
@@ -177,7 +173,7 @@ contract ComplexBank is Pausable, BankI {
     /**
      * @dev Fallback function.
      */
-    function () whenNotPaused orderCreationAllowed payable external {
+    function () external whenNotPaused orderCreationAllowed payable {
         createBuyOrder(msg.sender, 0); // 0 - без ценовых ограничений
     }
 
@@ -298,7 +294,7 @@ contract ComplexBank is Pausable, BankI {
      * @param _orderID The ID of order.
      * @param _parameter More information on cancellation (for example, order limit).
      */
-   function cancelSellOrder(uint256 _orderID, uint256 _parameter) private returns(bool) {
+    function cancelSellOrder(uint256 _orderID, uint256 _parameter) private returns(bool) {
         if (sellOrders[_orderID].recipientAddress == 0x0)
             return false;
 
@@ -384,7 +380,6 @@ contract ComplexBank is Pausable, BankI {
      * @param _limit Order limit.
      */
     function processSellQueue(uint256 _limit) public whenNotPaused queueProcessingAllowed {
-        
         bool processAll = ((_limit == 0) || ((sellOrderIndex + _limit) > sellNextOrder));
         uint256 lastOrder = processAll ? sellNextOrder : sellOrderIndex + _limit;
                 
@@ -541,7 +536,7 @@ contract ComplexBank is Pausable, BankI {
             if (!oracles[current].enabled) 
                 continue;
             OracleI currentOracle = OracleI(current);
-            if ((currentOracle.rate() != 0) && !currentOracle.waitQuery() ) 
+            if ((currentOracle.rate() != 0) && (!currentOracle.waitQuery())) 
                 numOracles++;
         }
         return numOracles;
@@ -683,7 +678,6 @@ contract ComplexBank is Pausable, BankI {
             if (oracles[cur].enabled)
                 cur.transfer((fund == 0) ? (OracleI(cur).getPrice()) : (fund));
         }
-
         requestUpdateRates();
     }
 
@@ -853,7 +847,6 @@ contract ComplexBank is Pausable, BankI {
         withdrawWallet.transfer(this.balance - balanceEtherCap);
     }
 
-
     /**
      * @dev Sets wallet to withdraw balance above cap cap
      * @param withdrawTo - wallet to withdraw ether
@@ -879,5 +872,4 @@ contract ComplexBank is Pausable, BankI {
     function setAutoWithdraw(bool _autoWithdraw) public onlyOwner {
         autoWithdraw = _autoWithdraw;
     }
-
 }

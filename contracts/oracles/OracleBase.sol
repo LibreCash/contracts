@@ -6,7 +6,6 @@ import "../library/Helpers.sol";
 import "../interfaces/I_Oracle.sol";
 
 
-
 /**
  * @title Base contract for oracles.
  *
@@ -53,7 +52,7 @@ contract OracleBase is Ownable, usingOraclize, OracleI {
     /**
      * @dev Constructor.
      */
-    function OracleBase(address _bankAddress) {
+    function OracleBase(address _bankAddress) public {
         oraclize_setProof(proofType_TLSNotary | proofStorage_IPFS);
         bankAddress = _bankAddress;
         BankSet(_bankAddress);
@@ -72,7 +71,7 @@ contract OracleBase is Ownable, usingOraclize, OracleI {
      * @param _price New gas price.
      */
     function setGasPrice(uint256 _price) public onlyOwner {
-        require ((_price >= MIN_GAS_PRICE) && (_price <= MAX_GAS_PRICE));
+        require((_price >= MIN_GAS_PRICE) && (_price <= MAX_GAS_PRICE));
         gasPrice = _price;
         oraclize_setCustomGasPrice(gasPrice);
     }
@@ -82,7 +81,7 @@ contract OracleBase is Ownable, usingOraclize, OracleI {
      * @param _limit New gas limit.
      */
     function setGasLimit(uint256 _limit) public onlyOwner {
-        require ((_limit >= MIN_GAS_LIMIT) && (_limit <= MAX_GAS_LIMIT));
+        require((_limit >= MIN_GAS_LIMIT) && (_limit <= MAX_GAS_LIMIT));
         gasLimit = _limit;
     }
 
@@ -108,7 +107,7 @@ contract OracleBase is Ownable, usingOraclize, OracleI {
     /**
      * @dev oraclize getPrice.
      */
-    function getPrice() view public returns (uint) {
+    function getPrice() public view returns (uint) {
         return oraclize_getPrice(oracleConfig.datasource, gasLimit);
     }
 
@@ -144,7 +143,7 @@ contract OracleBase is Ownable, usingOraclize, OracleI {
         require(msg.sender == oraclize_cbAddress());
         rate = Helpers.parseIntRound(result, 3); // save it in storage as 1/1000 of $
         NewPriceTicker(result);
-        delete(validIds[myid]);
+        delete validIds[myid];
         callbackTime = now;
         waitQuery = false;
     }
@@ -155,13 +154,12 @@ contract OracleBase is Ownable, usingOraclize, OracleI {
     * @param result The callback data.
     */
     function __callback(bytes32 myid, string result) public {
-       bytes memory proof = new bytes(1);
-       __callback(myid, result, proof);
+        bytes memory proof = new bytes(1);
+        __callback(myid, result, proof);
     }
 
     /**
     * @dev Method used for oracle funding   
     */    
     function () public payable {}
-
 }
