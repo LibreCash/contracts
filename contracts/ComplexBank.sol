@@ -8,7 +8,6 @@ import "./interfaces/I_Oracle.sol";
 import "./interfaces/I_Bank.sol";
 
 
-
 contract ComplexBank is Pausable, BankI {
     using SafeMath for uint256;
     address public tokenAddress;
@@ -20,17 +19,15 @@ contract ComplexBank is Pausable, BankI {
     event LogBuy(address senderAddress, address clientAddress, uint256 tokenAmount, uint256 buyPrice);
     event LogSell(address senderAddress, address clientAddress, uint256 cryptoAmount, uint256 sellPrice);
     event OrderQueueGeneral(string description);
-    event BuyOrderCanceled(uint256 orderId, address beneficiary, uint256 amount, uint256 parameter);
-    event SellOrderCanceled(uint256 orderId, address beneficiary, uint256 amount, uint256 parameter);
+    event BuyOrderCancelled(uint256 orderId, address beneficiary, uint256 amount, uint256 parameter);
+    event SellOrderCancelled(uint256 orderId, address beneficiary, uint256 amount, uint256 parameter);
     event SendEtherError(string error, address _addr);
     event BalanceRefill(address from, uint256 amount);
     
     uint256 constant MIN_READY_ORACLES = 1; //2;
     uint256 constant MIN_ORACLES_ENABLED = 1;//2;
-
     uint256 constant MAX_RELEVANCE_PERIOD = 48 hours;
     uint256 constant MIN_QUEUE_PERIOD = 10 minutes;
-
     uint256 constant REVERSE_PERCENT = 100;
     uint256 constant RATE_MULTIPLIER = 1000; // doubling in oracleBase __callback as parseIntRound(..., 3) as 3
     uint256 constant MAX_MINIMUM_BUY = 100 ether;
@@ -38,8 +35,7 @@ contract ComplexBank is Pausable, BankI {
     uint256 constant MAX_MINIMUM_TOKENS_SELL = 400 * 100 * 10**18; // 100 ether * 400 usd/eth
     uint256 constant MIN_MAXIMUM_TOKENS_SELL = 400 * 100 * 10**18; // 100 ether * 400 usd/eth
 
-    uint256 public relevancePeriod = 23 hours; // Минимальное время между calcRates() прошлого раунда
-                                               // и requestUpdateRates() следующего
+    uint256 public relevancePeriod = 23 hours;
     uint256 public queuePeriod = 60 minutes;
     uint256 public balanceEtherCap = 10 ether; // Contract balance ether cap.
     // после тестов убрать public
@@ -82,14 +78,14 @@ contract ComplexBank is Pausable, BankI {
     }
 
     modifier queueProcessingAllowed() {
-        require(contractState == ProcessState.PROCESS_ORDERS);
+        require((contractState == ProcessState.PROCESS_ORDERS) && (now <= timeUpdateRequest + queuePeriod));
         _;
-        if ((sellNextOrder == 0 && buyNextOrder == 0) || (now >= timeUpdateRequest + queuePeriod))
+        if ((sellNextOrder == 0) && (buyNextOrder == 0))
             contractState = ProcessState.ORDER_CREATION;
     }
 
     modifier orderCreationAllowed() {
-        require((contractState == ProcessState.ORDER_CREATION) || (now >= timeUpdateRequest + queuePeriod));
+        require((contractState == ProcessState.ORDER_CREATION) || (now > timeUpdateRequest + queuePeriod));
         _;
         contractState = ProcessState.ORDER_CREATION;
     }
@@ -115,7 +111,7 @@ contract ComplexBank is Pausable, BankI {
      * @param _address Beneficiar.
      * @param _rateLimit Max affordable buying rate, 0 to allow all.
      */
-    function createBuyOrder(address _address, uint256 _rateLimit) payable public whenNotPaused orderCreationAllowed {
+    function createBuyOrder(address _address, uint256 _rateLimit) public payable whenNotPaused orderCreationAllowed {
         require((msg.value >= buyLimit.min) && (msg.value <= buyLimit.max));
         require(_address != 0x0);
         if (buyNextOrder == buyOrders.length) {
@@ -136,7 +132,7 @@ contract ComplexBank is Pausable, BankI {
      * @dev Creates buy order.
      * @param _rateLimit Max affordable buying rate, 0 to allow all.
      */
-    function createBuyOrder(uint256 _rateLimit) payable public whenNotPaused orderCreationAllowed {
+    function createBuyOrder(uint256 _rateLimit) public payable whenNotPaused orderCreationAllowed {
         createBuyOrder(msg.sender, _rateLimit);
     }
 
@@ -177,7 +173,7 @@ contract ComplexBank is Pausable, BankI {
     /**
      * @dev Fallback function.
      */
-    function () whenNotPaused orderCreationAllowed payable external {
+    function () external whenNotPaused orderCreationAllowed payable {
         createBuyOrder(msg.sender, 0); // 0 - без ценовых ограничений
     }
 
@@ -287,7 +283,7 @@ contract ComplexBank is Pausable, BankI {
 
         balanceEther[sender] = balanceEther[sender].add(orderAmount);
         buyOrders[_orderID].recipientAddress = 0x0; // Mark order as completed or cancelled
-        BuyOrderCanceled(_orderID, sender, orderAmount, _parameter);
+        BuyOrderCancelled(_orderID, sender, orderAmount, _parameter);
         overallRefundValue = overallRefundValue.add(orderAmount);
 
         return true;
@@ -298,15 +294,15 @@ contract ComplexBank is Pausable, BankI {
      * @param _orderID The ID of order.
      * @param _parameter More information on cancellation (for example, order limit).
      */
-   function cancelSellOrder(uint256 _orderID, uint256 _parameter) private returns(bool) {
+    function cancelSellOrder(uint256 _orderID, uint256 _parameter) private returns(bool) {
         if (sellOrders[_orderID].recipientAddress == 0x0)
             return false;
 
         address sender = sellOrders[_orderID].senderAddress;
         uint256 tokensAmount = sellOrders[_orderID].orderAmount;
         
-        sellOrders[_orderID].recipientAddress = 0x0; // Mark order as completed or canceled
-        SellOrderCanceled(_orderID, sender, tokensAmount, _parameter);
+        sellOrders[_orderID].recipientAddress = 0x0; // Mark order as completed or cancelled
+        SellOrderCancelled(_orderID, sender, tokensAmount, _parameter);
         libreToken.mint(sender, tokensAmount);
         return true;
     }
@@ -328,17 +324,10 @@ contract ComplexBank is Pausable, BankI {
         if ((maxRate != 0) && (cryptoFiatRateBuy > maxRate)) {
             cancelBuyOrder(_orderID, maxRate);
         } else {
-            buyOrders[_orderID].recipientAddress = 0x0; // Mark order as completed or canceled
+            buyOrders[_orderID].recipientAddress = 0x0; // Mark order as completed or cancelled
             libreToken.mint(recipientAddress, tokensAmount);
             LogBuy(senderAddress, recipientAddress, tokensAmount, cryptoFiatRateBuy);
         }
-    }
-
-    /**
-     * @dev Fill buy orders queue (alias with no order limit).
-     */
-    function processBuyQueue() public whenNotPaused queueProcessingAllowed {
-        return processBuyQueue(0);
     }
 
     /**
@@ -391,7 +380,6 @@ contract ComplexBank is Pausable, BankI {
      * @param _limit Order limit.
      */
     function processSellQueue(uint256 _limit) public whenNotPaused queueProcessingAllowed {
-        
         bool processAll = ((_limit == 0) || ((sellOrderIndex + _limit) > sellNextOrder));
         uint256 lastOrder = processAll ? sellNextOrder : sellOrderIndex + _limit;
                 
@@ -495,7 +483,6 @@ contract ComplexBank is Pausable, BankI {
     event OracleEnabled(address indexed _address, bytes32 name);
     event OracleDisabled(address indexed _address, bytes32 name);
     event OracleDeleted(address indexed _address, bytes32 name);
-    event OraclesTouched(string message);
     event OracleTouched(address indexed _address, bytes32 name);
     event OracleNotTouched(address indexed _address, bytes32 name);
     event OracleProblem(string description);
@@ -549,7 +536,7 @@ contract ComplexBank is Pausable, BankI {
             if (!oracles[current].enabled) 
                 continue;
             OracleI currentOracle = OracleI(current);
-            if ((currentOracle.rate() != 0) && !currentOracle.waitQuery() ) 
+            if ((currentOracle.rate() != 0) && (!currentOracle.waitQuery())) 
                 numOracles++;
         }
         return numOracles;
@@ -691,7 +678,6 @@ contract ComplexBank is Pausable, BankI {
             if (oracles[cur].enabled)
                 cur.transfer((fund == 0) ? (OracleI(cur).getPrice()) : (fund));
         }
-
         requestUpdateRates();
     }
 
@@ -700,6 +686,7 @@ contract ComplexBank is Pausable, BankI {
      * @param _scheduler new scheduler address
      */
     function setScheduler(address _scheduler) public onlyOwner {
+        require(_scheduler != 0x0);
         scheduler = _scheduler;
     }
     
@@ -765,7 +752,6 @@ contract ComplexBank is Pausable, BankI {
                 }
             }
         } // foreach oracles
-        OraclesTouched("Rate update started");
     }
 
     /**
@@ -803,7 +789,7 @@ contract ComplexBank is Pausable, BankI {
             OracleData memory currentOracleData = oracles[cur];
             OracleI currentOracle = OracleI(cur);
             uint256 _rate = currentOracle.rate();
-            if ((currentOracleData.enabled) && ( !currentOracle.waitQuery()) && (_rate != 0)) {
+            if ((currentOracleData.enabled) && (!currentOracle.waitQuery()) && (_rate != 0)) {
                 minimalRate = Math.min256(_rate, minimalRate);
                 maximalRate = Math.max256(_rate, maximalRate);
             }
@@ -861,7 +847,6 @@ contract ComplexBank is Pausable, BankI {
         withdrawWallet.transfer(this.balance - balanceEtherCap);
     }
 
-
     /**
      * @dev Sets wallet to withdraw balance above cap cap
      * @param withdrawTo - wallet to withdraw ether
@@ -887,5 +872,4 @@ contract ComplexBank is Pausable, BankI {
     function setAutoWithdraw(bool _autoWithdraw) public onlyOwner {
         autoWithdraw = _autoWithdraw;
     }
-
 }
