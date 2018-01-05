@@ -49,7 +49,6 @@ contract Ownable {
  */
 contract ERC20Basic {
   uint256 public totalSupply;
-  uint256 public decimlas;
   function balanceOf(address who) public constant returns (uint256);
   function transfer(address to, uint256 value) public returns (bool);
   event Transfer(address indexed from, address indexed to, uint256 value);
@@ -106,7 +105,7 @@ contract LibertyPreSale is Ownable {
     uint256 public constant dateEnd = 1515283200;
 
     // Max mount of ether allowed to collect during pre-sale
-    uint256 public saleCap = 100 * (10**token.decimlas()); 
+    uint256 public saleCap = 100 ether;
 
     // The flag indicates that ALL pre-sale actions is done
     // * payment is not accpepted anymore
@@ -161,7 +160,7 @@ contract LibertyPreSale is Ownable {
 
     function buyTokens(address recipient) public payable {
         require(
-            getTime() > dateStart &&
+            getTime() >= dateStart &&
             getTime() < dateEnd &&
             weiRaised < saleCap &&
             msg.value > 0
@@ -195,15 +194,18 @@ contract LibertyPreSale is Ownable {
             getTime() >= dateEnd || 
             weiRaised >= saleCap
         );
-        if (distributeIndex == 0) {
-            require(token.balanceOf(address(this)) == saleTokenAmount);
-        }
-        uint256 localLimit = distributeIndex + _limit;
-        while (distributeIndex < buyers.length && distributeIndex < localLimit) {
-            address buyer = buyers[distributeIndex];
-            uint256 _tokenAmount = saleTokenAmount.mul(raisedByAddress[buyer]).div(weiRaised);
-            token.transfer(buyer, _tokenAmount);
-            distributeIndex += 1;
+        if (weiRaised > 0) {
+            if (distributeIndex == 0) {
+                require(token.balanceOf(address(this)) >= saleTokenAmount);
+            }
+            uint256 localLimit = distributeIndex + _limit;
+            uint256 tokenPerWei = saleTokenAmount.div(weiRaised);
+            while (distributeIndex < buyers.length && distributeIndex < localLimit) {
+                address buyer = buyers[distributeIndex];
+                uint256 _tokenAmount = tokenPerWei.mul(raisedByAddress[buyer]);
+                token.transfer(buyer, _tokenAmount);
+                distributeIndex += 1;
+            }
         }
         if (distributeIndex == buyers.length) {
             isFinalized = true;
