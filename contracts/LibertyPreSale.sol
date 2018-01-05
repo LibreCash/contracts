@@ -108,7 +108,7 @@ contract LibertyPreSale is Ownable {
     // Max mount of ether allowed to collect during pre-sale
     uint256 public saleCap = 100 ether;
 
-    // The flag indicates that ALL pre-sale actions is done
+    // The flag indicates that ALL pre-sale actions are done
     // * payment is not accepted anymore
     // * tokens are distributed
     bool public isFinalized = false;
