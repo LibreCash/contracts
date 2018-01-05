@@ -49,6 +49,7 @@ contract Ownable {
  */
 contract ERC20Basic {
   uint256 public totalSupply;
+  uint256 public decimals;
   function balanceOf(address who) public constant returns (uint256);
   function transfer(address to, uint256 value) public returns (bool);
   event Transfer(address indexed from, address indexed to, uint256 value);
@@ -108,7 +109,7 @@ contract LibertyPreSale is Ownable {
     uint256 public saleCap = 100 ether;
 
     // The flag indicates that ALL pre-sale actions is done
-    // * payment is not accpepted anymore
+    // * payment is not accepted anymore
     // * tokens are distributed
     bool public isFinalized = false;
 
@@ -122,7 +123,7 @@ contract LibertyPreSale is Ownable {
     ERC20 public token = ERC20(0x0);
 
     // Number of tokens to distribute when pre-sale finished 
-    uint256 public saleTokenAmount = 5 * (10**6) * (10**18);
+    uint256 public saleTokenAmount = 5 * (10**6) * (10**token.decimals());
 
     // Numbers of ether raised from each buyer
     mapping(address => uint256) public raisedByAddress;
@@ -138,7 +139,7 @@ contract LibertyPreSale is Ownable {
      * Events
      */
 
-    event PaymentAcepted(address buyer, address recipient, uint256 amount);
+    event PaymentAccepted(address buyer, address recipient, uint256 amount);
     event ChangeReturned(address buyer, uint256 amount);
     // For debugging
     event Log(string _msg, uint256 value);
@@ -175,7 +176,7 @@ contract LibertyPreSale is Ownable {
             weiToReturn = 0;
         }
         weiRaised = weiRaised.add(weiToAccept);
-        PaymentAcepted(msg.sender, recipient, weiToAccept);
+        PaymentAccepted(msg.sender, recipient, weiToAccept);
         // If the buyer is new add him to `buyers` list
         if (raisedByAddress[recipient] == 0) {
             buyers.push(recipient);
