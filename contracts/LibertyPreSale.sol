@@ -49,7 +49,6 @@ contract Ownable {
  */
 contract ERC20Basic {
   uint256 public totalSupply;
-  uint256 public decimals;
   function balanceOf(address who) public constant returns (uint256);
   function transfer(address to, uint256 value) public returns (bool);
   event Transfer(address indexed from, address indexed to, uint256 value);
@@ -123,7 +122,7 @@ contract LibertyPreSale is Ownable {
     ERC20 public token = ERC20(0x0);
 
     // Number of tokens to distribute when pre-sale finished 
-    uint256 public saleTokenAmount = 5 * (10**6) * (10**token.decimals());
+    uint256 public saleTokenAmount = 5 * (10**6) * (10**18);
 
     // Numbers of ether raised from each buyer
     mapping(address => uint256) public raisedByAddress;
