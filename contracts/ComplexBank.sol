@@ -886,6 +886,7 @@ contract ComplexBank is Pausable, BankI {
 
     function burnToken(address tokenOwner, uint256 _tokensCount) internal {
         tokenBalances[tokenOwner] = tokenBalances[tokenOwner].sub(_tokensCount);
+        LibreCash(libreToken).burn(_tokensCount);
     }
 
     function returnToken(uint256 _amount) public {
