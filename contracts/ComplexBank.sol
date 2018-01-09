@@ -147,7 +147,8 @@ contract ComplexBank is Pausable, BankI {
         require((_tokensCount >= sellLimit.min) && (_tokensCount <= sellLimit.max));
         require(_address != 0x0);
         address tokenOwner = msg.sender;
-        require(_tokensCount <= tokenBalances[tokenOwner]);
+        LibreCash cashContract = LibreCash(libreToken);
+        require(_tokensCount <= cashContract.allowance(tokenOwner,this));
         if (sellNextOrder == sellOrders.length) {
             sellOrders.length += 1;
         }
@@ -158,7 +159,8 @@ contract ComplexBank is Pausable, BankI {
             orderTimestamp: now,
             rateLimit: _rateLimit
         });
-        burnToken(tokenOwner, _tokensCount);
+        cashContract.transferFrom(tokenOwner, this, _tokensCount);
+        cashContract.burn(_tokensCount);
         SellOrderCreated(_tokensCount); 
     }
 
@@ -304,7 +306,7 @@ contract ComplexBank is Pausable, BankI {
         
         sellOrders[_orderID].recipientAddress = 0x0; // Mark order as completed or cancelled
         SellOrderCancelled(_orderID, sender, tokensAmount, _parameter);
-        returnToken(sender, tokensAmount);
+        libreToken.mint(sender, tokensAmount);
         return true;
     }
 
@@ -874,28 +876,7 @@ contract ComplexBank is Pausable, BankI {
         autoWithdraw = _autoWithdraw;
     }
 
-    /*
-     * Exchange example
-     */
-    mapping (address => uint) tokenBalances;
-
-    function tokenFallback(address _from, uint256 _value, bytes _data) external {
-        require(libreToken == msg.sender);
-        tokenBalances[_from] = tokenBalances[_from].add(_value);
-    }
-
-    function burnToken(address tokenOwner, uint256 _tokensCount) internal {
-        tokenBalances[tokenOwner] = tokenBalances[tokenOwner].sub(_tokensCount);
-        LibreCash(libreToken).burn(_tokensCount);
-    }
-
-    function returnToken(uint256 _amount) public {
-        returnToken(msg.sender, _amount);
-    }
-
-    function returnToken(address _owner, uint256 _amount) internal {
-        require(_amount <= tokenBalances[_owner]);
-        tokenBalances[_owner] = tokenBalances[_owner].sub(_amount);
-        LibreCash(libreToken).transfer(_owner, _amount);
+    function transferTokenOwner(address newOwner) public onlyOwner {
+        libreToken.transferOwnership(newOwner);
     }
 }
