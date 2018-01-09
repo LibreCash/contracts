@@ -877,6 +877,6 @@ contract ComplexBank is Pausable, BankI {
     }
 
     function transferTokenOwner(address newOwner) public onlyOwner {
-        libreToken.transferOwnership(newOwner);
+        LibreCash(libreToken).transferOwnership(newOwner);
     }
 }

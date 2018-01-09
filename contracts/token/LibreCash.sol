@@ -10,7 +10,6 @@ import "../zeppelin/token/BurnableToken.sol";
  * @dev ERC20 token contract.
  */
 contract LibreCash is MintableToken, BurnableToken {
-    string public version = "0.1.1";
     string public constant name = "LibreCash Token";
     string public constant symbol = "LCT";
     uint32 public constant decimals = 18;
