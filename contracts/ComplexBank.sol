@@ -304,7 +304,7 @@ contract ComplexBank is Pausable, BankI {
         
         sellOrders[_orderID].recipientAddress = 0x0; // Mark order as completed or cancelled
         SellOrderCancelled(_orderID, sender, tokensAmount, _parameter);
-        libreToken.mint(sender, tokensAmount);
+        returnToken(sender, tokensAmount);
         return true;
     }
 
@@ -890,8 +890,12 @@ contract ComplexBank is Pausable, BankI {
     }
 
     function returnToken(uint256 _amount) public {
-        require(_amount <= tokenBalances[msg.sender]);
-        tokenBalances[msg.sender] = tokenBalances[msg.sender].sub(_amount);
-        LibreCash(libreToken).transfer(msg.sender, _amount);
+        returnToken(msg.sender, _amount);
+    }
+
+    function returnToken(address _owner, uint256 _amount) internal {
+        require(_amount <= tokenBalances[_owner]);
+        tokenBalances[_owner] = tokenBalances[_owner].sub(_amount);
+        LibreCash(libreToken).transfer(_owner, _amount);
     }
 }
