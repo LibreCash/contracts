@@ -75,6 +75,15 @@ contract Exchanger is Ownable {
         collectingTokenAddress = _address;
         collectingToken = ERC223BurnableInterface(_address);
     }
+
+    function totalSupply() public view returns (uint) {
+        return supplyToken.balanceOf(this);
+    }
+    
+    // для теста, всегда должно быть равно нулю
+    function totalCollecting() public view returns (uint) {
+        return collectingToken.balanceOf(this);
+    }
     
     /**
      * @dev Fallback; the place where exchanges are done.
