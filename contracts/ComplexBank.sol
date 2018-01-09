@@ -6,6 +6,7 @@ import "./zeppelin/lifecycle/Pausable.sol";
 import "./interfaces/I_LibreToken.sol";
 import "./interfaces/I_Oracle.sol";
 import "./interfaces/I_Bank.sol";
+import "./token/LibreCash.sol";
 
 
 contract ComplexBank is Pausable, BankI {
@@ -146,7 +147,7 @@ contract ComplexBank is Pausable, BankI {
         require((_tokensCount >= sellLimit.min) && (_tokensCount <= sellLimit.max));
         require(_address != 0x0);
         address tokenOwner = msg.sender;
-        require(_tokensCount <= libreToken.balanceOf(tokenOwner));
+        require(_tokensCount <= tokenBalances[tokenOwner]);
         if (sellNextOrder == sellOrders.length) {
             sellOrders.length += 1;
         }
@@ -157,7 +158,7 @@ contract ComplexBank is Pausable, BankI {
             orderTimestamp: now,
             rateLimit: _rateLimit
         });
-        libreToken.burn(tokenOwner, _tokensCount);
+        burnToken(tokenOwner, _tokensCount);
         SellOrderCreated(_tokensCount); 
     }
 
@@ -871,5 +872,25 @@ contract ComplexBank is Pausable, BankI {
      */
     function setAutoWithdraw(bool _autoWithdraw) public onlyOwner {
         autoWithdraw = _autoWithdraw;
+    }
+
+    /*
+     * Exchange example
+     */
+    mapping (address => uint) tokenBalances;
+
+    function tokenFallback(address _from, uint256 _value, bytes _data) external {
+        require(libreToken == msg.sender);
+        tokenBalances[_from] = tokenBalances[_from].add(_value);
+    }
+
+    function burnToken(address tokenOwner, uint256 _tokensCount) internal {
+        tokenBalances[tokenOwner] = tokenBalances[tokenOwner].sub(_tokensCount);
+    }
+
+    function returnToken(uint256 _amount) public {
+        require(_amount <= tokenBalances[msg.sender]);
+        tokenBalances[msg.sender] = tokenBalances[msg.sender].sub(_amount);
+        LibreCash(libreToken).transfer(msg.sender, _amount);
     }
 }

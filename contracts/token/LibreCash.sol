@@ -60,15 +60,14 @@ contract LibreCash is StandardToken, Ownable {
 
     /**
      * @dev Burns a specific amount of tokens.
-     * @param _burner The account there tokens should be burned.
      * @param _value The amount of token to be burned.
      */
-    function burn(address _burner, uint256 _value) public onlyBank {
-        require(_value > 0);
-        balances[_burner] = balances[_burner].sub(_value);
+    function burn(uint256 _value) public {
+        require(_value <= balances[msg.sender]);
+        balances[msg.sender] = balances[msg.sender].sub(_value);
         totalSupply = totalSupply.sub(_value);
-        Burn(_burner, _value);
-        Transfer(_burner, 0x0, _value);
+        Burn(msg.sender, _value);
+        Transfer(msg.sender, 0x0, _value);
     }
 
     /**
