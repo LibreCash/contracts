@@ -3,7 +3,6 @@ pragma solidity ^0.4.10;
 import "./zeppelin/math/SafeMath.sol";
 import "./zeppelin/math/Math.sol";
 import "./zeppelin/lifecycle/Pausable.sol";
-import "./interfaces/I_LibreToken.sol";
 import "./interfaces/I_Oracle.sol";
 import "./interfaces/I_Bank.sol";
 import "./token/LibreCash.sol";
@@ -12,7 +11,7 @@ import "./token/LibreCash.sol";
 contract ComplexBank is Pausable, BankI {
     using SafeMath for uint256;
     address public tokenAddress;
-    LibreTokenI libreToken;
+    LibreCash libreToken;
     
     // TODO; Check that all evetns used and delete unused
     event BuyOrderCreated(uint256 etherAmount);
@@ -147,10 +146,9 @@ contract ComplexBank is Pausable, BankI {
         require((_tokensCount >= sellLimit.min) && (_tokensCount <= sellLimit.max));
         require(_address != 0x0);
         address tokenOwner = msg.sender;
-        LibreCash cashContract = LibreCash(libreToken);
-        require(_tokensCount <= cashContract.allowance(tokenOwner,this));
-        cashContract.transferFrom(tokenOwner, this, _tokensCount);
-        cashContract.burn(_tokensCount);
+        require(_tokensCount <= libreToken.allowance(tokenOwner,this));
+        libreToken.transferFrom(tokenOwner, this, _tokensCount);
+        libreToken.burn(_tokensCount);
         if (sellNextOrder == sellOrders.length) {
             sellOrders.length += 1;
         }
@@ -475,7 +473,7 @@ contract ComplexBank is Pausable, BankI {
     function attachToken(address _tokenAddress) public onlyOwner {
         require(_tokenAddress != 0x0);
         tokenAddress = _tokenAddress;
-        libreToken = LibreTokenI(tokenAddress);
+        libreToken = LibreCash(tokenAddress);
     }
 
     // admin end
@@ -877,6 +875,6 @@ contract ComplexBank is Pausable, BankI {
     }
 
     function transferTokenOwner(address newOwner) public onlyOwner {
-        LibreCash(libreToken).transferOwnership(newOwner);
+        libreToken.transferOwnership(newOwner);
     }
 }
