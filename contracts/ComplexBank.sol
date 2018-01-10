@@ -149,6 +149,8 @@ contract ComplexBank is Pausable, BankI {
         address tokenOwner = msg.sender;
         LibreCash cashContract = LibreCash(libreToken);
         require(_tokensCount <= cashContract.allowance(tokenOwner,this));
+        cashContract.transferFrom(tokenOwner, this, _tokensCount);
+        cashContract.burn(_tokensCount);
         if (sellNextOrder == sellOrders.length) {
             sellOrders.length += 1;
         }
@@ -159,8 +161,6 @@ contract ComplexBank is Pausable, BankI {
             orderTimestamp: now,
             rateLimit: _rateLimit
         });
-        cashContract.transferFrom(tokenOwner, this, _tokensCount);
-        cashContract.burn(_tokensCount);
         SellOrderCreated(_tokensCount); 
     }
 
