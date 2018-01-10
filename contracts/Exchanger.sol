@@ -30,18 +30,18 @@ contract Exchanger is Ownable {
     ERC223BurnableInterface private collectingToken;
     uint constant RATE_MULTIPLIER = 10**9;
     uint public rate = 10**9; // 10**9 / RATE_MULTIPLIER = 1
-    
+
     event NewCollectingToken(address oldTokenContract, address newTokenContract);
     event NewRate(uint oldRate, uint newRate);
     event Deposit(address tokenSender, uint tokenAmount, address tokenContract);
     event ExchangeRequest(address tokenSender, uint tokenAmount, bytes txData, address tokenContract);
     event SupplySent(address tokenBeneficiar, uint tokenAmount, address tokenContract);
-    
+
     modifier tokens {
         require((msg.sender == supplyTokenAddress) || (msg.sender == collectingTokenAddress));
         _;
     }
-    
+
     /**
      * @dev Allows the owner to set new exchange rate.
      * @param _rate The new rate.
@@ -51,7 +51,7 @@ contract Exchanger is Ownable {
         NewRate(rate, _rate);
         rate = _rate;
     }
-    
+
     /**
      * @dev Allows the owner to set the supply token address (can be set only once).
      * @param _address The contract address.
@@ -63,7 +63,7 @@ contract Exchanger is Ownable {
         supplyTokenAddress = _address;
         supplyToken = ERC223BurnableInterface(_address);
     }
-    
+
     /**
      * @dev Allows the owner to set the collecting token address.
      * @param _address The contract address.
@@ -76,15 +76,13 @@ contract Exchanger is Ownable {
         collectingToken = ERC223BurnableInterface(_address);
     }
 
+    /**
+     * @dev Returns supply token balance.
+     */
     function totalSupply() public view returns (uint) {
         return supplyToken.balanceOf(this);
     }
-    
-    // для теста, всегда должно быть равно нулю
-    function totalCollecting() public view returns (uint) {
-        return collectingToken.balanceOf(this);
-    }
-    
+
     /**
      * @dev Fallback; the place where exchanges are done.
      * @param _from The address of token sender.
