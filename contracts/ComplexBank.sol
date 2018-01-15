@@ -655,10 +655,10 @@ contract ComplexBank is Pausable, BankI {
             oracles[prev].next = oracles[_address].next;
         }
         
-        delete oracles[_address];
         countOracles--;
         if (oracles[_address].enabled)
             numEnabledOracles--;
+        delete oracles[_address];
     }
 
     /**
