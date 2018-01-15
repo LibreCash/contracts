@@ -11,7 +11,7 @@ module.exports = {
       network_id: "mainnet", // rinkeby, ropsten, main network, etc.
       host: "localhost",
       port: 8545,
-      gas: 4612388 // чтобы деплоилось - править когда gas limit ему не нравится (дефолт вроде как 4712388, и с ним ошибка)
+      gas: 4712388 // чтобы деплоилось - править когда gas limit ему не нравится (дефолт вроде как 4712388, и с ним ошибка)
     }
   },
    
