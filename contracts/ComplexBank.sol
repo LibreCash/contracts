@@ -115,7 +115,7 @@ contract ComplexBank is Pausable, BankI {
         require((msg.value >= buyLimit.min) && (msg.value <= buyLimit.max));
         require(_address != 0x0);
         if (buyNextOrder == buyOrders.length) {
-            buyOrders.length += 1;
+            buyOrders.length++;
         }
         buyOrders[buyNextOrder++] = OrderData({
             senderAddress: msg.sender,
@@ -126,14 +126,6 @@ contract ComplexBank is Pausable, BankI {
         });
         BuyOrderCreated(msg.value);
         withdraw();
-    }
-
-    /**
-     * @dev Creates buy order.
-     * @param _rateLimit Max affordable buying rate, 0 to allow all.
-     */
-    function createBuyOrder(uint256 _rateLimit) public payable whenNotPaused orderCreationAllowed {
-        createBuyOrder(msg.sender, _rateLimit);
     }
 
     /**
@@ -148,7 +140,7 @@ contract ComplexBank is Pausable, BankI {
         address tokenOwner = msg.sender;
         require(_tokensCount <= libreToken.balanceOf(tokenOwner));
         if (sellNextOrder == sellOrders.length) {
-            sellOrders.length += 1;
+            sellOrders.length++;
         }
         sellOrders[sellNextOrder++] = OrderData({
             senderAddress: tokenOwner,
@@ -159,15 +151,6 @@ contract ComplexBank is Pausable, BankI {
         });
         libreToken.burn(tokenOwner, _tokensCount);
         SellOrderCreated(_tokensCount); 
-    }
-
-    /**
-     * @dev Creates sell order.
-     * @param _tokensCount Amount of tokens to sell.
-     * @param _rateLimit Min affordable selling rate, 0 to allow all.
-     */
-    function createSellOrder(uint256 _tokensCount, uint256 _rateLimit) public whenNotPaused orderCreationAllowed {
-        createSellOrder(msg.sender, _tokensCount, _rateLimit);
     }
 
     /**
@@ -659,13 +642,6 @@ contract ComplexBank is Pausable, BankI {
         if (oracles[_address].enabled)
             numEnabledOracles--;
         delete oracles[_address];
-    }
-
-    /**
-     * @dev Sends money to oracles and start requestUpdateRates.
-     */
-    function schedulerUpdateRate() public {
-        schedulerUpdateRate(0);
     }
 
     /**
