@@ -94,7 +94,7 @@ async function finalizeDeployDependencies(_contractsToDeploy) {
         tokenInstance = await _contractsToDeploy[_contractName].deployed(),
         bankInstance = await bank.deployed();
         await bankInstance.attachToken(tokenInstance.address);
-        await tokenInstance.setBankAddress(bankInstance.address);
+        await tokenInstance.transferOwnership(bankInstance.address);
     }
   }
 }

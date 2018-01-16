@@ -245,7 +245,7 @@ contract('ComplexBank', function(accounts) {
             await bank.setRelevancePeriod(0);
             await bank.setQueuePeriod(600);
 
-            await cash.setBankAddress(bank.address);
+            //await cash.setBankAddress(bank.address);
             
             for (let i = 0; i < oracles.length; i++) {
                 await oracles[i].deployed();
@@ -260,8 +260,8 @@ contract('ComplexBank', function(accounts) {
 
             await bank.sendTransaction({from: owner, value: web3.toWei(7,'ether')});
             await bank.requestUpdateRates({value: web3.toWei(0.01,'ether')});
-            await bank.calcRates();
-            await bank.processBuyQueue(0);
+            //await bank.calcRates();
+            //await bank.processBuyQueue(0);
         });
 
         beforeEach("clear orders", async function() {
@@ -277,7 +277,7 @@ contract('ComplexBank', function(accounts) {
             } catch(e) {}
         });
 
-        it("add sellOrders", async function() {
+        it.only("add sellOrders", async function() {
             let bank = await ComplexBank.deployed();
             let cash = await LibreCash.deployed();
 
