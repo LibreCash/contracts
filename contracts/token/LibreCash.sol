@@ -13,7 +13,6 @@ contract LibreCash is MintableToken, BurnableToken {
     string public constant name = "LibreCash Token";
     string public constant symbol = "LCT";
     uint32 public constant decimals = 18;
-    uint256 public totalSupply;
 
     /**
     * @dev Reject all ERC23 compatible tokens
