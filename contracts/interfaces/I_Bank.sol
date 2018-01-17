@@ -2,7 +2,7 @@ pragma solidity ^0.4.11;
 
 interface BankI {
     /* Order creation && cancelation */
-    function createBuyOrder(address _address, uint256 _rateLimit) public;
+    function createBuyOrder(address _address, uint256 _rateLimit) payable public;
     function createSellOrder(address _address, uint256 _tokensCount, uint256 _rateLimit) public;
     function cancelBuyOrderOwner(uint256 _orderID) public;
     function cancelSellOrderOwner(uint256 _orderID) public;
@@ -13,7 +13,7 @@ interface BankI {
 
     /* Rate calc & init  params */
     function calcRates() public;
-    function requestUpdateRates() public;
+    function requestUpdateRates() payable public;
     
     /* Data getters */
     function getEther() public;
@@ -46,7 +46,7 @@ interface BankI {
     function setAutoWithdraw(bool _autoWithdraw) public;
     
     /* Funding management */
-    function refillBalance() public;
+    function refillBalance() payable public;
 
     /* Tokens admin methods */
     function transferTokenOwner(address newOwner) public;
