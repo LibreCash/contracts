@@ -407,7 +407,8 @@ contract ComplexBank is Pausable, BankI {
      * @dev Gets buy order (by the owner).
      * @param _orderID The order ID.
      */
-    function getBuyOrder(uint256 _orderID) public onlyOwner view returns (address, address, uint256, uint256, uint256) {
+    function getBuyOrder(uint256 _orderID) public view returns (address, address, uint256, uint256, uint256) {
+        require(msg.sender == owner || msg.sender == buyOrders[_orderID].senderAddress);
         require((buyNextOrder > 0) && (buyNextOrder >= _orderID) && (buyOrderIndex <= _orderID));
         return (buyOrders[_orderID].senderAddress, buyOrders[_orderID].recipientAddress,
                 buyOrders[_orderID].orderAmount, buyOrders[_orderID].orderTimestamp,
@@ -418,11 +419,44 @@ contract ComplexBank is Pausable, BankI {
      * @dev Gets sell order (by the owner).
      * @param _orderID The order ID.
      */
-    function getSellOrder(uint256 _orderID) public onlyOwner view returns (address, address, uint256, uint256, uint256) {
+    function getSellOrder(uint256 _orderID) public view returns (address, address, uint256, uint256, uint256) {
+        require(msg.sender == owner || msg.sender == sellOrders[_orderID].senderAddress);
         require((sellNextOrder > 0) && (sellNextOrder >= _orderID) && (sellOrderIndex <= _orderID));
         return (sellOrders[_orderID].senderAddress, sellOrders[_orderID].recipientAddress,
                 sellOrders[_orderID].orderAmount, sellOrders[_orderID].orderTimestamp,
                 sellOrders[_orderID].rateLimit);
+    }
+
+    /**
+     * @dev Gets user orders.
+     */
+    function getMyOrders() public view returns(uint[], uint[]) {
+        uint count = 0;
+        for (uint256 i = buyOrderIndex; i < buyNextOrder; i++) {
+            if (buyOrders[i].recipientAddress != 0x0 && buyOrders[i].senderAddress == msg.sender)
+                count++;
+        }
+
+        uint[] memory myBuy = new uint[](count);
+        count = 0;
+        for (i = buyOrderIndex; i < buyNextOrder; i++) {
+            if (buyOrders[i].recipientAddress != 0x0 && buyOrders[i].senderAddress == msg.sender)
+                myBuy[count++] = i;
+        }
+
+        count = 0;
+        for (i = sellOrderIndex; i < sellNextOrder; i++) {
+            if (sellOrders[i].recipientAddress != 0x0 && sellOrders[i].senderAddress == msg.sender) 
+                count++;
+        }
+
+        uint[] memory mySell = new uint[](count);
+        count = 0;
+        for (i = sellOrderIndex; i < sellNextOrder; i++) {
+            if (sellOrders[i].recipientAddress != 0x0 && sellOrders[i].senderAddress == msg.sender) 
+                mySell[count++] = i;
+        }
+        return (myBuy, mySell);
     }
 
     /**
@@ -850,6 +884,10 @@ contract ComplexBank is Pausable, BankI {
         autoWithdraw = _autoWithdraw;
     }
 
+    /**
+     * @dev set new owner.
+     * @param newOwner The new owner for libreToken.
+     */
     function transferTokenOwner(address newOwner) public onlyOwner {
         libreToken.transferOwnership(newOwner);
     }
