@@ -85,8 +85,8 @@ contract Exchanger is Ownable {
         uint256 supplyToSend = _value.mul(RATE_MULTIPLIER) / rate;
 
         if (supplyToSend > supplyToken.balanceOf(this)) {
-            uint256 leesSupplyToken = supplyToken.balanceOf(this);
-            _value = leesSupplyToken.mul(rate) / RATE_MULTIPLIER;
+            uint256 restSupplyToken = supplyToken.balanceOf(this);
+            _value = restSupplyToken.mul(rate) / RATE_MULTIPLIER;
         }
         collectingToken.transferFrom(msg.sender, this, _value);
         collectingToken.burn(_value);
