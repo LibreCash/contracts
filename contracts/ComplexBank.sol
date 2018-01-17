@@ -60,10 +60,10 @@ contract ComplexBank is Pausable, BankI {
     modifier calcRatesAllowed() {
         require(contractState == ProcessState.CALC_RATE);
 
-        processWaitingOracles(); // выкинет если есть оракулы, ждущие менее 10 минут
+        processWaitingOracles(); // revert transaction if has oracles waiting less then 10 min.
         if (numReadyOracles() < MIN_READY_ORACLES) {
             contractState = ProcessState.REQUEST_UPDATE_RATES;
-            OracleProblem("Not enough ready oracles. Please, request update rates again");
+            OracleError("Not enough ready oracles. Please, request update rates again");
             return;
         }
         
@@ -100,18 +100,18 @@ contract ComplexBank is Pausable, BankI {
 
     /**
      * @dev Creates buy order.
-     * @param _address Beneficiar.
+     * @param _recipient Recipient.
      * @param _rateLimit Max affordable buying rate, 0 to allow all.
      */
-    function createBuyOrder(address _address, uint256 _rateLimit) public payable whenNotPaused orderCreationAllowed {
-        require((msg.value >= buyLimit.min) && (msg.value <= buyLimit.max));
-        require(_address != 0x0);
+    function createBuyOrder(address _recipient, uint256 _rateLimit) public payable whenNotPaused orderCreationAllowed {
+        require((_recipient != 0x0) && (msg.value >= buyLimit.min) && (msg.value <= buyLimit.max));
+
         if (buyNextOrder == buyOrders.length) {
             buyOrders.length++;
         }
         buyOrders[buyNextOrder++] = OrderData({
             senderAddress: msg.sender,
-            recipientAddress: _address,
+            recipientAddress: _recipient,
             orderAmount: msg.value,
             orderTimestamp: now,
             rateLimit: _rateLimit
@@ -121,12 +121,12 @@ contract ComplexBank is Pausable, BankI {
 
     /**
      * @dev Creates sell order.
-     * @param _address Beneficiar.
+     * @param _recipient Recipient.
      * @param _tokensCount Amount of tokens to sell.
      * @param _rateLimit Min affordable selling rate, 0 to allow all.
      */
-    function createSellOrder(address _address, uint256 _tokensCount, uint256 _rateLimit) public whenNotPaused orderCreationAllowed {
-        require((_address != 0x0) && (_tokensCount >= sellLimit.min) && (_tokensCount <= sellLimit.max));
+    function createSellOrder(address _recipient, uint256 _tokensCount, uint256 _rateLimit) public whenNotPaused orderCreationAllowed {
+        require((_recipient != 0x0) && (_tokensCount >= sellLimit.min) && (_tokensCount <= sellLimit.max));
         address tokenOwner = msg.sender;
         require(_tokensCount <= libreToken.allowance(tokenOwner,this));
         libreToken.transferFrom(tokenOwner, this, _tokensCount);
@@ -137,7 +137,7 @@ contract ComplexBank is Pausable, BankI {
         }
         sellOrders[sellNextOrder++] = OrderData({
             senderAddress: tokenOwner,
-            recipientAddress: _address,
+            recipientAddress: _recipient,
             orderAmount: _tokensCount,
             orderTimestamp: now,
             rateLimit: _rateLimit
@@ -187,15 +187,15 @@ contract ComplexBank is Pausable, BankI {
         uint256 rateLimit;
     }
 
-    OrderData[] private buyOrders; // очередь ордеров на покупку
-    OrderData[] private sellOrders; // очередь ордеров на продажу
-    uint256 buyOrderIndex = 0; // Хранит первый номер ордера
+    OrderData[] private buyOrders; // buy orders queue
+    OrderData[] private sellOrders; // sell orders queue
+    uint256 buyOrderIndex = 0; // store number of first order
     uint256 sellOrderIndex = 0;
 
-    uint256 private buyNextOrder = 0; // Хранит следующий за последним номер ордера
+    uint256 private buyNextOrder = 0; // store number order after last
     uint256 private sellNextOrder = 0;
 
-    mapping (address => uint256) balanceEther; // возврат средств
+    mapping (address => uint256) balanceEther; // internal
     uint256 overallRefundValue = 0;
 
     /**
@@ -216,6 +216,13 @@ contract ComplexBank is Pausable, BankI {
         }
         else
             SendEtherError("Error sending money", msg.sender);
+    }
+
+     /**
+     * @dev Gets the possible refund amount.
+     */
+    function getBalanceEther() public view returns (uint256) {
+        return balanceEther[msg.sender];
     }
 
     /**
@@ -439,7 +446,7 @@ contract ComplexBank is Pausable, BankI {
     event OracleDisabled(address indexed _address, bytes32 name);
     event OracleDeleted(address indexed _address, bytes32 name);
     event OracleRequest(address indexed _address, bytes32 name);
-    event OracleProblem(string description);
+    event OracleError(string description);
 
     struct OracleData {
         bytes32 name;
