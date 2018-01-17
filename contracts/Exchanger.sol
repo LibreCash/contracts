@@ -82,11 +82,11 @@ contract Exchanger is Ownable {
     function buySupplyToken(uint _value) public {
         require(_value <= collectingToken.allowance(msg.sender,this));
         ExchangeRequest(msg.sender, _value, supplyTokenAddress);
-        uint256 supplyToSend = _value.mul(rate) / RATE_MULTIPLIER;
+        uint256 supplyToSend = _value.mul(RATE_MULTIPLIER) / rate;
 
         if (supplyToSend > supplyToken.balanceOf(this)) {
             uint256 leesSupplyToken = supplyToken.balanceOf(this);
-            _value = leesSupplyToken.mul(RATE_MULTIPLIER) / rate;
+            _value = leesSupplyToken.mul(rate) / RATE_MULTIPLIER;
         }
         collectingToken.transferFrom(msg.sender, this, _value);
         collectingToken.burn(_value);
