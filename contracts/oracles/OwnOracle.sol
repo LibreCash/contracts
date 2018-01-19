@@ -1,27 +1,26 @@
 pragma solidity ^0.4.10;
 
 import "../zeppelin/ownership/Ownable.sol";
-import "../library/Helpers.sol";
-import "../interfaces/I_Oracle.sol";
-
-
 
 /**
- * @title Base contract for oracles.
+ * @title Base contract for Libre oracles.
  *
- * @dev Base contract for oracles. Not abstract.
+ * @dev Base contract for Libre oracles. Not abstract.
  */
-contract OwnOracle is Ownable, OracleI {
-    event NewOraclizeQuery(string description);
+contract OwnOracle is Ownable {
+    event NewOraclizeQuery();
     event NewPriceTicker(uint256 price);
     event BankSet(address bankAddress);
     event UpdaterAddressSet(address _updaterAddress);
 
     bytes32 public oracleName = "Base Oracle";
-    bytes16 public oracleType = "Undefined";
+    bytes32 public oracleType = "Undefined";
+    uint256 constant RATE_MULTIPLIER = 1000;
     uint256 public updateTime;
+    uint256 public callbackTime;
     address public bankAddress;
     uint256 public rate;
+    uint256 public requestPrice = 0;
     bool public waitQuery = false;
     address public updaterAddress;
 
@@ -39,7 +38,7 @@ contract OwnOracle is Ownable, OracleI {
     }
 
     /**
-     * Clears queryId, updateTime and rate.
+     * @dev Clears queryId, updateTime and rate. Needs then response doesn't got properly
      */
     function clearState() public onlyBank {
         waitQuery = false;
@@ -66,37 +65,47 @@ contract OwnOracle is Ownable, OracleI {
     }
 
     /**
-     * @dev oraclize getPrice.
+     * @dev Return price of LibreOracle request.
      */
     function getPrice() view public returns (uint) {
-        return 0;
+        return updaterAddress.balance < requestPrice ? requestPrice : 0;
+    }
+
+    /**
+     * @dev oraclize getPrice.
+     */
+    function setPrice(uint256 _requestPriceWei) public onlyOwner returns (uint) {
+        requestPrice = _requestPriceWei;
     }
 
     /**
      * @dev Requests updating rate from oraclize.
      */
     function updateRate() external onlyBank returns (bool) {
-        NewOraclizeQuery("Oraclize query was sent, standing by for the answer...");
+        NewOraclizeQuery();
         waitQuery = true;
         return true;
     }
 
 
     /**
-    * @dev Oracle default callback.
+    * @dev LibreOracle callback.
     * @param result The callback data.
     */
     function __callback(uint256 result) public {
-        require(msg.sender == updaterAddress);
-        rate = result;
-        NewPriceTicker(result);
+        require(msg.sender == updaterAddress && waitQuery);
+        rate = result * RATE_MULTIPLIER;
         updateTime = now;
+        callbackTime = now;
         waitQuery = false;
+        NewPriceTicker(result);
     }
 
     /**
-    * @dev Method used for oracle funding   
+    * @dev Method used for funding LibreOracle updater wallet   
     */    
-    function () public payable {}
+    function () public payable {
+        updaterAddress.transfer(msg.value);
+    }
 
 }
