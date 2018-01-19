@@ -13,9 +13,8 @@ contract OwnOracle is Ownable {
     event BankSet(address bank);
     event UpdaterSet(address updater);
 
-    bytes32 public oracleName = "Base Oracle";
-    bytes16 public oracleType = "Undefined";
-    uint256 constant RATE_MULTIPLIER = 1000;
+    bytes32 public oracleName = "LireOracle";
+    bytes16 public oracleType = "Libre ETH USD";
     uint256 public updateTime;
     uint256 public callbackTime;
     address public bankAddress;
@@ -95,7 +94,7 @@ contract OwnOracle is Ownable {
     */
     function __callback(uint256 result) public {
         require(msg.sender == updaterAddress && waitQuery);
-        rate = result * RATE_MULTIPLIER;
+        rate = result;
         updateTime = now;
         callbackTime = now;
         waitQuery = false;
