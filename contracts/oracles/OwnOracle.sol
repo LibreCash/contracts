@@ -73,6 +73,7 @@ contract OwnOracle is Ownable {
 
     /**
      * @dev oraclize setPrice.
+     * @param _requestPriceWei request price in Wei.
      */
     function setPrice(uint256 _requestPriceWei) public onlyOwner {
         requestPrice = _requestPriceWei;
