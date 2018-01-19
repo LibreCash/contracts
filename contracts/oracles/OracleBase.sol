@@ -7,15 +7,14 @@ import "../interfaces/I_Oracle.sol";
 
 
 /**
- * @title Base contract for oracles.
+ * @title Base contract for Oraclize oracles.
  *
  * @dev Base contract for oracles. Not abstract.
  */
 contract OracleBase is Ownable, usingOraclize, OracleI {
-    event NewOraclizeQuery(string description);
-    event NewPriceTicker(bytes32 oracleName, uint256 price, uint256 timestamp);
+    event NewOraclizeQuery();
+    event OraclizeError(string desciption);
     event NewPriceTicker(string price);
-    event Log(string description);
     event BankSet(address bankAddress);
 
     struct OracleConfig {
@@ -24,7 +23,7 @@ contract OracleBase is Ownable, usingOraclize, OracleI {
     }
 
     bytes32 public oracleName = "Base Oracle";
-    bytes16 public oracleType = "Undefined";
+    bytes32 public oracleType = "Undefined";
     uint256 public updateTime;
     uint256 public callbackTime;
     uint256 public priceLimit = 1 ether;
@@ -115,21 +114,22 @@ contract OracleBase is Ownable, usingOraclize, OracleI {
      * @dev Requests updating rate from oraclize.
      */
     function updateRate() external onlyBank returns (bool) {
-        if (getPrice() > this.balance) {
-            NewOraclizeQuery("Oraclize query was NOT sent, please add some ETH to cover for the query fee");
+        if (getPrice() > this.balance){
+            OraclizeError("Not enough ether");
             return false;
-        } else {
-            bytes32 queryId = oraclize_query(oracleConfig.datasource, oracleConfig.arguments, gasLimit, priceLimit);
-            if (queryId == bytes32(0)) {
-                NewOraclizeQuery("Oraclize query was NOT sent, unexpectedly high query price");
-                return false;
-            }
-            NewOraclizeQuery("Oraclize query was sent, standing by for the answer...");
-            validIds[queryId] = true;
-            waitQuery = true;
-            updateTime = now;
-            return true;
         }
+        bytes32 queryId = oraclize_query(oracleConfig.datasource, oracleConfig.arguments, gasLimit, priceLimit);
+        
+        if (queryId == bytes32(0)) {
+            OraclizeError("Unexpectedly high query price");
+            return false;
+        }
+
+        NewOraclizeQuery();
+        validIds[queryId] = true;
+        waitQuery = true;
+        updateTime = now;
+        return true;
     }
 
     /**
@@ -139,13 +139,13 @@ contract OracleBase is Ownable, usingOraclize, OracleI {
     * @param proof The oraclize proof bytes.
     */
     function __callback(bytes32 myid, string result, bytes proof) public {
-        require(validIds[myid]);
-        require(msg.sender == oraclize_cbAddress());
+        require(validIds[myid] && msg.sender == oraclize_cbAddress());
+
         rate = Helpers.parseIntRound(result, 3); // save it in storage as 1/1000 of $
-        NewPriceTicker(result);
         delete validIds[myid];
         callbackTime = now;
         waitQuery = false;
+        NewPriceTicker(result);
     }
 
     /**
