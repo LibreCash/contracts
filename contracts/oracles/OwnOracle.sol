@@ -32,13 +32,13 @@ contract OwnOracle is Ownable {
     /**
      * @dev Constructor.
      */
-    function OwnOracle(address _bankAddress) {
-        bankAddress = _bankAddress;
-        BankSet(_bankAddress);
+    function OwnOracle(address bank) {
+        bankAddress = bank;
+        BankSet(bankAddress);
     }
 
     /**
-     * @dev Clears queryId, updateTime and rate. Needs then response doesn't got properly
+     * @dev Clears queryId, updateTime and rate. Needs then response doesn't got properly.
      */
     function clearState() public onlyBank {
         waitQuery = false;
@@ -67,7 +67,7 @@ contract OwnOracle is Ownable {
     /**
      * @dev Return price of LibreOracle request.
      */
-    function getPrice() view public returns (uint) {
+    function getPrice() view public returns (uint256) {
         return updaterAddress.balance < requestPrice ? requestPrice : 0;
     }
 
@@ -102,7 +102,7 @@ contract OwnOracle is Ownable {
     }
 
     /**
-    * @dev Method used for funding LibreOracle updater wallet   
+    * @dev Method used for funding LibreOracle updater wallet. 
     */    
     function () public payable {
         updaterAddress.transfer(msg.value);
