@@ -14,7 +14,7 @@ import "../interfaces/I_Oracle.sol";
 contract OracleBase is Ownable, usingOraclize, OracleI {
     event NewOraclizeQuery();
     event OraclizeError(string desciption);
-    event NewPriceTicker(string price);
+    event PriceTicker(string price);
     event BankSet(address bankAddress);
 
     struct OracleConfig {
@@ -23,7 +23,7 @@ contract OracleBase is Ownable, usingOraclize, OracleI {
     }
 
     bytes32 public oracleName = "Base Oracle";
-    bytes32 public oracleType = "Undefined";
+    bytes16 public oracleType = "Undefined";
     uint256 public updateTime;
     uint256 public callbackTime;
     uint256 public priceLimit = 1 ether;
@@ -59,29 +59,29 @@ contract OracleBase is Ownable, usingOraclize, OracleI {
 
     /**
      * @dev Sets oraclize price limit (maximum query cost).
-     * @param _limit New limit.
+     * @param limitInWei New limit.
      */
-    function setPriceLimit(uint256 _limit) public onlyOwner {
-        priceLimit = _limit;
+    function setPriceLimit(uint256 limitInWei) public onlyOwner {
+        priceLimit = limitInWei;
     }
 
     /**
      * @dev Sets gas price.
-     * @param _price New gas price.
+     * @param priceInWei New gas price.
      */
-    function setGasPrice(uint256 _price) public onlyOwner {
-        require((_price >= MIN_GAS_PRICE) && (_price <= MAX_GAS_PRICE));
-        gasPrice = _price;
+    function setGasPrice(uint256 priceInWei) public onlyOwner {
+        require((priceInWei >= MIN_GAS_PRICE) && (priceInWei <= MAX_GAS_PRICE));
+        gasPrice = priceInWei;
         oraclize_setCustomGasPrice(gasPrice);
     }
 
     /**
      * @dev Sets gas limit.
-     * @param _limit New gas limit.
+     * @param _gasLimit New gas limit.
      */
-    function setGasLimit(uint256 _limit) public onlyOwner {
-        require((_limit >= MIN_GAS_LIMIT) && (_limit <= MAX_GAS_LIMIT));
-        gasLimit = _limit;
+    function setGasLimit(uint256 _gasLimit) public onlyOwner {
+        require((_gasLimit >= MIN_GAS_LIMIT) && (_gasLimit <= MAX_GAS_LIMIT));
+        gasLimit = _gasLimit;
     }
 
     /**
@@ -96,11 +96,11 @@ contract OracleBase is Ownable, usingOraclize, OracleI {
 
     /**
      * @dev Sets bank address.
-     * @param _bankAddress Address of the bank contract.
+     * @param bank Address of the bank contract.
      */
-    function setBank(address _bankAddress) public onlyOwner {
-        bankAddress = _bankAddress;
-        BankSet(_bankAddress);
+    function setBank(address bank) public onlyOwner {
+        bankAddress = bank;
+        BankSet(bankAddress);
     }
 
     /**
@@ -114,7 +114,7 @@ contract OracleBase is Ownable, usingOraclize, OracleI {
      * @dev Requests updating rate from oraclize.
      */
     function updateRate() external onlyBank returns (bool) {
-        if (getPrice() > this.balance){
+        if (getPrice() > this.balance) {
             OraclizeError("Not enough ether");
             return false;
         }
@@ -145,7 +145,7 @@ contract OracleBase is Ownable, usingOraclize, OracleI {
         delete validIds[myid];
         callbackTime = now;
         waitQuery = false;
-        NewPriceTicker(result);
+        PriceTicker(result);
     }
 
     /**
