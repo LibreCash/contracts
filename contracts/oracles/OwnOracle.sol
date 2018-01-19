@@ -9,9 +9,9 @@ import "../zeppelin/ownership/Ownable.sol";
  */
 contract OwnOracle is Ownable {
     event NewOraclizeQuery();
-    event NewPriceTicker(uint256 price);
-    event BankSet(address bankAddress);
-    event UpdaterAddressSet(address _updaterAddress);
+    event PriceTicker(uint256 rateAmount);
+    event BankSet(address bank);
+    event UpdaterSet(address updater);
 
     bytes32 public oracleName = "Base Oracle";
     bytes32 public oracleType = "Undefined";
@@ -32,13 +32,13 @@ contract OwnOracle is Ownable {
     /**
      * @dev Constructor.
      */
-    function OwnOracle(address _bankAddress) {
-        bankAddress = _bankAddress;
-        BankSet(_bankAddress);
+    function OwnOracle(address bank) {
+        bankAddress = bank;
+        BankSet(bankAddress);
     }
 
     /**
-     * @dev Clears queryId, updateTime and rate. Needs then response doesn't got properly
+     * @dev Clears queryId, updateTime and rate. Needs then response doesn't got properly.
      */
     function clearState() public onlyBank {
         waitQuery = false;
@@ -48,38 +48,39 @@ contract OwnOracle is Ownable {
 
     /**
      * @dev Sets bank address.
-     * @param _bankAddress Address of the bank contract.
+     * @param bank Address of the bank contract.
      */
-    function setBank(address _bankAddress) public onlyOwner {
-        bankAddress = _bankAddress;
-        BankSet(_bankAddress);
+    function setBank(address bank) public onlyOwner {
+        bankAddress = bank;
+        BankSet(bankAddress);
     }
 
     /**
      * @dev Sets updateAddress address.
-     * @param _address Address of the updateAddress.
+     * @param updater Address of the updateAddress.
      */
-    function setUpdaterAddress(address _address) public onlyOwner {
-        updaterAddress = _address;
-        UpdaterAddressSet(updaterAddress);
+    function setUpdaterAddress(address updater) public onlyOwner {
+        updaterAddress = updater;
+        UpdaterSet(updaterAddress);
     }
 
     /**
      * @dev Return price of LibreOracle request.
      */
-    function getPrice() view public returns (uint) {
+    function getPrice() view public returns (uint256) {
         return updaterAddress.balance < requestPrice ? requestPrice : 0;
     }
 
     /**
-     * @dev oraclize getPrice.
+     * @dev oraclize setPrice.
+     * @param _requestPriceWei request price in Wei.
      */
-    function setPrice(uint256 _requestPriceWei) public onlyOwner returns (uint) {
+    function setPrice(uint256 _requestPriceWei) public onlyOwner {
         requestPrice = _requestPriceWei;
     }
 
     /**
-     * @dev Requests updating rate from oraclize.
+     * @dev Requests updating rate from LibreOracle node.
      */
     function updateRate() external onlyBank returns (bool) {
         NewOraclizeQuery();
@@ -90,7 +91,7 @@ contract OwnOracle is Ownable {
 
     /**
     * @dev LibreOracle callback.
-    * @param result The callback data.
+    * @param result The callback data as-is (1000$ = 1000).
     */
     function __callback(uint256 result) public {
         require(msg.sender == updaterAddress && waitQuery);
@@ -98,11 +99,11 @@ contract OwnOracle is Ownable {
         updateTime = now;
         callbackTime = now;
         waitQuery = false;
-        NewPriceTicker(result);
+        PriceTicker(result);
     }
 
     /**
-    * @dev Method used for funding LibreOracle updater wallet   
+    * @dev Method used for funding LibreOracle updater wallet. 
     */    
     function () public payable {
         updaterAddress.transfer(msg.value);
