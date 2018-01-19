@@ -16,16 +16,16 @@ contract ComplexBank is Pausable, BankI {
     // TODO; Check that all evetns used and delete unused
     event BuyOrderCreated(uint256 etherAmount);
     event SellOrderCreated(uint256 tokensAmount);
-    event LogBuy(address senderAddress, address clientAddress, uint256 tokenAmount, uint256 buyPrice);
-    event LogSell(address senderAddress, address clientAddress, uint256 cryptoAmount, uint256 sellPrice);
+    event LogBuy(address sender, address recipient, uint256 tokenAmount, uint256 buyPrice);
+    event LogSell(address sender, address recipient, uint256 cryptoAmount, uint256 sellPrice);
     event OrderQueueGeneral(string description);
-    event BuyOrderCancelled(uint256 orderId, address beneficiary, uint256 amount, uint256 parameter);
-    event SellOrderCancelled(uint256 orderId, address beneficiary, uint256 amount, uint256 parameter);
+    event BuyOrderCancelled(uint256 orderId, address sender, uint256 cryptoAmount, uint256 parameter);
+    event SellOrderCancelled(uint256 orderId, address sender, uint256 tokenAmount, uint256 parameter);
     event SendEtherError(string error, address _addr);
     event BalanceRefill(address from, uint256 amount);
     
-    uint256 constant MIN_READY_ORACLES = 1; //2;
-    uint256 constant MIN_ORACLES_ENABLED = 1;//2;
+    uint256 constant MIN_READY_ORACLES = 2; //2;
+    uint256 constant MIN_ORACLES_ENABLED = 2;//2;
     uint256 constant MAX_RELEVANCE_PERIOD = 48 hours;
     uint256 constant MIN_QUEUE_PERIOD = 10 minutes;
     uint256 constant REVERSE_PERCENT = 100;
@@ -65,7 +65,7 @@ contract ComplexBank is Pausable, BankI {
         processWaitingOracles(); // выкинет если есть оракулы, ждущие менее 10 минут
         if (numReadyOracles() < MIN_READY_ORACLES) {
             contractState = ProcessState.REQUEST_UPDATE_RATES;
-            OracleProblem("Not enough ready oracles. Please, request update rates again");
+            OracleError("Not enough ready oracles. Please, request update rates again");
             return;
         }
         
@@ -89,10 +89,6 @@ contract ComplexBank is Pausable, BankI {
         _;
         contractState = ProcessState.ORDER_CREATION;
     }
-
-// for tests
-    function timeSinceUpdateRequest() public view returns (uint256) { return now - timeUpdateRequest; }
-// end for tests
 
     struct Limit {
         uint256 min;
@@ -503,7 +499,7 @@ contract ComplexBank is Pausable, BankI {
     event OracleDeleted(address indexed _address, bytes32 name);
     event OracleTouched(address indexed _address, bytes32 name);
     event OracleNotTouched(address indexed _address, bytes32 name);
-    event OracleProblem(string description);
+    event OracleError(string description);
 
     struct OracleData {
         bytes32 name;

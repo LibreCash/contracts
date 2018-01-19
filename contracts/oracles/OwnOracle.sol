@@ -14,7 +14,7 @@ contract OwnOracle is Ownable {
     event UpdaterSet(address updater);
 
     bytes32 public oracleName = "Base Oracle";
-    bytes32 public oracleType = "Undefined";
+    bytes16 public oracleType = "Undefined";
     uint256 constant RATE_MULTIPLIER = 1000;
     uint256 public updateTime;
     uint256 public callbackTime;

@@ -7,15 +7,14 @@ import "../interfaces/I_Oracle.sol";
 
 
 /**
- * @title Base contract for oracles.
+ * @title Base contract for Oraclize oracles.
  *
  * @dev Base contract for oracles. Not abstract.
  */
 contract OracleBase is Ownable, usingOraclize, OracleI {
-    event NewOraclizeQuery(string description);
-    event NewPriceTicker(bytes32 oracleName, uint256 price, uint256 timestamp);
-    event NewPriceTicker(string price);
-    event Log(string description);
+    event NewOraclizeQuery();
+    event OraclizeError(string desciption);
+    event PriceTicker(string price);
     event BankSet(address bankAddress);
 
     struct OracleConfig {
@@ -60,29 +59,29 @@ contract OracleBase is Ownable, usingOraclize, OracleI {
 
     /**
      * @dev Sets oraclize price limit (maximum query cost).
-     * @param _limit New limit.
+     * @param limitInWei New limit.
      */
-    function setPriceLimit(uint256 _limit) public onlyOwner {
-        priceLimit = _limit;
+    function setPriceLimit(uint256 limitInWei) public onlyOwner {
+        priceLimit = limitInWei;
     }
 
     /**
      * @dev Sets gas price.
-     * @param _price New gas price.
+     * @param priceInWei New gas price.
      */
-    function setGasPrice(uint256 _price) public onlyOwner {
-        require((_price >= MIN_GAS_PRICE) && (_price <= MAX_GAS_PRICE));
-        gasPrice = _price;
+    function setGasPrice(uint256 priceInWei) public onlyOwner {
+        require((priceInWei >= MIN_GAS_PRICE) && (priceInWei <= MAX_GAS_PRICE));
+        gasPrice = priceInWei;
         oraclize_setCustomGasPrice(gasPrice);
     }
 
     /**
      * @dev Sets gas limit.
-     * @param _limit New gas limit.
+     * @param _gasLimit New gas limit.
      */
-    function setGasLimit(uint256 _limit) public onlyOwner {
-        require((_limit >= MIN_GAS_LIMIT) && (_limit <= MAX_GAS_LIMIT));
-        gasLimit = _limit;
+    function setGasLimit(uint256 _gasLimit) public onlyOwner {
+        require((_gasLimit >= MIN_GAS_LIMIT) && (_gasLimit <= MAX_GAS_LIMIT));
+        gasLimit = _gasLimit;
     }
 
     /**
@@ -97,11 +96,11 @@ contract OracleBase is Ownable, usingOraclize, OracleI {
 
     /**
      * @dev Sets bank address.
-     * @param _bankAddress Address of the bank contract.
+     * @param bank Address of the bank contract.
      */
-    function setBank(address _bankAddress) public onlyOwner {
-        bankAddress = _bankAddress;
-        BankSet(_bankAddress);
+    function setBank(address bank) public onlyOwner {
+        bankAddress = bank;
+        BankSet(bankAddress);
     }
 
     /**
@@ -116,20 +115,21 @@ contract OracleBase is Ownable, usingOraclize, OracleI {
      */
     function updateRate() external onlyBank returns (bool) {
         if (getPrice() > this.balance) {
-            NewOraclizeQuery("Oraclize query was NOT sent, please add some ETH to cover for the query fee");
+            OraclizeError("Not enough ether");
             return false;
-        } else {
-            bytes32 queryId = oraclize_query(oracleConfig.datasource, oracleConfig.arguments, gasLimit, priceLimit);
-            if (queryId == bytes32(0)) {
-                NewOraclizeQuery("Oraclize query was NOT sent, unexpectedly high query price");
-                return false;
-            }
-            NewOraclizeQuery("Oraclize query was sent, standing by for the answer...");
-            validIds[queryId] = true;
-            waitQuery = true;
-            updateTime = now;
-            return true;
         }
+        bytes32 queryId = oraclize_query(oracleConfig.datasource, oracleConfig.arguments, gasLimit, priceLimit);
+        
+        if (queryId == bytes32(0)) {
+            OraclizeError("Unexpectedly high query price");
+            return false;
+        }
+
+        NewOraclizeQuery();
+        validIds[queryId] = true;
+        waitQuery = true;
+        updateTime = now;
+        return true;
     }
 
     /**
@@ -139,13 +139,13 @@ contract OracleBase is Ownable, usingOraclize, OracleI {
     * @param proof The oraclize proof bytes.
     */
     function __callback(bytes32 myid, string result, bytes proof) public {
-        require(validIds[myid]);
-        require(msg.sender == oraclize_cbAddress());
+        require(validIds[myid] && msg.sender == oraclize_cbAddress());
+
         rate = Helpers.parseIntRound(result, 3); // save it in storage as 1/1000 of $
-        NewPriceTicker(result);
         delete validIds[myid];
         callbackTime = now;
         waitQuery = false;
+        PriceTicker(result);
     }
 
     /**
