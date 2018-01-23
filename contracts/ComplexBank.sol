@@ -24,14 +24,14 @@ contract ComplexBank is Pausable, BankI {
     event SendEtherError(string error, address _addr);
     event BalanceRefill(address from, uint256 amount);
     
-    uint256 constant MIN_READY_ORACLES = 2; //2;
-    uint256 constant MIN_ORACLES_ENABLED = 2;//2;
+    uint256 constant MIN_READY_ORACLES = 2;
+    uint256 constant MIN_ORACLES_ENABLED = 2;
     uint256 constant REVERSE_PERCENT = 100;
     uint256 constant RATE_MULTIPLIER = 1000; // doubling in oracleBase __callback as parseIntRound(..., 3) as 3
 
     uint256 public relevancePeriod = 23 hours;
     uint256 public queuePeriod = 60 minutes;
-    // после тестов убрать public
+    // после тестов убрать public ?? почему, это используется в будильнике
     uint256 public timeUpdateRequest = 0; // the time of requestUpdateRates()
 
     enum ProcessState {
@@ -54,7 +54,7 @@ contract ComplexBank is Pausable, BankI {
     modifier calcRatesAllowed() {
         require(contractState == ProcessState.CALC_RATE);
 
-        processWaitingOracles(); // выкинет если есть оракулы, ждущие менее 10 минут
+        processWaitingOracles(); // break if have wait oracles less 10 min
         if (numReadyOracles() < MIN_READY_ORACLES) {
             contractState = ProcessState.REQUEST_UPDATE_RATES;
             OracleError("Not enough ready oracles. Please, request update rates again");
@@ -89,10 +89,47 @@ contract ComplexBank is Pausable, BankI {
         uint256 max;
     }
 
-    // Limits start
     Limit public buyLimit = Limit(1 wei, 99999 * 1 ether);
     Limit public sellLimit = Limit(1 wei, 99999 * 1 ether);
-    // Limits end
+
+    /**
+     * @dev Fallback function.
+     */
+    function () external whenNotPaused orderCreationAllowed payable {
+        createBuyOrder(msg.sender, 0); // 0 - without price limit
+    }
+
+        /**
+     * @dev Sets min buy sum (in Wei).
+     * @param _minBuyLimit - min buy sum in Wei.
+     */
+    function setMinBuyLimit(uint _minBuyLimit) public onlyOwner {
+        buyLimit.min = _minBuyLimit;
+    }
+
+    /**
+     * @dev Sets max buy sum (in Wei).
+     * @param _maxBuyLimit - max buy sum in Wei.
+     */
+    function setMaxBuyLimit(uint _maxBuyLimit) public onlyOwner {
+        buyLimit.max = _maxBuyLimit;
+    }
+
+    /**
+     * @dev Sets min sell tokens amount.
+     * @param _minSellLimit - min sell tokens.
+     */
+    function setMinSellLimit(uint _minSellLimit) public onlyOwner {
+        sellLimit.min = _minSellLimit;
+    }
+    
+    /**
+     * @dev Sets max sell tokens amount.
+     * @param _maxSellLimit - max sell tokens.
+     */
+    function setMaxSellLimit(uint _maxSellLimit) public onlyOwner {
+        sellLimit.max = _maxSellLimit;
+    }
 
     // 01-emission start
 
@@ -152,45 +189,6 @@ contract ComplexBank is Pausable, BankI {
         SellOrderCreated(_tokensCount); 
     }
 
-    /**
-     * @dev Fallback function.
-     */
-    function () external whenNotPaused orderCreationAllowed payable {
-        createBuyOrder(msg.sender, 0); // 0 - без ценовых ограничений
-    }
-
-    /**
-     * @dev Sets min buy sum (in Wei).
-     * @param _minBuyLimit - min buy sum in Wei.
-     */
-    function setMinBuyLimit(uint _minBuyLimit) public onlyOwner {
-        buyLimit.min = _minBuyLimit;
-    }
-
-    /**
-     * @dev Sets max buy sum (in Wei).
-     * @param _maxBuyLimit - max buy sum in Wei.
-     */
-    function setMaxBuyLimit(uint _maxBuyLimit) public onlyOwner {
-        buyLimit.max = _maxBuyLimit;
-    }
-
-    /**
-     * @dev Sets min sell tokens amount.
-     * @param _minSellLimit - min sell tokens.
-     */
-    function setMinSellLimit(uint _minSellLimit) public onlyOwner {
-        sellLimit.min = _minSellLimit;
-    }
-    
-    /**
-     * @dev Sets max sell tokens amount.
-     * @param _maxSellLimit - max sell tokens.
-     */
-    function setMaxSellLimit(uint _maxSellLimit) public onlyOwner {
-        sellLimit.max = _maxSellLimit;
-    }
-
     // 01-emission end
 
     // 02-queue start
@@ -218,19 +216,19 @@ contract ComplexBank is Pausable, BankI {
      */
     function getEther() public {
         require(balanceEther[msg.sender] > 0);
-        // TODO: учесть средства на контракте кошелька и как-то их получить при необходимости или запросить
         uint256 sendBalance = balanceEther[msg.sender];
         if (this.balance < sendBalance) {
             sendBalance = this.balance;
             SendEtherError("The contract doesn't have enough funds, the payment will be fulfilled partly", msg.sender);
         }
 
-        if (msg.sender.send(sendBalance)) {
-            overallRefundValue = overallRefundValue.sub(sendBalance);
-            balanceEther[msg.sender] -= sendBalance;
-        }
-        else
+        overallRefundValue = overallRefundValue.sub(sendBalance);
+        balanceEther[msg.sender] -= sendBalance;
+        if ( !msg.sender.send(sendBalance)) {
+            overallRefundValue = overallRefundValue.add(sendBalance);
+            balanceEther[msg.sender] += sendBalance;
             SendEtherError("Error sending money", msg.sender);
+        }
     }
 
     /**
