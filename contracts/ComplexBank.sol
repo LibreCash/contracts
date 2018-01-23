@@ -45,7 +45,8 @@ contract ComplexBank is Pausable, BankI {
     ProcessState public contractState;
 
     modifier canStartEmission() {
-        require((now >= timeUpdateRequest + relevancePeriod) || (contractState == ProcessState.REQUEST_UPDATE_RATES));
+        require((now >= timeUpdateRequest + relevancePeriod) || 
+                (contractState == ProcessState.REQUEST_UPDATE_RATES));
         _;
         contractState = ProcessState.CALC_RATE;
         timeUpdateRequest = now;
@@ -70,14 +71,16 @@ contract ComplexBank is Pausable, BankI {
     }
 
     modifier queueProcessingAllowed() {
-        require((contractState == ProcessState.PROCESS_ORDERS) && (now <= timeUpdateRequest + queuePeriod));
+        require((contractState == ProcessState.PROCESS_ORDERS) && 
+                (now <= timeUpdateRequest + queuePeriod));
         _;
         if ((sellNextOrder == 0) && (buyNextOrder == 0))
             contractState = ProcessState.ORDER_CREATION;
     }
 
     modifier orderCreationAllowed() {
-        require((contractState == ProcessState.ORDER_CREATION) || (now > timeUpdateRequest + queuePeriod));
+        require((contractState == ProcessState.ORDER_CREATION) || 
+                (now > timeUpdateRequest + queuePeriod));
         _;
         contractState = ProcessState.ORDER_CREATION;
     }
@@ -99,7 +102,12 @@ contract ComplexBank is Pausable, BankI {
      * @param _address Beneficiar.
      * @param _rateLimit Max affordable buying rate, 0 to allow all.
      */
-    function createBuyOrder(address _address, uint256 _rateLimit) public payable whenNotPaused orderCreationAllowed {
+    function createBuyOrder(address _address, uint256 _rateLimit) 
+        public 
+        payable 
+        whenNotPaused 
+        orderCreationAllowed
+    {
         require((msg.value >= buyLimit.min) && (msg.value <= buyLimit.max));
         require(_address != 0x0);
         if (buyNextOrder == buyOrders.length) {
@@ -121,7 +129,11 @@ contract ComplexBank is Pausable, BankI {
      * @param _tokensCount Amount of tokens to sell.
      * @param _rateLimit Min affordable selling rate, 0 to allow all.
      */
-    function createSellOrder(address _address, uint256 _tokensCount, uint256 _rateLimit) public whenNotPaused orderCreationAllowed {
+    function createSellOrder(address _address, uint256 _tokensCount, uint256 _rateLimit)
+        public 
+        whenNotPaused 
+        orderCreationAllowed 
+    {
         require((_tokensCount >= sellLimit.min) && (_tokensCount <= sellLimit.max));
         require(_address != 0x0);
         address tokenOwner = msg.sender;
@@ -512,8 +524,12 @@ contract ComplexBank is Pausable, BankI {
      * @dev Gets oracle data.
      * @param _address Oracle address.
      */
-    function getOracleData(address _address) public view returns (bytes32, bytes32, uint256, bool, bool, uint256, address) {
-                                                                /* name, type, upd_time, enabled, waiting, rate, next */
+    function getOracleData(address _address) 
+        public 
+        view 
+        returns (bytes32, bytes32, uint256, bool, bool, uint256, address)
+                /* name, type, upd_time, enabled, waiting, rate, next */
+    {
         OracleI currentOracle = OracleI(_address);
         OracleData memory oracle = oracles[_address];
 
