@@ -34,8 +34,6 @@ contract ComplexBank is Pausable, BankI {
     uint256 public balanceEtherCap = 10 ether; // Contract balance ether cap.
     // после тестов убрать public
     uint256 public timeUpdateRequest = 0; // the time of requestUpdateRates()
-    address public withdrawWallet; // Multisig withdraw wallet address
-    bool public autoWithdraw = true;
 
     enum ProcessState {
         REQUEST_UPDATE_RATES,
@@ -115,7 +113,6 @@ contract ComplexBank is Pausable, BankI {
             rateLimit: _rateLimit
         });
         BuyOrderCreated(msg.value);
-        withdraw();
     }
 
     /**
@@ -707,7 +704,7 @@ contract ComplexBank is Pausable, BankI {
      */
     function getReservePercent() public view returns (uint256) {
         uint256 reserve = 0;
-        uint256 curBalance = this.balance + withdrawWallet.balance;
+        uint256 curBalance = this.balance;
         if ((curBalance != 0) && (cryptoFiatRateSell != 0)) {
             uint256 reserveBalance = curBalance;
             for (uint i = buyOrderIndex; i < buyNextOrder; i++) {
@@ -796,16 +793,6 @@ contract ComplexBank is Pausable, BankI {
     }
     // 04-spread calc end
 
-    // 05-monitoring start
-
-    // 05-monitoring end
-    
-    // 08-helper methods start
-    
-    // 08-helper methods end
-
-
-
     // system methods start
 
     /**
@@ -815,14 +802,6 @@ contract ComplexBank is Pausable, BankI {
         return libreToken.totalSupply();
     }
 
-    // TODO: удалить после тестов, нужен чтобы возвращать эфир с контракта
-    /**
-     * @dev Withdraws all the balance to owner.
-     */
-    function withdrawBalance() public onlyOwner {
-        owner.transfer(this.balance);
-    }
-
      /**
      * @dev Sets balance cap limit balance above cap.
      * @param capInWei - balance cap sum in Wei (1 ether = 10^18 wei)
@@ -830,43 +809,9 @@ contract ComplexBank is Pausable, BankI {
     function setBalanceCap(uint256 capInWei) public onlyOwner {
         require(capInWei > 0);
         balanceEtherCap = capInWei;
-        withdraw();
     }
 
-    /**
-     * @dev Withdraws balance above cap.
-     */
-    function withdraw() internal {
-        if ((!autoWithdraw) || (this.balance <= balanceEtherCap))
-            return;
-        withdrawWallet.transfer(this.balance - balanceEtherCap);
-    }
-
-    /**
-     * @dev Sets wallet to withdraw balance above cap cap
-     * @param withdrawTo - wallet to withdraw ether
-     */
-    function setWithdrawWallet(address withdrawTo) public onlyOwner {
-        require(withdrawTo != 0x0);
-        withdrawWallet = withdrawTo; 
-    }
-
-     /**
-     * @dev Used to refill contract balance (eg. from escrow multisig wallet.)
-     */
-    function refillBalance() public payable {
-        BalanceRefill(msg.sender, msg.value);
-        withdraw();
-    }
     // system methods end
-    
-    /**
-     * @dev Used to set auto-widthdraw status of contract balance to multisig
-     * @param _autoWithdraw Bool flag of auto-withdraw status.
-     */
-    function setAutoWithdraw(bool _autoWithdraw) public onlyOwner {
-        autoWithdraw = _autoWithdraw;
-    }
 
     /**
      * @dev set new owner.
@@ -874,5 +819,13 @@ contract ComplexBank is Pausable, BankI {
      */
     function transferTokenOwner(address newOwner) public onlyOwner {
         libreToken.transferOwnership(newOwner);
+    }
+
+    // TODO: удалить после тестов, нужен чтобы возвращать эфир с контракта
+    /**
+     * @dev Withdraws all the balance to owner.
+     */
+    function withdrawBalance() public onlyOwner {
+        owner.transfer(this.balance);
     }
 }
