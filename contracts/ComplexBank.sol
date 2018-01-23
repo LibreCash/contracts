@@ -26,14 +26,8 @@ contract ComplexBank is Pausable, BankI {
     
     uint256 constant MIN_READY_ORACLES = 2; //2;
     uint256 constant MIN_ORACLES_ENABLED = 2;//2;
-    uint256 constant MAX_RELEVANCE_PERIOD = 48 hours;
-    uint256 constant MIN_QUEUE_PERIOD = 10 minutes;
     uint256 constant REVERSE_PERCENT = 100;
     uint256 constant RATE_MULTIPLIER = 1000; // doubling in oracleBase __callback as parseIntRound(..., 3) as 3
-    uint256 constant MAX_MINIMUM_BUY = 100 ether;
-    uint256 constant MIN_MAXIMUM_BUY = 100 ether;
-    uint256 constant MAX_MINIMUM_TOKENS_SELL = 400 * 100 * 10**18; // 100 ether * 400 usd/eth
-    uint256 constant MIN_MAXIMUM_TOKENS_SELL = 400 * 100 * 10**18; // 100 ether * 400 usd/eth
 
     uint256 public relevancePeriod = 23 hours;
     uint256 public queuePeriod = 60 minutes;
@@ -162,7 +156,6 @@ contract ComplexBank is Pausable, BankI {
      * @param _minBuyLimit - min buy sum in Wei.
      */
     function setMinBuyLimit(uint _minBuyLimit) public onlyOwner {
-        require((_minBuyLimit <= MAX_MINIMUM_BUY) && (_minBuyLimit > 0));
         buyLimit.min = _minBuyLimit;
     }
 
@@ -171,7 +164,6 @@ contract ComplexBank is Pausable, BankI {
      * @param _maxBuyLimit - max buy sum in Wei.
      */
     function setMaxBuyLimit(uint _maxBuyLimit) public onlyOwner {
-        require(_maxBuyLimit >= MIN_MAXIMUM_BUY);
         buyLimit.max = _maxBuyLimit;
     }
 
@@ -180,7 +172,6 @@ contract ComplexBank is Pausable, BankI {
      * @param _minSellLimit - min sell tokens.
      */
     function setMinSellLimit(uint _minSellLimit) public onlyOwner {
-        require((_minSellLimit <= MAX_MINIMUM_TOKENS_SELL) && (_minSellLimit > 0));
         sellLimit.min = _minSellLimit;
     }
     
@@ -189,7 +180,6 @@ contract ComplexBank is Pausable, BankI {
      * @param _maxSellLimit - max sell tokens.
      */
     function setMaxSellLimit(uint _maxSellLimit) public onlyOwner {
-        require(_maxSellLimit >= MIN_MAXIMUM_TOKENS_SELL);
         sellLimit.max = _maxSellLimit;
     }
 
@@ -561,7 +551,6 @@ contract ComplexBank is Pausable, BankI {
      * @param _period Period up to MAX_RELEVANCE_PERIOD hours.
      */
     function setRelevancePeriod(uint256 _period) public onlyOwner {
-        require(_period <= MAX_RELEVANCE_PERIOD);
         relevancePeriod = _period;
     }
 
@@ -570,7 +559,6 @@ contract ComplexBank is Pausable, BankI {
      * @param _period Period from MIN_QUEUE_PERIOD.
      */
     function setQueuePeriod(uint256 _period) public onlyOwner {
-        require(_period >= MIN_QUEUE_PERIOD);
         queuePeriod = _period;
     }
 
