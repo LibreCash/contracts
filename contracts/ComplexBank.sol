@@ -31,7 +31,6 @@ contract ComplexBank is Pausable, BankI {
 
     uint256 public relevancePeriod = 23 hours;
     uint256 public queuePeriod = 60 minutes;
-    uint256 public balanceEtherCap = 10 ether; // Contract balance ether cap.
     // после тестов убрать public
     uint256 public timeUpdateRequest = 0; // the time of requestUpdateRates()
 
@@ -816,15 +815,6 @@ contract ComplexBank is Pausable, BankI {
      */
     function totalTokenCount() public view returns (uint256) {
         return libreToken.totalSupply();
-    }
-
-     /**
-     * @dev Sets balance cap limit balance above cap.
-     * @param capInWei - balance cap sum in Wei (1 ether = 10^18 wei)
-     */
-    function setBalanceCap(uint256 capInWei) public onlyOwner {
-        require(capInWei > 0);
-        balanceEtherCap = capInWei;
     }
 
     // system methods end
