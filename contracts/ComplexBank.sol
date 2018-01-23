@@ -7,7 +7,6 @@ import "./interfaces/I_Oracle.sol";
 import "./interfaces/I_Bank.sol";
 import "./token/LibreCash.sol";
 
-
 contract ComplexBank is Pausable, BankI {
     using SafeMath for uint256;
     address public tokenAddress;
@@ -138,6 +137,7 @@ contract ComplexBank is Pausable, BankI {
      * @param _address Beneficiar.
      * @param _rateLimit Max affordable buying rate, 0 to allow all.
      */
+<<<<<<< Updated upstream
     function createBuyOrder(address _address, uint256 _rateLimit) 
         public 
         payable 
@@ -146,6 +146,10 @@ contract ComplexBank is Pausable, BankI {
     {
         require((msg.value >= buyLimit.min) && (msg.value <= buyLimit.max));
         require(_address != 0x0);
+=======
+    function createBuyOrder(address _recipient, uint256 _rateLimit) public payable whenNotPaused orderCreationAllowed {
+        require((_recipient != 0x0) && (msg.value >= buyLimit.min) && (msg.value <= buyLimit.max));
+>>>>>>> Stashed changes
         if (buyNextOrder == buyOrders.length) {
             buyOrders.length++;
         }
@@ -815,8 +819,11 @@ contract ComplexBank is Pausable, BankI {
         return libreToken.totalSupply();
     }
 
+<<<<<<< Updated upstream
     // system methods end
 
+=======
+>>>>>>> Stashed changes
     /**
      * @dev set new owner.
      * @param newOwner The new owner for libreToken.
