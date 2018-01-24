@@ -7,41 +7,29 @@ import "./interfaces/I_Oracle.sol";
 import "./interfaces/I_Bank.sol";
 import "./token/LibreCash.sol";
 
-
 contract ComplexBank is Pausable, BankI {
     using SafeMath for uint256;
     address public tokenAddress;
     LibreCash libreToken;
     
     // TODO; Check that all evetns used and delete unused
-    event BuyOrderCreated(uint256 etherAmount);
-    event SellOrderCreated(uint256 tokensAmount);
-    event LogBuy(address sender, address recipient, uint256 tokenAmount, uint256 buyPrice);
-    event LogSell(address sender, address recipient, uint256 cryptoAmount, uint256 sellPrice);
+    event LogBuy(address senderAddress, address clientAddress, uint256 tokenAmount, uint256 buyPrice);
+    event LogSell(address senderAddress, address clientAddress, uint256 cryptoAmount, uint256 sellPrice);
     event OrderQueueGeneral(string description);
     event BuyOrderCancelled(uint256 orderId, address sender, uint256 cryptoAmount, uint256 parameter);
     event SellOrderCancelled(uint256 orderId, address sender, uint256 tokenAmount, uint256 parameter);
     event SendEtherError(string error, address _addr);
     event BalanceRefill(address from, uint256 amount);
     
-    uint256 constant MIN_READY_ORACLES = 2; //2;
-    uint256 constant MIN_ORACLES_ENABLED = 2;//2;
-    uint256 constant MAX_RELEVANCE_PERIOD = 48 hours;
-    uint256 constant MIN_QUEUE_PERIOD = 10 minutes;
+    uint256 constant MIN_READY_ORACLES = 2;
+    uint256 constant MIN_ORACLES_ENABLED = 2;
     uint256 constant REVERSE_PERCENT = 100;
     uint256 constant RATE_MULTIPLIER = 1000; // doubling in oracleBase __callback as parseIntRound(..., 3) as 3
-    uint256 constant MAX_MINIMUM_BUY = 100 ether;
-    uint256 constant MIN_MAXIMUM_BUY = 100 ether;
-    uint256 constant MAX_MINIMUM_TOKENS_SELL = 400 * 100 * 10**18; // 100 ether * 400 usd/eth
-    uint256 constant MIN_MAXIMUM_TOKENS_SELL = 400 * 100 * 10**18; // 100 ether * 400 usd/eth
 
     uint256 public relevancePeriod = 23 hours;
     uint256 public queuePeriod = 60 minutes;
-    uint256 public balanceEtherCap = 10 ether; // Contract balance ether cap.
-    // после тестов убрать public
+    // после тестов убрать public ?? почему, это используется в будильнике
     uint256 public timeUpdateRequest = 0; // the time of requestUpdateRates()
-    address public withdrawWallet; // Multisig withdraw wallet address
-    bool public autoWithdraw = true;
 
     enum ProcessState {
         REQUEST_UPDATE_RATES,
@@ -53,7 +41,8 @@ contract ComplexBank is Pausable, BankI {
     ProcessState public contractState;
 
     modifier canStartEmission() {
-        require((now >= timeUpdateRequest + relevancePeriod) || (contractState == ProcessState.REQUEST_UPDATE_RATES));
+        require((now >= timeUpdateRequest + relevancePeriod) || 
+                (contractState == ProcessState.REQUEST_UPDATE_RATES));
         _;
         contractState = ProcessState.CALC_RATE;
         timeUpdateRequest = now;
@@ -62,7 +51,7 @@ contract ComplexBank is Pausable, BankI {
     modifier calcRatesAllowed() {
         require(contractState == ProcessState.CALC_RATE);
 
-        processWaitingOracles(); // выкинет если есть оракулы, ждущие менее 10 минут
+        processWaitingOracles(); // revert transaction if has oracles waiting less then 10 min.
         if (numReadyOracles() < MIN_READY_ORACLES) {
             contractState = ProcessState.REQUEST_UPDATE_RATES;
             OracleError("Not enough ready oracles. Please, request update rates again");
@@ -70,22 +59,22 @@ contract ComplexBank is Pausable, BankI {
         }
         
         _;
-        
-        if (sellNextOrder == 0 && buyNextOrder == 0)
-            contractState = ProcessState.ORDER_CREATION;
-        else
-            contractState = ProcessState.PROCESS_ORDERS;
+        bool ordersProcessed = (sellNextOrder == 0) && (buyNextOrder == 0);
+        contractState = ordersProcessed ? ProcessState.ORDER_CREATION : ProcessState.PROCESS_ORDERS;
     }
 
     modifier queueProcessingAllowed() {
-        require((contractState == ProcessState.PROCESS_ORDERS) && (now <= timeUpdateRequest + queuePeriod));
+        require((contractState == ProcessState.PROCESS_ORDERS) && 
+                (now <= timeUpdateRequest + queuePeriod));
         _;
-        if ((sellNextOrder == 0) && (buyNextOrder == 0))
+        bool ordersProcessed = (sellNextOrder == 0) && (buyNextOrder == 0);
+        if (ordersProcessed)
             contractState = ProcessState.ORDER_CREATION;
     }
 
     modifier orderCreationAllowed() {
-        require((contractState == ProcessState.ORDER_CREATION) || (now > timeUpdateRequest + queuePeriod));
+        require((contractState == ProcessState.ORDER_CREATION) || 
+                (now > timeUpdateRequest + queuePeriod));
         _;
         contractState = ProcessState.ORDER_CREATION;
     }
@@ -95,101 +84,81 @@ contract ComplexBank is Pausable, BankI {
         uint256 max;
     }
 
-    // Limits start
     Limit public buyLimit = Limit(1 wei, 99999 * 1 ether);
     Limit public sellLimit = Limit(1 wei, 99999 * 1 ether);
-    // Limits end
 
     // 01-emission start
 
     /**
      * @dev Creates buy order.
-     * @param _address Beneficiar.
+     * @param _recipient Recipient.
      * @param _rateLimit Max affordable buying rate, 0 to allow all.
      */
-    function createBuyOrder(address _address, uint256 _rateLimit) public payable whenNotPaused orderCreationAllowed {
-        require((msg.value >= buyLimit.min) && (msg.value <= buyLimit.max));
-        require(_address != 0x0);
+    function createBuyOrder(address _recipient, uint256 _rateLimit) public payable whenNotPaused orderCreationAllowed {
+        require((_recipient != 0x0) && (msg.value >= buyLimit.min) && (msg.value <= buyLimit.max));
+
         if (buyNextOrder == buyOrders.length) {
             buyOrders.length++;
         }
         buyOrders[buyNextOrder++] = OrderData({
             senderAddress: msg.sender,
-            recipientAddress: _address,
+            recipientAddress: _recipient,
             orderAmount: msg.value,
             orderTimestamp: now,
             rateLimit: _rateLimit
         });
-        BuyOrderCreated(msg.value);
-        withdraw();
     }
 
     /**
      * @dev Creates sell order.
-     * @param _address Beneficiar.
+     * @param _recipient Recipient.
      * @param _tokensCount Amount of tokens to sell.
      * @param _rateLimit Min affordable selling rate, 0 to allow all.
      */
-    function createSellOrder(address _address, uint256 _tokensCount, uint256 _rateLimit) public whenNotPaused orderCreationAllowed {
-        require((_tokensCount >= sellLimit.min) && (_tokensCount <= sellLimit.max));
-        require(_address != 0x0);
+    function createSellOrder(address _recipient, uint256 _tokensCount, uint256 _rateLimit) public whenNotPaused orderCreationAllowed {
+        require((_recipient != 0x0) && (_tokensCount >= sellLimit.min) && (_tokensCount <= sellLimit.max));
         address tokenOwner = msg.sender;
         require(_tokensCount <= libreToken.allowance(tokenOwner,this));
         libreToken.transferFrom(tokenOwner, this, _tokensCount);
         libreToken.burn(_tokensCount);
+
         if (sellNextOrder == sellOrders.length) {
             sellOrders.length++;
         }
         sellOrders[sellNextOrder++] = OrderData({
             senderAddress: tokenOwner,
-            recipientAddress: _address,
+            recipientAddress: _recipient,
             orderAmount: _tokensCount,
             orderTimestamp: now,
             rateLimit: _rateLimit
         });
-        SellOrderCreated(_tokensCount); 
     }
 
     /**
      * @dev Fallback function.
      */
-    function () external whenNotPaused orderCreationAllowed payable {
-        createBuyOrder(msg.sender, 0); // 0 - без ценовых ограничений
-    }
-
-    /**
-     * @dev Sets min buy sum (in Wei).
-     * @param _minBuyLimit - min buy sum in Wei.
-     */
-    function setMinBuyLimit(uint _minBuyLimit) public onlyOwner {
-        require((_minBuyLimit <= MAX_MINIMUM_BUY) && (_minBuyLimit > 0));
-        buyLimit.min = _minBuyLimit;
+    function() external whenNotPaused orderCreationAllowed payable {
+        createBuyOrder(msg.sender, 0); // 0 - without price limits
     }
 
     /**
      * @dev Sets max buy sum (in Wei).
+     * @param _minBuyLimit - min buy sum in Wei.
      * @param _maxBuyLimit - max buy sum in Wei.
      */
-    function setMaxBuyLimit(uint _maxBuyLimit) public onlyOwner {
-        require(_maxBuyLimit >= MIN_MAXIMUM_BUY);
+    function setBuyLimits(uint _minBuyLimit, uint _maxBuyLimit) public onlyOwner {
+        buyLimit.min = _minBuyLimit;
         buyLimit.max = _maxBuyLimit;
     }
 
-    /**
-     * @dev Sets min sell tokens amount.
-     * @param _minSellLimit - min sell tokens.
-     */
-    function setMinSellLimit(uint _minSellLimit) public onlyOwner {
-        require((_minSellLimit <= MAX_MINIMUM_TOKENS_SELL) && (_minSellLimit > 0));
-        sellLimit.min = _minSellLimit;
-    }
     
     /**
      * @dev Sets max sell tokens amount.
      * @param _maxSellLimit - max sell tokens.
+     * @param _minSellLimit - min sell tokens.
      */
-    function setMaxSellLimit(uint _maxSellLimit) public onlyOwner {
-        require(_maxSellLimit >= MIN_MAXIMUM_TOKENS_SELL);
+    function setSellLimits(uint _minSellLimit, uint _maxSellLimit) public onlyOwner {
+        sellLimit.min = _minSellLimit;
         sellLimit.max = _maxSellLimit;
     }
 
@@ -204,15 +173,15 @@ contract ComplexBank is Pausable, BankI {
         uint256 rateLimit;
     }
 
-    OrderData[] private buyOrders; // очередь ордеров на покупку
-    OrderData[] private sellOrders; // очередь ордеров на продажу
-    uint256 buyOrderIndex = 0; // Хранит первый номер ордера
+    OrderData[] private buyOrders; // buy orders queue
+    OrderData[] private sellOrders; // sell orders queue
+    uint256 buyOrderIndex = 0; // store number of first order
     uint256 sellOrderIndex = 0;
 
-    uint256 private buyNextOrder = 0; // Хранит следующий за последним номер ордера
+    uint256 private buyNextOrder = 0; // store number order after last
     uint256 private sellNextOrder = 0;
 
-    mapping (address => uint256) balanceEther; // возврат средств
+    mapping (address => uint256) balanceEther; // internal
     uint256 overallRefundValue = 0;
 
     /**
@@ -220,22 +189,22 @@ contract ComplexBank is Pausable, BankI {
      */
     function getEther() public {
         require(balanceEther[msg.sender] > 0);
-        // TODO: учесть средства на контракте кошелька и как-то их получить при необходимости или запросить
         uint256 sendBalance = balanceEther[msg.sender];
         if (this.balance < sendBalance) {
             sendBalance = this.balance;
             SendEtherError("The contract doesn't have enough funds, the payment will be fulfilled partly", msg.sender);
         }
 
-        if (msg.sender.send(sendBalance)) {
-            overallRefundValue = overallRefundValue.sub(sendBalance);
-            balanceEther[msg.sender] -= sendBalance;
-        }
-        else
+        overallRefundValue = overallRefundValue.sub(sendBalance);
+        balanceEther[msg.sender] -= sendBalance;
+        if ( !msg.sender.send(sendBalance)) {
+            overallRefundValue = overallRefundValue.add(sendBalance);
+            balanceEther[msg.sender] += sendBalance;
             SendEtherError("Error sending money", msg.sender);
+        }
     }
 
-    /**
+     /**
      * @dev Gets the possible refund amount.
      */
     function getBalanceEther() public view returns (uint256) {
@@ -370,7 +339,6 @@ contract ComplexBank is Pausable, BankI {
         if (lastOrder == sellNextOrder) {
             sellOrderIndex = 0;
             sellNextOrder = 0;
-            OrderQueueGeneral("Order queue for sell cleared");
         } else {
             sellOrderIndex = lastOrder;
             OrderQueueGeneral("The order queue for sell is not cleared up to the end");
@@ -497,8 +465,7 @@ contract ComplexBank is Pausable, BankI {
     event OracleEnabled(address indexed _address, bytes32 name);
     event OracleDisabled(address indexed _address, bytes32 name);
     event OracleDeleted(address indexed _address, bytes32 name);
-    event OracleTouched(address indexed _address, bytes32 name);
-    event OracleNotTouched(address indexed _address, bytes32 name);
+    event OracleRequest(address indexed _address, bytes32 name);
     event OracleError(string description);
 
     struct OracleData {
@@ -514,7 +481,6 @@ contract ComplexBank is Pausable, BankI {
 
     uint256 public cryptoFiatRateBuy = 1000;
     uint256 public cryptoFiatRateSell = 1000;
-    uint256 public cryptoFiatRate;
     uint256 public buyFee = 0;
     uint256 public sellFee = 0;
     uint256 constant MAX_FEE = 7000; // 70%
@@ -525,8 +491,12 @@ contract ComplexBank is Pausable, BankI {
      * @dev Gets oracle data.
      * @param _address Oracle address.
      */
-    function getOracleData(address _address) public view returns (bytes32, bytes32, uint256, bool, bool, uint256, address) {
-                                                                /* name, type, upd_time, enabled, waiting, rate, next */
+    function getOracleData(address _address) 
+        public 
+        view 
+        returns (bytes32, bytes32, uint256, bool, bool, uint256, address)
+                /* name, type, upd_time, enabled, waiting, rate, next */
+    {
         OracleI currentOracle = OracleI(_address);
         OracleData memory oracle = oracles[_address];
 
@@ -561,7 +531,6 @@ contract ComplexBank is Pausable, BankI {
      * @param _period Period up to MAX_RELEVANCE_PERIOD hours.
      */
     function setRelevancePeriod(uint256 _period) public onlyOwner {
-        require(_period <= MAX_RELEVANCE_PERIOD);
         relevancePeriod = _period;
     }
 
@@ -570,7 +539,6 @@ contract ComplexBank is Pausable, BankI {
      * @param _period Period from MIN_QUEUE_PERIOD.
      */
     function setQueuePeriod(uint256 _period) public onlyOwner {
-        require(_period >= MIN_QUEUE_PERIOD);
         queuePeriod = _period;
     }
 
@@ -719,7 +687,7 @@ contract ComplexBank is Pausable, BankI {
      */
     function getReservePercent() public view returns (uint256) {
         uint256 reserve = 0;
-        uint256 curBalance = this.balance + withdrawWallet.balance;
+        uint256 curBalance = this.balance;
         if ((curBalance != 0) && (cryptoFiatRateSell != 0)) {
             uint256 reserveBalance = curBalance;
             for (uint i = buyOrderIndex; i < buyNextOrder; i++) {
@@ -751,11 +719,7 @@ contract ComplexBank is Pausable, BankI {
                 }
                 if (!oracle.waitQuery()) {
                     if (oracle.updateRate())
-                        OracleTouched(cur, oracles[cur].name);
-                    else {
-                        OracleNotTouched(cur, oracles[cur].name);
-                        continue;
-                    }
+                        OracleRequest(cur, oracles[cur].name);
                 }
             }
         } // foreach oracles
@@ -801,22 +765,10 @@ contract ComplexBank is Pausable, BankI {
                 maximalRate = Math.max256(_rate, maximalRate);
             }
         } // foreach oracles
-
-        cryptoFiatRate = minimalRate.add(maximalRate) / 2;
         cryptoFiatRateBuy = minimalRate.mul(REVERSE_PERCENT * RATE_MULTIPLIER - buyFee * RATE_MULTIPLIER / REVERSE_PERCENT) / REVERSE_PERCENT / RATE_MULTIPLIER;
         cryptoFiatRateSell = maximalRate.mul(REVERSE_PERCENT * RATE_MULTIPLIER + sellFee * RATE_MULTIPLIER / REVERSE_PERCENT) / REVERSE_PERCENT / RATE_MULTIPLIER;
     }
     // 04-spread calc end
-
-    // 05-monitoring start
-
-    // 05-monitoring end
-    
-    // 08-helper methods start
-    
-    // 08-helper methods end
-
-
 
     // system methods start
 
@@ -827,64 +779,19 @@ contract ComplexBank is Pausable, BankI {
         return libreToken.totalSupply();
     }
 
-    // TODO: удалить после тестов, нужен чтобы возвращать эфир с контракта
-    /**
-     * @dev Withdraws all the balance to owner.
-     */
-    function withdrawBalance() public onlyOwner {
-        owner.transfer(this.balance);
-    }
-
-     /**
-     * @dev Sets balance cap limit balance above cap.
-     * @param capInWei - balance cap sum in Wei (1 ether = 10^18 wei)
-     */
-    function setBalanceCap(uint256 capInWei) public onlyOwner {
-        require(capInWei > 0);
-        balanceEtherCap = capInWei;
-        withdraw();
-    }
-
-    /**
-     * @dev Withdraws balance above cap.
-     */
-    function withdraw() internal {
-        if ((!autoWithdraw) || (this.balance <= balanceEtherCap))
-            return;
-        withdrawWallet.transfer(this.balance - balanceEtherCap);
-    }
-
-    /**
-     * @dev Sets wallet to withdraw balance above cap cap
-     * @param withdrawTo - wallet to withdraw ether
-     */
-    function setWithdrawWallet(address withdrawTo) public onlyOwner {
-        require(withdrawTo != 0x0);
-        withdrawWallet = withdrawTo; 
-    }
-
-     /**
-     * @dev Used to refill contract balance (eg. from escrow multisig wallet.)
-     */
-    function refillBalance() public payable {
-        BalanceRefill(msg.sender, msg.value);
-        withdraw();
-    }
-    // system methods end
-    
-    /**
-     * @dev Used to set auto-widthdraw status of contract balance to multisig
-     * @param _autoWithdraw Bool flag of auto-withdraw status.
-     */
-    function setAutoWithdraw(bool _autoWithdraw) public onlyOwner {
-        autoWithdraw = _autoWithdraw;
-    }
-
     /**
      * @dev set new owner.
      * @param newOwner The new owner for libreToken.
      */
     function transferTokenOwner(address newOwner) public onlyOwner {
         libreToken.transferOwnership(newOwner);
+    }
+
+    // TODO: удалить после тестов, нужен чтобы возвращать эфир с контракта
+    /**
+     * @dev Withdraws all the balance to owner.
+     */
+    function withdrawBalance() public onlyOwner {
+        owner.transfer(this.balance);
     }
 }
