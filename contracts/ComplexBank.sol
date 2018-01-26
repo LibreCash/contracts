@@ -101,10 +101,10 @@ contract ComplexBank is Pausable, BankI {
             buyOrders.length++;
         }
         buyOrders[buyNextOrder++] = OrderData({
-            senderAddress: msg.sender,
-            recipientAddress: _recipient,
-            orderAmount: msg.value,
-            orderTimestamp: now,
+            sender: msg.sender,
+            recipient: _recipient,
+            amount: msg.value,
+            timestamp: now,
             rateLimit: _rateLimit
         });
     }
@@ -126,10 +126,10 @@ contract ComplexBank is Pausable, BankI {
             sellOrders.length++;
         }
         sellOrders[sellNextOrder++] = OrderData({
-            senderAddress: tokenOwner,
-            recipientAddress: _recipient,
-            orderAmount: _tokensCount,
-            orderTimestamp: now,
+            sender: tokenOwner,
+            recipient: _recipient,
+            amount: _tokensCount,
+            timestamp: now,
             rateLimit: _rateLimit
         });
     }
@@ -166,10 +166,10 @@ contract ComplexBank is Pausable, BankI {
 
     // 02-queue start
     struct OrderData {
-        address senderAddress;
-        address recipientAddress;
-        uint256 orderAmount;
-        uint256 orderTimestamp;
+        address sender;
+        address recipient;
+        uint256 amount;
+        uint256 timestamp;
         uint256 rateLimit;
     }
 
@@ -226,16 +226,16 @@ contract ComplexBank is Pausable, BankI {
      * @param _parameter More information on cancellation (for example, order limit).
      */
     function cancelBuyOrder(uint256 _orderID, uint256 _parameter) private returns (bool) {
-        if (buyOrders[_orderID].recipientAddress == 0x0)
+        if (buyOrders[_orderID].recipient == 0x0)
             return false;
 
-        address sender = buyOrders[_orderID].senderAddress;
-        uint256 orderAmount = buyOrders[_orderID].orderAmount;
+        address sender = buyOrders[_orderID].sender;
+        uint256 amount = buyOrders[_orderID].amount;
 
-        balanceEther[sender] = balanceEther[sender].add(orderAmount);
-        buyOrders[_orderID].recipientAddress = 0x0; // Mark order as completed or cancelled
-        BuyOrderCancelled(_orderID, sender, orderAmount, _parameter);
-        overallRefundValue = overallRefundValue.add(orderAmount);
+        balanceEther[sender] = balanceEther[sender].add(amount);
+        buyOrders[_orderID].recipient = 0x0; // Mark order as completed or cancelled
+        BuyOrderCancelled(_orderID, sender, amount, _parameter);
+        overallRefundValue = overallRefundValue.add(amount);
 
         return true;
     }
@@ -246,13 +246,13 @@ contract ComplexBank is Pausable, BankI {
      * @param _parameter More information on cancellation (for example, order limit).
      */
     function cancelSellOrder(uint256 _orderID, uint256 _parameter) private returns(bool) {
-        if (sellOrders[_orderID].recipientAddress == 0x0)
+        if (sellOrders[_orderID].recipient == 0x0)
             return false;
 
-        address sender = sellOrders[_orderID].senderAddress;
-        uint256 tokensAmount = sellOrders[_orderID].orderAmount;
+        address sender = sellOrders[_orderID].sender;
+        uint256 tokensAmount = sellOrders[_orderID].amount;
         
-        sellOrders[_orderID].recipientAddress = 0x0; // Mark order as completed or cancelled
+        sellOrders[_orderID].recipient = 0x0; // Mark order as completed or cancelled
         SellOrderCancelled(_orderID, sender, tokensAmount, _parameter);
         libreToken.mint(sender, tokensAmount);
         return true;
@@ -263,21 +263,21 @@ contract ComplexBank is Pausable, BankI {
      * @param _orderID The order ID.
      */
     function processBuyOrder(uint256 _orderID) internal {
-        if (buyOrders[_orderID].recipientAddress == 0x0)
+        if (buyOrders[_orderID].recipient == 0x0)
             return;
 
-        uint256 cryptoAmount = buyOrders[_orderID].orderAmount;
+        uint256 cryptoAmount = buyOrders[_orderID].amount;
         uint256 tokensAmount = cryptoAmount.mul(cryptoFiatRateBuy) / RATE_MULTIPLIER;
-        address senderAddress = buyOrders[_orderID].senderAddress;
-        address recipientAddress = buyOrders[_orderID].recipientAddress;
+        address sender = buyOrders[_orderID].sender;
+        address recipient = buyOrders[_orderID].recipient;
         uint256 maxRate = buyOrders[_orderID].rateLimit;
 
         if ((maxRate != 0) && (cryptoFiatRateBuy > maxRate)) {
             cancelBuyOrder(_orderID, maxRate);
         } else {
-            buyOrders[_orderID].recipientAddress = 0x0; // Mark order as completed or cancelled
-            libreToken.mint(recipientAddress, tokensAmount);
-            BuyOrder(senderAddress, recipientAddress, tokensAmount, cryptoFiatRateBuy);
+            buyOrders[_orderID].recipient = 0x0; // Mark order as completed or cancelled
+            libreToken.mint(recipient, tokensAmount);
+            BuyOrder(sender, recipient, tokensAmount, cryptoFiatRateBuy);
         }
     }
 
@@ -307,21 +307,21 @@ contract ComplexBank is Pausable, BankI {
      * @param _orderID The order ID.
      */
     function processSellOrder(uint256 _orderID) internal {
-        if (sellOrders[_orderID].recipientAddress == 0x0)
+        if (sellOrders[_orderID].recipient == 0x0)
             return;
         
-        address recipientAddress = sellOrders[_orderID].recipientAddress;
-        address senderAddress = sellOrders[_orderID].senderAddress;
-        uint256 tokensAmount = sellOrders[_orderID].orderAmount;
+        address recipient = sellOrders[_orderID].recipient;
+        address sender = sellOrders[_orderID].sender;
+        uint256 tokensAmount = sellOrders[_orderID].amount;
         uint256 cryptoAmount = tokensAmount.mul(RATE_MULTIPLIER) / cryptoFiatRateSell;
         uint256 minRate = sellOrders[_orderID].rateLimit;
 
         if ((minRate != 0) && (cryptoFiatRateSell < minRate)) {
             cancelSellOrder(_orderID, minRate);
         } else {
-            balanceEther[recipientAddress] = balanceEther[recipientAddress].add(cryptoAmount);
+            balanceEther[recipient] = balanceEther[recipient].add(cryptoAmount);
             overallRefundValue = overallRefundValue.add(cryptoAmount);
-            SellOrder(senderAddress, recipientAddress, cryptoAmount, cryptoFiatRateSell);
+            SellOrder(sender, recipient, cryptoAmount, cryptoFiatRateSell);
         }      
     }
 
@@ -372,11 +372,15 @@ contract ComplexBank is Pausable, BankI {
      * @param _orderID The order ID.
      */
     function getBuyOrder(uint256 _orderID) public view returns (address, address, uint256, uint256, uint256) {
-        require(msg.sender == owner || msg.sender == buyOrders[_orderID].senderAddress);
+        require(msg.sender == owner || msg.sender == buyOrders[_orderID].sender);
         require((buyNextOrder > 0) && (buyNextOrder >= _orderID) && (buyOrderIndex <= _orderID));
-        return (buyOrders[_orderID].senderAddress, buyOrders[_orderID].recipientAddress,
-                buyOrders[_orderID].orderAmount, buyOrders[_orderID].orderTimestamp,
-                buyOrders[_orderID].rateLimit);
+        return (
+            buyOrders[_orderID].sender, 
+            buyOrders[_orderID].recipient,
+            buyOrders[_orderID].amount, 
+            buyOrders[_orderID].timestamp,
+            buyOrders[_orderID].rateLimit
+        );
     }
 
     /**
@@ -384,10 +388,10 @@ contract ComplexBank is Pausable, BankI {
      * @param _orderID The order ID.
      */
     function getSellOrder(uint256 _orderID) public view returns (address, address, uint256, uint256, uint256) {
-        require(msg.sender == owner || msg.sender == sellOrders[_orderID].senderAddress);
+        require(msg.sender == owner || msg.sender == sellOrders[_orderID].sender);
         require((sellNextOrder > 0) && (sellNextOrder >= _orderID) && (sellOrderIndex <= _orderID));
-        return (sellOrders[_orderID].senderAddress, sellOrders[_orderID].recipientAddress,
-                sellOrders[_orderID].orderAmount, sellOrders[_orderID].orderTimestamp,
+        return (sellOrders[_orderID].sender, sellOrders[_orderID].recipient,
+                sellOrders[_orderID].amount, sellOrders[_orderID].timestamp,
                 sellOrders[_orderID].rateLimit);
     }
 
@@ -397,27 +401,27 @@ contract ComplexBank is Pausable, BankI {
     function getMyOrders() public view returns(uint[], uint[]) {
         uint count = 0;
         for (uint256 i = buyOrderIndex; i < buyNextOrder; i++) {
-            if (buyOrders[i].recipientAddress != 0x0 && buyOrders[i].senderAddress == msg.sender)
+            if (buyOrders[i].recipient != 0x0 && buyOrders[i].sender == msg.sender)
                 count++;
         }
 
         uint[] memory myBuy = new uint[](count);
         count = 0;
         for (i = buyOrderIndex; i < buyNextOrder; i++) {
-            if (buyOrders[i].recipientAddress != 0x0 && buyOrders[i].senderAddress == msg.sender)
+            if (buyOrders[i].recipient != 0x0 && buyOrders[i].sender == msg.sender)
                 myBuy[count++] = i;
         }
 
         count = 0;
         for (i = sellOrderIndex; i < sellNextOrder; i++) {
-            if (sellOrders[i].recipientAddress != 0x0 && sellOrders[i].senderAddress == msg.sender) 
+            if (sellOrders[i].recipient != 0x0 && sellOrders[i].sender == msg.sender) 
                 count++;
         }
 
         uint[] memory mySell = new uint[](count);
         count = 0;
         for (i = sellOrderIndex; i < sellNextOrder; i++) {
-            if (sellOrders[i].recipientAddress != 0x0 && sellOrders[i].senderAddress == msg.sender) 
+            if (sellOrders[i].recipient != 0x0 && sellOrders[i].sender == msg.sender) 
                 mySell[count++] = i;
         }
         return (myBuy, mySell);
@@ -429,7 +433,7 @@ contract ComplexBank is Pausable, BankI {
     function getSellOrdersCount() public view returns(uint256) {
         uint256 count = 0;
         for (uint256 i = sellOrderIndex; i < sellNextOrder; i++) {
-            if (sellOrders[i].recipientAddress != 0x0) 
+            if (sellOrders[i].recipient != 0x0) 
                 count++;
         }
         return count;
@@ -441,7 +445,7 @@ contract ComplexBank is Pausable, BankI {
     function getBuyOrdersCount() public view returns(uint256) {
         uint256 count = 0;
         for (uint256 i = buyOrderIndex; i < buyNextOrder; i++) {
-            if (buyOrders[i].recipientAddress != 0x0) 
+            if (buyOrders[i].recipient != 0x0) 
                 count++;
         }
         return count;
@@ -701,8 +705,8 @@ contract ComplexBank is Pausable, BankI {
         if ((curBalance != 0) && (cryptoFiatRateSell != 0)) {
             uint256 reserveBalance = curBalance;
             for (uint i = buyOrderIndex; i < buyNextOrder; i++) {
-                if (buyOrders[i].recipientAddress != 0x0) {
-                    reserveBalance = reserveBalance.sub(buyOrders[i].orderAmount);
+                if (buyOrders[i].recipient != 0x0) {
+                    reserveBalance = reserveBalance.sub(buyOrders[i].amount);
                 }
             }
             reserveBalance = reserveBalance.sub(overallRefundValue);
