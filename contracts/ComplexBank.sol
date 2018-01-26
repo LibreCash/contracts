@@ -28,7 +28,6 @@ contract ComplexBank is Pausable, BankI {
 
     uint256 public relevancePeriod = 23 hours;
     uint256 public queuePeriod = 60 minutes;
-    // после тестов убрать public ?? почему, это используется в будильнике
     uint256 public timeUpdateRequest = 0; // the time of requestUpdateRates()
 
     enum ProcessState {
@@ -94,7 +93,7 @@ contract ComplexBank is Pausable, BankI {
      * @param _recipient Recipient.
      * @param _rateLimit Max affordable buying rate, 0 to allow all.
      */
-    function createBuyOrder(address _recipient, uint256 _rateLimit) public payable whenNotPaused orderCreationAllowed {
+    function createBuyOrder(address _recipient, uint256 _rateLimit) payable public whenNotPaused orderCreationAllowed {
         require((_recipient != 0x0) && (msg.value >= buyLimit.min) && (msg.value <= buyLimit.max));
 
         if (buyNextOrder == buyOrders.length) {
@@ -705,7 +704,7 @@ contract ComplexBank is Pausable, BankI {
     /**
      * @dev Requests every enabled oracle to get the actual rate.
      */
-    function requestUpdateRates() public payable canStartEmission {
+    function requestUpdateRates() payable public canStartEmission {
         require(numEnabledOracles >= MIN_ORACLES_ENABLED);
         uint256 sendValue = msg.value;
 
@@ -773,7 +772,7 @@ contract ComplexBank is Pausable, BankI {
     // system methods start
 
     /**
-     * @dev Returns total token count.
+     * @dev Returns current token's total count.
      */
     function totalTokenCount() public view returns (uint256) {
         return libreToken.totalSupply();
@@ -787,7 +786,7 @@ contract ComplexBank is Pausable, BankI {
         libreToken.transferOwnership(newOwner);
     }
 
-    // TODO: удалить после тестов, нужен чтобы возвращать эфир с контракта
+    // TODO: Delete after tests. Used to withdraw balance in test network
     /**
      * @dev Withdraws all the balance to owner.
      */

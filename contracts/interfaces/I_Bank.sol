@@ -2,8 +2,8 @@ pragma solidity ^0.4.11;
 
 interface BankI {
     /* Order creation && cancelation */
-    function createBuyOrder(address _address, uint256 _rateLimit) payable public;
-    function createSellOrder(address _address, uint256 _tokensCount, uint256 _rateLimit) public;
+    function createBuyOrder(address _recipient, uint256 _rateLimit) payable public;
+    function createSellOrder(address _recipient, uint256 _tokensCount, uint256 _rateLimit) public;
     function cancelBuyOrderOwner(uint256 _orderID) public;
     function cancelSellOrderOwner(uint256 _orderID) public;
 
@@ -28,26 +28,9 @@ interface BankI {
     function getReservePercent() public view returns (uint256);
     function totalTokenCount() public view returns (uint256);
 
-    /* Oracles methods */
-    function addOracle(address _address) public;
-    function disableOracle(address _address) public;
-    function enableOracle(address _address) public;
-    function deleteOracle(address _address) public;
-    
     /* Constant setters */
     function attachToken(address _tokenAddress) public;
-    function setRelevancePeriod(uint256 _period) public;
-    function setQueuePeriod(uint256 _period) public;
-    function setFees(uint256 _buyFee, uint256 _sellFee) public;
-    function schedulerUpdateRate(uint256 fund) public;
-    function setScheduler(address _scheduler) public;
-    function setBalanceCap(uint256 capInWei) public;
-    function setWithdrawWallet(address withdrawTo) public;
-    function setAutoWithdraw(bool _autoWithdraw) public;
-    
-    /* Funding management */
-    function refillBalance() payable public;
-
+   
     /* Tokens admin methods */
     function transferTokenOwner(address newOwner) public;
 }
