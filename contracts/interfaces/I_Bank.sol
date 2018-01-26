@@ -16,9 +16,9 @@ interface BankI {
     function requestUpdateRates() payable public;
     
     /* Data getters */
-    function getEther() public;
-    function getBalanceEther() public view returns (uint256);
-    function getBalanceEther(address _address) public view returns (uint256);
+    function claimBalance() public;
+    function getBalance() public view returns (uint256);
+    function getBalance(address _address) public view returns (uint256);
     function getBuyOrder(uint256 _orderID) public view returns (address, address, uint256, uint256, uint256);
     function getSellOrder(uint256 _orderID) public view returns (address, address, uint256, uint256, uint256);
     function getSellOrdersCount() public view returns(uint256);
