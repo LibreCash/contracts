@@ -21,5 +21,12 @@ module.exports = {
     reporterOptions: {
       mochaFile: 'TEST-truffle.xml'
     }
-  }
+  },
+  // enables SOLC compiler optimization (reduce gas usage)
+  solc: {
+     optimizer: {
+     enabled: true,
+     runs: 200
+   }
+ }
 }
