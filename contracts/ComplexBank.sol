@@ -184,7 +184,7 @@ contract ComplexBank is Pausable, BankI {
     /**
      * @dev Sends refund.
      */
-    function getEther() public {
+    function claimBalance() public {
         require(balanceEther[msg.sender] > 0);
         uint256 sendBalance = balanceEther[msg.sender];
         if (this.balance < sendBalance) {
@@ -204,14 +204,14 @@ contract ComplexBank is Pausable, BankI {
      /**
      * @dev Gets the possible refund amount.
      */
-    function getBalanceEther() public view returns (uint256) {
+    function getBalance() public view returns (uint256) {
         return balanceEther[msg.sender];
     }
 
     /**
      * @dev Gets the possible refund amount for owner
      */
-    function getBalanceEther(address _address) public view onlyOwner returns (uint256) {
+    function getBalance(address _address) public view onlyOwner returns (uint256) {
         return balanceEther[_address];
     }
 
