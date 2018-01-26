@@ -14,10 +14,12 @@ contract ComplexBank is Pausable, BankI {
     
     event BuyOrder(address sender, address recipient, uint256 tokenAmount, uint256 price);
     event SellOrder(address sender, address recipient, uint256 cryptoAmount, uint256 price);
-    event OrderQueueGeneral(string description);
+    event SellQueueProcessed();
+    event BuyQueueProcessed();
+    event NotEnoughMoney(address recipient);
+    event ErrorSendingEther(address recipient);
     event BuyOrderCancelled(uint256 orderId, address sender, uint256 cryptoAmount, uint256 parameter);
     event SellOrderCancelled(uint256 orderId, address sender, uint256 tokenAmount, uint256 parameter);
-    event SendEtherError(string error, address _addr);
     
     uint256 constant MIN_READY_ORACLES = 2;
     uint256 constant MIN_ORACLES_ENABLED = 2;
@@ -27,6 +29,7 @@ contract ComplexBank is Pausable, BankI {
     uint256 public relevancePeriod = 23 hours;
     uint256 public queuePeriod = 60 minutes;
     uint256 public timeUpdateRequest = 0; // the time of requestUpdateRates()
+    uint256 public oracleTimeout = 10 minutes; // Timeout to wait oracle data
 
     enum ProcessState {
         REQUEST_UPDATE_RATES,
@@ -187,17 +190,19 @@ contract ComplexBank is Pausable, BankI {
     function claimBalance() public {
         require(balanceEther[msg.sender] > 0);
         uint256 sendBalance = balanceEther[msg.sender];
+        
         if (this.balance < sendBalance) {
             sendBalance = this.balance;
-            SendEtherError("The contract doesn't have enough funds, the payment will be fulfilled partly", msg.sender);
+            NotEnoughMoney(msg.sender);
         }
 
         overallRefundValue = overallRefundValue.sub(sendBalance);
         balanceEther[msg.sender] -= sendBalance;
+        
         if ( !msg.sender.send(sendBalance)) {
             overallRefundValue = overallRefundValue.add(sendBalance);
             balanceEther[msg.sender] += sendBalance;
-            SendEtherError("Error sending money", msg.sender);
+            ErrorSendingEther(msg.sender);
         }
     }
 
@@ -291,10 +296,9 @@ contract ComplexBank is Pausable, BankI {
         if (lastOrder == buyNextOrder) {
             buyOrderIndex = 0;
             buyNextOrder = 0;
-            OrderQueueGeneral("Order queue for buy cleared");
+            BuyQueueProcessed();
         } else {
             buyOrderIndex = lastOrder;
-            OrderQueueGeneral("The order queue for buy is not cleared up to the end");
         }
     }
 
@@ -338,7 +342,7 @@ contract ComplexBank is Pausable, BankI {
             sellNextOrder = 0;
         } else {
             sellOrderIndex = lastOrder;
-            OrderQueueGeneral("The order queue for sell is not cleared up to the end");
+            SellQueueProcessed();
         }
     }
     // 02-queue end
@@ -539,6 +543,16 @@ contract ComplexBank is Pausable, BankI {
     }
 
     /**
+     * @dev Lets owner to set  Oracle timeout period.
+     * @param _period Oracle data waiting timeout.
+     */
+    function setOracleTimeout(uint256 _period) public onlyOwner {
+        oracleTimeout = _period;
+    }
+
+
+
+    /**
      * @dev Returns whether the oracle exists in the bank.
      * @param _oracle The oracle's address.
      */
@@ -731,11 +745,12 @@ contract ComplexBank is Pausable, BankI {
 
             OracleI currentOracle = OracleI(cur);
             if (currentOracle.waitQuery()) {
-                // если оракул ждёт 10 минут и больше
+                // If oracle wait more then 10 mins
                 if (currentOracle.updateTime() < now - 10 minutes) {
-                    currentOracle.clearState(); // но не ждать
+                    currentOracle.clearState(); // Reset Oracle State
                 } else {
-                    revert(); // не даём завершить, пока есть ждущие менее 10 минут оракулы
+                // If have oracles waited less than TIMEOUT - revert transaction
+                    revert();
                 }
             }
         } // foreach oracles
