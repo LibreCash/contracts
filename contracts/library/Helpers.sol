@@ -1,4 +1,4 @@
-pragma solidity ^0.4.10;
+pragma solidity ^0.4.17;
 import "../zeppelin/math/SafeMath.sol";
 library Helpers {
 	using SafeMath for uint256;

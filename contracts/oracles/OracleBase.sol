@@ -1,4 +1,4 @@
-pragma solidity ^0.4.10;
+pragma solidity ^0.4.17;
 
 import "./OraclizeAPI.sol";
 import "../zeppelin/ownership/Ownable.sol";
