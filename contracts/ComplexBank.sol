@@ -12,14 +12,12 @@ contract ComplexBank is Pausable, BankI {
     address public tokenAddress;
     LibreCash libreToken;
     
-    // TODO; Check that all evetns used and delete unused
-    event LogBuy(address senderAddress, address clientAddress, uint256 tokenAmount, uint256 buyPrice);
-    event LogSell(address senderAddress, address clientAddress, uint256 cryptoAmount, uint256 sellPrice);
+    event BuyOrder(address sender, address recipient, uint256 tokenAmount, uint256 price);
+    event SellOrder(address sender, address recipient, uint256 cryptoAmount, uint256 price);
     event OrderQueueGeneral(string description);
     event BuyOrderCancelled(uint256 orderId, address sender, uint256 cryptoAmount, uint256 parameter);
     event SellOrderCancelled(uint256 orderId, address sender, uint256 tokenAmount, uint256 parameter);
     event SendEtherError(string error, address _addr);
-    event BalanceRefill(address from, uint256 amount);
     
     uint256 constant MIN_READY_ORACLES = 2;
     uint256 constant MIN_ORACLES_ENABLED = 2;
@@ -274,7 +272,7 @@ contract ComplexBank is Pausable, BankI {
         } else {
             buyOrders[_orderID].recipientAddress = 0x0; // Mark order as completed or cancelled
             libreToken.mint(recipientAddress, tokensAmount);
-            LogBuy(senderAddress, recipientAddress, tokensAmount, cryptoFiatRateBuy);
+            BuyOrder(senderAddress, recipientAddress, tokensAmount, cryptoFiatRateBuy);
         }
     }
 
@@ -319,7 +317,7 @@ contract ComplexBank is Pausable, BankI {
         } else {
             balanceEther[recipientAddress] = balanceEther[recipientAddress].add(cryptoAmount);
             overallRefundValue = overallRefundValue.add(cryptoAmount);
-            LogSell(senderAddress, recipientAddress, cryptoAmount, cryptoFiatRateSell);
+            SellOrder(senderAddress, recipientAddress, cryptoAmount, cryptoFiatRateSell);
         }      
     }
 
@@ -347,7 +345,6 @@ contract ComplexBank is Pausable, BankI {
 
 
     // admin start
-    // C идеологической точки зрения давать такие привилегии админу может быть неправильно
     /**
      * @dev Cancels buy order (by the owner).
      * @param _orderID The order ID.
