@@ -1,115 +1,99 @@
-var fs = require('fs');
-const path = require('path');
+const 
+  fs = require('fs'),
+  path = require('path');
 
 module.exports = async function(deployer, network) {
-  var contracts = ['token/LibreCash', 'bank/ComplexBank'];
+  let
+    сontractsList = {
+      base: ['token/LibreCash', 'bank/ComplexBank'],
+      mainnet:['oracles/OracleBitfinex',
+      'oracles/OracleBitstamp',
+      'oracles/OracleWEX',
+      'oracles/OracleGDAX',
+      'oracles/OracleGemini',
+      'oracles/OracleKraken',
+      ],
+      local:[
+        'oracles/mock/OracleMockLiza',
+        'oracles/mock/OracleMockSasha',
+        'oracles/mock/OracleMockKlara',
+        'oracles/OwnOracle'
+     ]
+    },
+    appendContract = (network == "mainnet") ?  сontractsList.mainnet : сontractsList.local;
+    contracts = сontractsList.base.concat(appendContract);
+      
+    var  contractsToDeploy = {};
 
-  if (network == "mainnet") {
-    contracts = contracts.concat(
-      ['oracles/OracleBitfinex',
-       'oracles/OracleBitstamp',
-       'oracles/OracleWEX',
-       'oracles/OracleGDAX',
-       'oracles/OracleGemini',
-       'oracles/OracleKraken',
-       //'oracles/OraclePoloniex'
-      ]);
-  } else {
-    contracts = contracts.concat(
-      ['oracles/mock/OracleMockLiza',
-       'oracles/mock/OracleMockSasha',
-       'oracles/mock/OracleMockKlara',
-       'oracles/OwnOracle'
-      ]);
-  }
-
-  var contractsToDeploy = {};
-  contracts.forEach(function(_contractPath) {
-    let _contractName = path.posix.basename(_contractPath);
-    contractsToDeploy[_contractName] = artifacts.require("./" + _contractPath + ".sol");
+  contracts.forEach(function(contractPath) {
+    let name = path.posix.basename(contractPath);
+    contractsToDeploy[name] = artifacts.require(`./${contractPath}.sol`);
   });
 
-  await Promise.all(contracts.map(async function(_contractPath) {
-    let artifact = artifacts.require("./" + _contractPath + ".sol");
-    await deployer.deploy(artifact);
-    let 
-      instance = await artifact.deployed(),
-      contractABI = JSON.stringify(artifact._json.abi),
-      contractAddress = artifact.address;
-
-      writeDeployedContractData(_contractPath, contractAddress, contractABI);
-  })); // foreach
-  finalizeDeployFiles(contracts);
-  await finalizeDeployDependencies(contractsToDeploy);
+  await Promise.all(contracts.map((data)=>deployContract(deployer,data)));
+  await applyDeps(contractsToDeploy);
 };
 
-function finalizeDeployFiles(contracts) {
-  var directory = "web3tests/";
-  var fileName = "listTestsAndContracts.js";
-  var jsDataContracts = "var contracts = [{0}];\r\n";
-  var listOfContracts = "";
-  contracts.forEach(function(contractPath) {
-    let contractName = path.posix.basename(contractPath); // делаем всё в одной папке
-    listOfContracts += "'{0}', ".replace("{0}", contractName);
-  });
-  var jsDataTests = "var tests = [{0}];";
-  var listOfTests = "";
-  fs.readdirSync(directory + "tests/").forEach(_fileName => {
-    listOfTests += "'{0}', ".replace("{0}", _fileName);
-  })
-  var stream = fs.createWriteStream(directory + fileName);
-  stream.once('open', function(fd) {
-    stream.write(jsDataContracts.replace("{0}", listOfContracts));
-    stream.write(jsDataTests.replace("{0}", listOfTests));
-    stream.end();
-  });
+
+async function deployContract(deployer,contractPath) {
+    let 
+      artifact = artifacts.require(`./${contractPath}.sol`);
+
+    await deployer.deploy(artifact);
+
+    let 
+      instance = await artifact.deployed(),
+      contractData = {
+        contractName: path.posix.basename(contractPath),
+        contractABI: artifact._json.abi,
+        contractAddress: artifact.address,
+      };
+
+    writeContractData(contractData);
 }
 
-async function finalizeDeployDependencies(_contractsToDeploy) {
-  var bank;
-  // find the bank
-  for (var _contractName in _contractsToDeploy) {
-    if (search(_contractName, "bank")) {
-      bank = _contractsToDeploy[_contractName];
-      break;
-    }
-  }
-  if (bank == null) {
+async function applyDeps(contracts) {
+  console.log(`Strart applying contracts deps`);
+  bankContract = contracts["ComplexBank"];
+ 
+  if (bankContract == null) {
     console.log("No bank contract found!");
     return;
   }
-
-  for (var _contractName in _contractsToDeploy) {
-    if (search(_contractName, "oracle")) {
-      let 
-        oracleInstance = await _contractsToDeploy[_contractName].deployed(),
-        bankInstance = await bank.deployed();
-        await bankInstance.addOracle(oracleInstance.address);
-        await oracleInstance.setBank(bankInstance.address);
+  
+  for (var name in contracts) {
+    if (search(name, "oracle")) {
+      var 
+        oracle = await contracts[name].deployed();
+        await addOracle(bank,oracle);
     }
-    if (search(_contractName, "token") || search(_contractName, "cash")) {
-      let 
-        tokenInstance = await _contractsToDeploy[_contractName].deployed(),
-        bankInstance = await bank.deployed();
-        await bankInstance.attachToken(tokenInstance.address);
-        await tokenInstance.transferOwnership(bankInstance.address);
+
+    if (search(name, "token") || search(name, "cash")) {
+        token = await contracts[name].deployed(),
+        await attachToken(bank,token);
     }
   }
+  console.log(`Finish applying contracts deps`);
 }
 
 function search(string,substring) {
     return string.toLowerCase().indexOf(substring) != -1;
 }
 
-function writeDeployedContractData(contractPath, contractAddress, contractABI) {
-  var directory = "build/data/";
-  let contractName = path.posix.basename(contractPath); // делаем всё в одной папке
-  var fileName = contractName + ".js";
-  var stream = fs.createWriteStream(directory + fileName);
-  stream.once('open', function(fd) {
-    stream.write("contractName = '{0}';\r\n".replace('{0}', contractName));
-    stream.write("contractAddress = '{0}';\r\n".replace('{0}', contractAddress));
-    stream.write("contractABI = '{0}';\r\n".replace('{0}', contractABI));
-    stream.end();
-  });
+async function attachToken(bank,token){
+  await bank.attachToken(bank.address);
+  await token.transferOwnership(bank.address);
+  console.log(`Token ${token.address} attached to bank: ${bank.address}`);
+}
+
+async function addOracle(bank,oracle){
+  await bank.addOracle(oracle.address);
+  await oracle.setBank(bank.address); 
+  console.log(`Oracle ${oracle.address} attached to bank: ${bank.address}`);
+}
+
+function writeContractData(data) {
+  let 
+    directory = "build/data/";
+    fs.writeFileSync(`${directory}${data.contractName}.js`,JSON.stringify(data));
 }
