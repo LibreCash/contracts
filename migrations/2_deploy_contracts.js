@@ -54,13 +54,14 @@ async function deployContract(deployer,contractPath) {
 
 async function applyDeps(contracts) {
   console.log(`Strart applying contracts deps`);
-  bankContract = contracts["ComplexBank"];
+  let bankContract = contracts["ComplexBank"];
  
   if (bankContract == null) {
     console.log("No bank contract found!");
     return;
   }
-  
+  let bank = await bankContract.deployed();
+
   for (var name in contracts) {
     if (search(name, "oracle")) {
       var 
@@ -95,5 +96,12 @@ async function addOracle(bank,oracle){
 function writeContractData(data) {
   let 
     directory = "build/data/";
+    createDir(directory);
     fs.writeFileSync(`${directory}${data.contractName}.js`,JSON.stringify(data));
+}
+
+function createDir(dirname) {
+  if (!fs.existsSync(dirname)) {
+     fs.mkdirSync(dirname);
+  }
 }
