@@ -10,8 +10,6 @@ LibreBank smart-contracts repository.
 
 ### Contents:
 
-* LivePreview - Make changes, See changes
-
 * `contracts/` - contacts folder
     - `/interfaces` - interfaces and abstract-classes (minimal version used by our DAPP's and external) 
     - `/library` - library and service-function's contracts folder,
