@@ -1,0 +1,23 @@
+{
+  "name": "librebank-contracts",
+  "version": "0.0.1",
+  "description": "LibreBank emission and token contracts",
+  "main": "truffle.js",
+  "directories": {
+    "test": "test"
+  },
+  "scripts": {
+	"deploy" : "truffle migrate",
+    "test": "truffle test"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/LibreCash/contracts.git"
+  },
+  "author": "decodedbrain, scientisctic, evercodex",
+  "license": "AGPL-3.0",
+  "bugs": {
+    "url": "https://github.com/LibreCash/contracts/issues"
+  },
+  "homepage": "https://github.com/LibreCash/contracts#readme"
+}
