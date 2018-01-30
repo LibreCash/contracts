@@ -37,4 +37,4 @@ b) To localnode (eg. testrpc or local geth node) or for testing purposes - deloy
 truffle migrate --network development
 ```
 ## License
-Code released under the [AGPL-3.0](LICENSE.md).
+Code released under the [AGPL-3.0](LICENSE).
