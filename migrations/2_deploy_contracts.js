@@ -5,19 +5,20 @@ const
 module.exports = async function(deployer, network) {
   let
     сontractsList = {
-      base: ['token/LibreCash', 'bank/ComplexBank'],
-      mainnet:['oracles/OracleBitfinex',
-      'oracles/OracleBitstamp',
-      'oracles/OracleWEX',
-      'oracles/OracleGDAX',
-      'oracles/OracleGemini',
-      'oracles/OracleKraken',
+      base: ['token/LibreCash', 'ComplexBank','ComplexExchanger'],
+      mainnet:[
+        'oracles/OracleBitfinex',
+        'oracles/OracleBitstamp',
+        'oracles/OracleWEX',
+        'oracles/OracleGDAX',
+        'oracles/OracleGemini',
+        'oracles/OracleKraken',
       ],
       local:[
         'oracles/mock/OracleMockLiza',
         'oracles/mock/OracleMockSasha',
         'oracles/mock/OracleMockKlara',
-		'oracles/OracleMockTest'
+        'oracles/OracleMockTest'
      ]
     },
     appendContract = (network == "mainnet") ?  сontractsList.mainnet : сontractsList.local;
@@ -54,24 +55,30 @@ async function deployContract(deployer,contractPath) {
 
 async function applyDeps(contracts) {
   console.log(`Strart applying contracts deps`);
-  let bankContract = contracts["ComplexBank"];
+  let 
+	  bankContract = contracts["ComplexBank"],
+	  exchangerContract = contracts["ComplexExchanger"];
  
   if (bankContract == null) {
     console.log("No bank contract found!");
     return;
   }
-  let bank = await bankContract.deployed();
+  let 
+    bank = await bankContract.deployed(),
+	  exchanger = await exchangerContract.deployed();
 
   for (var name in contracts) {
     if (search(name, "oracle")) {
       var 
         oracle = await contracts[name].deployed();
         await addOracle(bank,oracle);
+		    await addOracle(exchanger,oracle);
     }
 
     if (search(name, "token") || search(name, "cash")) {
         token = await contracts[name].deployed(),
         await attachToken(bank,token);
+		    await attachToken(exchanger,token);
     }
   }
   console.log(`Finish applying contracts deps`);
