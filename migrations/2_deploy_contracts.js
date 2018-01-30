@@ -17,7 +17,7 @@ module.exports = async function(deployer, network) {
         'oracles/mock/OracleMockLiza',
         'oracles/mock/OracleMockSasha',
         'oracles/mock/OracleMockKlara',
-        'oracles/OwnOracle'
+		'oracles/OracleMockTest'
      ]
     },
     appendContract = (network == "mainnet") ?  сontractsList.mainnet : сontractsList.local;
