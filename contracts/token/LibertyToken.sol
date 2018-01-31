@@ -10,7 +10,7 @@ contract LibertyToken is StandardToken, Ownable {
     uint256 public decimals = 18;
 
     function LibertyToken() public {
-        totalSupply = 100 * (10**6) * (10**decimals);
-        balances[msg.sender] = totalSupply;
+        totalSupply_ = 100 * (10**6) * (10**decimals);
+        balances[msg.sender] = totalSupply_;
     }
 }
