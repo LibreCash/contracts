@@ -6,19 +6,18 @@ module.exports = async function(deployer, network) {
   let
     сontractsList = {
       base: ['token/LibreCash', 'ComplexBank','ComplexExchanger'],
-      mainnet:[
-        'oracles/OracleBitfinex',
-        'oracles/OracleBitstamp',
-        'oracles/OracleWEX',
-        'oracles/OracleGDAX',
-        'oracles/OracleGemini',
-        'oracles/OracleKraken',
+      mainnet:['oracles/OracleBitfinex',
+      'oracles/OracleBitstamp',
+      'oracles/OracleWEX',
+      'oracles/OracleGDAX',
+      'oracles/OracleGemini',
+      'oracles/OracleKraken',
       ],
       local:[
         'oracles/mock/OracleMockLiza',
         'oracles/mock/OracleMockSasha',
         'oracles/mock/OracleMockKlara',
-        'oracles/OracleMockTest'
+		'oracles/OracleMockTest'
      ]
     },
     appendContract = (network == "mainnet") ?  сontractsList.mainnet : сontractsList.local;
@@ -56,15 +55,14 @@ async function deployContract(deployer,contractPath) {
 async function applyDeps(contracts) {
   console.log(`Strart applying contracts deps`);
   let 
-	  bankContract = contracts["ComplexBank"],
-	  exchangerContract = contracts["ComplexExchanger"];
+	bankContract = contracts["ComplexBank"],
+	exchangerContract = contracts["ComplexExchanger"];
  
   if (bankContract == null) {
     console.log("No bank contract found!");
     return;
   }
-  let 
-    bank = await bankContract.deployed(),
+  let bank = await bankContract.deployed(),
 	  exchanger = await exchangerContract.deployed();
 
   for (var name in contracts) {
@@ -72,13 +70,14 @@ async function applyDeps(contracts) {
       var 
         oracle = await contracts[name].deployed();
         await addOracle(bank,oracle);
-		    await addOracle(exchanger,oracle);
+		await addOracle(exchanger,oracle);
+		
     }
 
     if (search(name, "token") || search(name, "cash")) {
         token = await contracts[name].deployed(),
         await attachToken(bank,token);
-		    await attachToken(exchanger,token);
+		await attachToken(exchanger,token);
     }
   }
   console.log(`Finish applying contracts deps`);
@@ -89,7 +88,7 @@ function search(string,substring) {
 }
 
 async function attachToken(bank,token){
-  await bank.attachToken(bank.address);
+  await bank.attachToken(token.address);
   await token.transferOwnership(bank.address);
   console.log(`Token ${token.address} attached to bank: ${bank.address}`);
 }
