@@ -4,10 +4,10 @@ import "./zeppelin/math/SafeMath.sol";
 import "./zeppelin/math/Math.sol";
 import "./zeppelin/lifecycle/Pausable.sol";
 import "./interfaces/I_Oracle.sol";
-import "./interfaces/I_Bank.sol";
+import "./interfaces/I_Exchanger.sol";
 import "./token/LibreCash.sol";
 
-contract ComplexExchanger is Pausable, BankI {
+contract ComplexExchanger is Pausable, ExchangerI {
     using SafeMath for uint256;
     address public tokenAddress;
     LibreCash libreToken;

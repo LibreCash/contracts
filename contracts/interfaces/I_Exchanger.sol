@@ -1,6 +1,6 @@
 pragma solidity ^0.4.17;
 
-interface BankI {
+interface ExchangerI {
     /* Order creation && cancelation */
     function createBuyOrder(address _recipient, uint256 _rateLimit) payable public;
     function createSellOrder(address _recipient, uint256 _tokensCount, uint256 _rateLimit) public;
@@ -30,7 +30,4 @@ interface BankI {
 
     /* Constant setters */
     function attachToken(address _tokenAddress) public;
-
-    /* Tokens admin methods */
-    function transferTokenOwner(address newOwner) public;
 }
