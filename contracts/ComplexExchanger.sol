@@ -3,6 +3,7 @@ pragma solidity ^0.4.17;
 import "./zeppelin/math/SafeMath.sol";
 import "./zeppelin/math/Math.sol";
 import "./interfaces/I_Oracle.sol";
+// TODO: Update interface and add it contract
 import "./interfaces/I_Exchanger.sol";
 import "./token/LibreCash.sol";
 
@@ -36,12 +37,14 @@ contract ComplexExchanger {
 
     event InvalidRate(uint256 rate, address oracle);
     event OracleRequest(address oracle);
-
+    event BuyOrder(address sender, address recipient, uint256 tokenAmount, uint256 price);
+    event SellOrder(address sender, address recipient, uint256 cryptoAmount, uint256 price);
+    
     enum State {
         PROCESSING_ORDERS,
-        CALC_RATE,
-        REQUEST_RATE,
-        CONTRACT_LOCKED
+        CALC_RATES,
+        REQUEST_RATES,
+        LOCKED
     }
     
     function ComplexExchanger(
@@ -64,8 +67,18 @@ contract ComplexExchanger {
     }
 
     function getState() internal returns (State) {
-        // Implement it later
-        return State.PROCESSING_ORDERS;
+        
+        if(now >= deadline)
+            return State.LOCKED;
+
+        if( now - calcTime < RATE_PERIOD )
+            return State.PROCESSING_ORDERS;
+        // Check it
+        if( now - requestTime < ORACLE_TIMEOUT &&  
+            readyOracles() > MIN_READY_ORACLES )
+            return State.CALC_RATES;
+
+        return State.REQUEST_RATES;
     }
 
     function buyTokens(address _recipient) payable public {
@@ -78,24 +91,39 @@ contract ComplexExchanger {
         
         //TODO: Refactor it
         if( tokensAmount > availableTokens ) {
-            uint256 refundAmount = tokensAmount.sub(availableTokens).mul(RATE_MULTIPLIER) / cryptoFiatRateBuy;
+            uint256 refundAmount = tokensAmount.sub(availableTokens).mul(RATE_MULTIPLIER) / buyRate;
             tokensAmount = availableTokens;
             balances[msg.sender] = balances[msg.sender].add(refundAmount);
+            totalHolded = totalHolded.add(refundAmount);
         }
 
         token.transfer(recipient, tokensAmount);
         BuyOrder(msg.sender, recipient, tokensAmount, buyRate);
     }
 
-    function sellTokens(address _recipient) public {
+    function sellTokens(address _recipient, uint256 tokensCount) public {
         require(getState() == State.PROCESSING_ORDERS);
-        // Implement it later
+        require(tokensCount <= token.allowance(msg.sender,this));
+        
+        token.transferFrom(msg.sender, this, tokensCount);
+
+        address recipient = _recipient == 0x0 ? msg.sender : _recipient;
+        uint256 cryptoAmount = tokensCount.mul(RATE_MULTIPLIER) / sellRate;
+
+        if(cryptoAmount > this.balance) {
+            //TODO: Calc diff 
+        }
+
+        balances[msg.sender] = balances[msg.sender].add(cryptoAmount);
+        totalHolded = totalHolded.add(cryptoAmount);
+        SellOrder(msg.sender, recipient, cryptoAmount, sellRate);
     }
 
     function requestRates() payable public {
+        require(getState() == State.REQUEST_RATES);
         // Or just sub msg.value
         // If it will be below zero - it will throw revert()
-        require(msg.value >= requestPrice());
+        // require(msg.value >= requestPrice());
         uint256 value = msg.value;
 
         for(uint256 i = 0; i < oracles.length; i++) {
@@ -139,6 +167,9 @@ contract ComplexExchanger {
     }
 
     function calcRates() public {
+        require(getState() == State.CALC_RATES);
+        requestTimeout();
+
         uint256 minRate = 2**256 - 1; // Max for UINT256
         uint256 maxRate = 0;
         uint256 validOracles = 0;
@@ -201,9 +232,21 @@ contract ComplexExchanger {
 
     function claimBalance() public {
         require(balanceOf(msg.sender) > 0);
+        totalHolded = totalHolded.sub(balanceOf(msg.sender));
         msg.sender.transfer(balanceOf(msg.sender));
     }
 
-
-
+    /**
+     * @dev Returns ready (which have data to be used) oracles count.
+     */
+    function readyOracles() public view returns (uint256) {
+        // TODO: Refactor it to use in processing waintin oracles 
+        uint256 readyOracles = 0;
+        for(uint256 i = 0; i < oracles.length; i++) {
+            OracleI oracle = OracleI(oracles[i]);
+            if ((oracle.rate() != 0) && (!oracle.waitQuery()))
+                readyOracles++;
+        }
+        return readyOracles;
+    }
 }
