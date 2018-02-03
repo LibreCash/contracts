@@ -15,7 +15,6 @@ contract ComplexExchanger is ExchangerI {
     uint256 public deadline;
     address public withdrawWallet;
 
-    uint256 public totalHolded;
     uint256 public requestTime;
     uint256 public calcTime;
 
@@ -23,8 +22,6 @@ contract ComplexExchanger is ExchangerI {
     uint256 public sellRate;
     uint256 public buyFee;
     uint256 public sellFee;
-
-    mapping(address => uint256) balances;
 
     uint256 constant ORACLE_TIMEOUT = 10 minutes;
     uint256 constant RATE_PERIOD = 10 minutes;
@@ -83,18 +80,18 @@ contract ComplexExchanger is ExchangerI {
 
     function buyTokens(address _recipient) payable public {
         require(getState() == State.PROCESSING_ORDERS);
+        require(tokenBalance() > 0);
         
         uint256 availableTokens = tokenBalance();
         uint256 tokensAmount = msg.value.mul(buyRate) / RATE_MULTIPLIER;
         // if recipient set as 0x0 - recipient is sender
         address recipient = _recipient == 0x0 ? msg.sender : _recipient;
         
-        //TODO: Refactor it
-        if( tokensAmount > availableTokens ) {
+        //TODO: Event
+        if (tokensAmount > availableTokens) {
             uint256 refundAmount = tokensAmount.sub(availableTokens).mul(RATE_MULTIPLIER) / buyRate;
             tokensAmount = availableTokens;
-            balances[msg.sender] = balances[msg.sender].add(refundAmount);
-            totalHolded = totalHolded.add(refundAmount);
+            recipient.transfer(refundAmount);
         }
 
         token.transfer(recipient, tokensAmount);
@@ -103,7 +100,6 @@ contract ComplexExchanger is ExchangerI {
 
     function sellTokens(address _recipient, uint256 tokensCount) public {
         require(getState() == State.PROCESSING_ORDERS);
-        require(totalHolded < this.balance);
         require(tokensCount <= token.allowance(msg.sender, this));
         
         token.transferFrom(msg.sender, this, tokensCount);
@@ -111,15 +107,14 @@ contract ComplexExchanger is ExchangerI {
         address recipient = _recipient == 0x0 ? msg.sender : _recipient;
         uint256 cryptoAmount = tokensCount.mul(RATE_MULTIPLIER) / sellRate;
 
-        if (cryptoAmount > this.balance - totalHolded) {
-            uint256 extraTokens = (cryptoAmount - (this.balance - totalHolded)).mul(sellRate) / RATE_MULTIPLIER;
-            cryptoAmount = this.balance - totalHolded;
+        if (cryptoAmount > this.balance) {
+            uint256 extraTokens = (cryptoAmount - this.balance).mul(sellRate) / RATE_MULTIPLIER;
+            cryptoAmount = this.balance;
             token.transfer(msg.sender, extraTokens);
         }
 
-        balances[msg.sender] = balances[msg.sender].add(cryptoAmount);
-        totalHolded = totalHolded.add(cryptoAmount);
         SellOrder(msg.sender, recipient, cryptoAmount, sellRate);
+        recipient.transfer(cryptoAmount);
     }
 
     function requestRates() payable public {
@@ -204,10 +199,6 @@ contract ComplexExchanger is ExchangerI {
         return rate >= MIN_RATE && rate <= MAX_RATE;
     }
 
-    function balanceOf(address _owner) view public returns(uint256) {
-        return balances[_owner];
-    }
-
     function oracleCount() public view returns(uint256) {
         return oracles.length;
     }
@@ -234,12 +225,6 @@ contract ComplexExchanger is ExchangerI {
         );
     }
 
-    function claimBalance() public {
-        require(balanceOf(msg.sender) > 0);
-        totalHolded = totalHolded.sub(balanceOf(msg.sender));
-        msg.sender.transfer(balanceOf(msg.sender));
-    }
-
     /**
      * @dev Returns ready (which have data to be used) oracles count.
      */
@@ -256,7 +241,7 @@ contract ComplexExchanger is ExchangerI {
 
     function withdrawReserve() public {
         require(getState() == State.LOCKED && msg.sender == withdrawWallet);
-        uint256 balance = this.balance - totalHolded;
+        uint256 balance = this.balance;
         withdrawWallet.transfer(balance);
         ReserveWithdraw(balance);
     }
