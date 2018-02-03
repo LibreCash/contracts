@@ -103,15 +103,18 @@ contract ComplexExchanger is ExchangerI {
 
     function sellTokens(address _recipient, uint256 tokensCount) public {
         require(getState() == State.PROCESSING_ORDERS);
-        require(tokensCount <= token.allowance(msg.sender,this));
+        require(totalHolded < this.balance);
+        require(tokensCount <= token.allowance(msg.sender, this));
         
         token.transferFrom(msg.sender, this, tokensCount);
 
         address recipient = _recipient == 0x0 ? msg.sender : _recipient;
         uint256 cryptoAmount = tokensCount.mul(RATE_MULTIPLIER) / sellRate;
 
-        if(cryptoAmount > this.balance) {
-            //TODO: Calc diff 
+        if (cryptoAmount > this.balance - totalHolded) {
+            uint256 extraTokens = (cryptoAmount - (this.balance - totalHolded)).mul(sellRate) / RATE_MULTIPLIER;
+            cryptoAmount = this.balance - totalHolded;
+            token.transfer(msg.sender, extraTokens);
         }
 
         balances[msg.sender] = balances[msg.sender].add(cryptoAmount);
