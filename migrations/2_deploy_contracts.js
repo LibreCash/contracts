@@ -80,6 +80,7 @@ async function applyDeps(contracts) {
         token = await contracts[name].deployed(),
         await attachToken(bank,token);
         await attachToken(exchanger,token);
+        await exchanger.setWithdraw(web3.eth.coinbase);
     }
   }
   console.log(`Finish applying contracts deps`);
