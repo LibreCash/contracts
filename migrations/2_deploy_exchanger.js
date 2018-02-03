@@ -21,6 +21,15 @@ module.exports = async function(deployer, network) {
         'oracles/OracleMockTest'
      ]
     },
+    exchangerConfig = {
+      buyFee:0,
+      sellFee:0,
+      deadline:getTimestamp(2018,02,04),
+      withdrawWallet:web3.eth.coinbase,
+      token:"", // Sets later after LibreCash deployment
+      oracles:[] 
+    };
+
     appendContract = (network == "mainnet") ?  сontractsList.mainnet : сontractsList.local;
     contracts = сontractsList.base.concat(appendContract);
       
@@ -32,7 +41,7 @@ module.exports = async function(deployer, network) {
   });
 
   await Promise.all(contracts.map((data)=>deployContract(deployer,data)));
-  await applyDeps(contractsToDeploy,deployer);
+  await applyDeps(contractsToDeploy,deployer,exchangerConfig);
 };
 
 
@@ -53,52 +62,44 @@ async function deployContract(deployer,contractPath) {
     writeContractData(contractData);
 }
 
-async function applyDeps(contracts,deployer) {
+async function applyDeps(contracts,deployer,config) {
   console.log(`Strart applying contracts deps`);
   let 
      // TODO:Refactor it
      exchangerArtifact = artifacts.require(`./ComplexExchanger.sol`);
-  
   var oracles = [];
-
+  
   for (var name in contracts) {
     if (search(name, "oracle")) {
       var 
         oracle = await contracts[name].deployed();
-        console.log(oracle.address);
         oracles.push(oracle);
-        console.log(oracles.length);
     }
 
     if (search(name, "token") || search(name, "cash")) {
-        token = await contracts[name].deployed();
-        console.log(token.address);
+      config.token = (await contracts[name].deployed()).address;
     }
   }
 
-    oraclesAdreses = oracles.map((oracle)=>oracle.address);
+    config.oracles = oracles.map((oracle)=>oracle.address);
+
     
-    console.log (
-      //Constructor params
-      token.address, // Token address
-      0, // Buy Fee
-      0, // Sell Fee,
-      //oraclesAdreses,// oracles (array of address)
-      0, // deadline,
-      web3.eth.coinbase // withdraw wallet
-    );
+    console.log(`Exchanger deploy parameters:
+    Token (LibreCash) address: ${config.token},
+    Buy fee:${config.buyFee}
+    Sell fee:${config.sellFee}
+    Oracles:${config.oracles}`);
 
     // Deploy contract
     await deployer.deploy(
       exchangerArtifact,
-      /*Constructor params
-      token.address, // Token address
-      0, // Buy Fee
-      0, // Sell Fee,
-      //oraclesAdreses,// oracles (array of address)
-      0, // deadline,
-      web3.eth.coinbase // withdraw wallet
-      */
+      /*Constructor params*/
+      config.token.address, // Token address
+      config.buyFee, // Buy Fee
+      config.sellFee, // Sell Fee,
+      config.oracles,// oracles (array of address)
+      config.deadline, // deadline,
+      config.withdrawWallet // withdraw wallet
     );
 
     let exchanger = await exchangerArtifact.deployed();
