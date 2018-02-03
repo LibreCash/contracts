@@ -76,14 +76,14 @@ async function applyDeps(contracts,deployer) {
     }
   }
 
-    oraclesAdreses = oracles.map((oracle)=>oracle.address);
+    oraclesAddresses = oracles.map((oracle)=>oracle.address);
     
     console.log (
       //Constructor params
       token.address, // Token address
       0, // Buy Fee
       0, // Sell Fee,
-      oraclesAdreses,// oracles (array of address)
+      oraclesAddresses,// oracles (array of address)
       0, // deadline,
       web3.eth.coinbase // withdraw wallet
     );
@@ -95,8 +95,8 @@ async function applyDeps(contracts,deployer) {
       token.address, // Token address
       25, // Buy Fee
       25, // Sell Fee,
-      oraclesAdreses,// oracles (array of address)
-      1000, // deadline,
+      oraclesAddresses,// oracles (array of address)
+      1600000000, // deadline,
       web3.eth.coinbase // withdraw wallet
     );
 
