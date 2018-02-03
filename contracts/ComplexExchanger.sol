@@ -150,11 +150,8 @@ contract ComplexExchanger is ExchangerI {
                 oracles[i].transfer(callPrice);
             }
             
-            // if oracle is ready - do request
-            if (!oracle.waitQuery()) {
-                if (oracle.updateRate())
-                    OracleRequest(oracles[i]);
-            }
+            if (oracle.updateRate())
+                OracleRequest(oracles[i]);
         }
         requestTime = now;
     }
@@ -185,6 +182,9 @@ contract ComplexExchanger is ExchangerI {
         for (uint256 i = 0; i < oracles.length; i++) {
             OracleI oracle = OracleI(oracles[i]);
             uint256 rate = oracle.rate();
+            if (oracle.waitQuery()) {
+                continue;
+            }
             if (isRateValid(rate)) {
                 minRate = Math.min256(rate, minRate);
                 maxRate = Math.max256(rate, maxRate);
@@ -281,13 +281,8 @@ contract ComplexExchanger is ExchangerI {
      * @dev Clears slow oracles status; internal.
      */
     function requestTimeout() internal {
-        // TODO: Move timeouts into oracle's contract
-        // e.g Oracle allows to create new request if timeout reached 
         for (uint i = 0; i < oracles.length; i++) {
-            OracleI oracle = OracleI(oracles[i]);
-            if (oracle.waitQuery() && requestTime < (now - ORACLE_TIMEOUT)) {
-                oracle.clearState(); // Reset Oracle State 
-            } else {
+            if (OracleI(oracles[i]).waitQuery() && requestTime + ORACLE_TIMEOUT < now) {
                 revert();
             }
         }
