@@ -73,8 +73,8 @@ contract ComplexExchanger is ExchangerI {
         if( now - calcTime < RATE_PERIOD )
             return State.PROCESSING_ORDERS;
         // Check it
-        if( now - requestTime < ORACLE_TIMEOUT &&  
-            readyOracles() > MIN_READY_ORACLES )
+        if ((now - requestTime < ORACLE_TIMEOUT && readyOracles() > MIN_READY_ORACLES) ||
+            (now - requestTime >= ORACLE_TIMEOUT && readyOracles() == oracleCount()))
             return State.CALC_RATES;
 
         return State.REQUEST_RATES;
@@ -160,7 +160,8 @@ contract ComplexExchanger is ExchangerI {
     function requestPrice() view public returns(uint256) {
         uint256 requestCost = 0;
         for(uint256 i = 0; i < oracles.length; i++) {
-            requestCost += OracleI(oracles[i]).getPrice();
+            if (!OracleI(oracles[i]).waitQuery())
+                requestCost += OracleI(oracles[i]).getPrice();
         }
         return requestCost;
     }
@@ -203,7 +204,7 @@ contract ComplexExchanger is ExchangerI {
         return balances[_owner];
     }
 
-    function oraclesCount() public view returns(uint256) {
+    function oracleCount() public view returns(uint256) {
         return oracles.length;
     }
 
