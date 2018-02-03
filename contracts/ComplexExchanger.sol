@@ -9,6 +9,7 @@ import "./token/LibreCash.sol";
 contract ComplexExchanger is ExchangerI {
     using SafeMath for uint256;
 
+    address public tokenAddress;
     LibreCash token;
     address[] public oracles;
     uint256 public deadline;
@@ -32,8 +33,7 @@ contract ComplexExchanger is ExchangerI {
     uint256 constant RATE_MULTIPLIER = 1000;
     uint256 constant MAX_RATE = 5000 * RATE_MULTIPLIER;
     uint256 constant MIN_RATE = 100 * RATE_MULTIPLIER;
-    bool public isEnabled = true; // bool mark that contract has't disabled yet by deadline
-
+    
     event InvalidRate(uint256 rate, address oracle);
     event OracleRequest(address oracle);
     event BuyOrder(address sender, address recipient, uint256 tokenAmount, uint256 price);
@@ -55,7 +55,7 @@ contract ComplexExchanger is ExchangerI {
         address _withdrawWallet
     ) public
     {
-        address tokenAddress = _token;
+        tokenAddress = _token;
         token = LibreCash(tokenAddress);
         oracles = _oracles;
 
