@@ -33,8 +33,8 @@ contract ComplexExchanger is ExchangerI {
     
     event InvalidRate(uint256 rate, address oracle);
     event OracleRequest(address oracle);
-    event BuyOrder(address sender, address recipient, uint256 tokenAmount, uint256 price);
-    event SellOrder(address sender, address recipient, uint256 cryptoAmount, uint256 price);
+    event Buy(address sender, address recipient, uint256 tokenAmount, uint256 price);
+    event Sell(address sender, address recipient, uint256 cryptoAmount, uint256 price);
     event ReserveRefill(uint256 amount);
     event ReserveWithdraw(uint256 amount);
 
@@ -95,7 +95,7 @@ contract ComplexExchanger is ExchangerI {
         }
 
         token.transfer(recipient, tokensAmount);
-        BuyOrder(msg.sender, recipient, tokensAmount, buyRate);
+        Buy(msg.sender, recipient, tokensAmount, buyRate);
     }
 
     function sellTokens(address _recipient, uint256 tokensCount) public {
@@ -113,7 +113,7 @@ contract ComplexExchanger is ExchangerI {
             token.transfer(msg.sender, extraTokens);
         }
 
-        SellOrder(msg.sender, recipient, cryptoAmount, sellRate);
+        Sell(msg.sender, recipient, cryptoAmount, sellRate);
         recipient.transfer(cryptoAmount);
     }
 
@@ -241,9 +241,8 @@ contract ComplexExchanger is ExchangerI {
 
     function withdrawReserve() public {
         require(getState() == State.LOCKED && msg.sender == withdrawWallet);
-        uint256 balance = this.balance;
-        withdrawWallet.transfer(balance);
-        ReserveWithdraw(balance);
+        ReserveWithdraw(this.balance);
+        withdrawWallet.transfer(this.balance);
     }
 
     function refillBalance() payable public {
