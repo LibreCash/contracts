@@ -38,7 +38,9 @@ contract ComplexExchanger is ExchangerI {
     event OracleRequest(address oracle);
     event BuyOrder(address sender, address recipient, uint256 tokenAmount, uint256 price);
     event SellOrder(address sender, address recipient, uint256 cryptoAmount, uint256 price);
-    
+    event ReserveRefill(uint256 amount);
+    event ReserveWithdraw(uint256 amount);
+
     enum State {
         PROCESSING_ORDERS,
         CALC_RATES,
@@ -50,15 +52,14 @@ contract ComplexExchanger is ExchangerI {
         address _token,
         uint256 _buyFee,
         uint256 _sellFee,
-        uint256 _deadline, 
         address[] _oracles,
+        uint256 _deadline, 
         address _withdrawWallet
     ) public
     {
         tokenAddress = _token;
         token = LibreCash(tokenAddress);
         oracles = _oracles;
-
         buyFee = _buyFee;
         sellFee = _sellFee;
         deadline = _deadline;
@@ -254,5 +255,10 @@ contract ComplexExchanger is ExchangerI {
         require(getState() == State.LOCKED && msg.sender == withdrawWallet);
         uint256 balance = this.balance - totalHolded;
         withdrawWallet.transfer(balance);
+        ReserveWithdraw(balance);
+    }
+
+    function refillBalance() payable public {
+        ReserveRefill(msg.value);
     }
 }
