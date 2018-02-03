@@ -802,6 +802,13 @@ contract ComplexBank is Pausable, BankI {
         libreToken.transferOwnership(newOwner);
     }
 
+    /**
+     * @dev Claims token ownership.
+     */
+    function claimOwnership() public onlyOwner {
+        libreToken.claimOwnership();
+    }
+
     // TODO: Delete after tests. Used to withdraw balance in test network
     /**
      * @dev Withdraws all the balance to owner.
