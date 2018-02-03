@@ -3,11 +3,10 @@ pragma solidity ^0.4.17;
 import "./zeppelin/math/SafeMath.sol";
 import "./zeppelin/math/Math.sol";
 import "./interfaces/I_Oracle.sol";
-// TODO: Update interface and add it contract
 import "./interfaces/I_Exchanger.sol";
 import "./token/LibreCash.sol";
 
-contract ComplexExchanger {
+contract ComplexExchanger is ExchangerI {
     using SafeMath for uint256;
 
     LibreCash token;
@@ -54,7 +53,7 @@ contract ComplexExchanger {
         uint256 _deadline, 
         address[] _oracles,
         address _withdrawWallet
-    )
+    ) public
     {
         address tokenAddress = _token;
         token = LibreCash(tokenAddress);
@@ -66,7 +65,7 @@ contract ComplexExchanger {
         withdrawWallet = _withdrawWallet;
     }
 
-    function getState() internal returns (State) {
+    function getState() view internal returns (State) {
         
         if(now >= deadline)
             return State.LOCKED;
@@ -158,7 +157,7 @@ contract ComplexExchanger {
         }
     }
 
-    function requestPrice() public returns(uint256) {
+    function requestPrice() view public returns(uint256) {
         uint256 requestCost = 0;
         for(uint256 i = 0; i < oracles.length; i++) {
             requestCost += OracleI(oracles[i]).getPrice();
@@ -196,7 +195,7 @@ contract ComplexExchanger {
         calcTime = now;
     }
 
-    function isRateValid(uint256 rate) internal returns(bool) {
+    function isRateValid(uint256 rate) pure internal returns(bool) {
         return rate >= MIN_RATE && rate <= MAX_RATE;
     }
 
@@ -241,12 +240,18 @@ contract ComplexExchanger {
      */
     function readyOracles() public view returns (uint256) {
         // TODO: Refactor it to use in processing waintin oracles 
-        uint256 readyOracles = 0;
+        uint256 oraclesNumber = 0;
         for(uint256 i = 0; i < oracles.length; i++) {
             OracleI oracle = OracleI(oracles[i]);
             if ((oracle.rate() != 0) && (!oracle.waitQuery()))
-                readyOracles++;
+                oraclesNumber++;
         }
-        return readyOracles;
+        return oraclesNumber;
+    }
+
+    function withdrawReserve() public {
+        require(getState() == State.LOCKED && msg.sender == withdrawWallet);
+        uint256 balance = this.balance - totalHolded;
+        withdrawWallet.transfer(balance);
     }
 }
