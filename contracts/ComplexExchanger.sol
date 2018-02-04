@@ -91,10 +91,13 @@ contract ComplexExchanger is ExchangerI {
      */
     function buyTokens(address _recipient) public payable {
         require(getState() == State.PROCESSING_ORDERS);
-        require(tokenBalance() > 0);
-        
+
         uint256 availableTokens = tokenBalance();
+        require(availableTokens > 0);
+
         uint256 tokensAmount = msg.value.mul(buyRate) / RATE_MULTIPLIER;
+        require(tokensAmount != 0);
+
         uint256 refundAmount = 0;
         // if recipient set as 0x0 - recipient is sender
         address recipient = _recipient == 0x0 ? msg.sender : _recipient;
@@ -118,11 +121,12 @@ contract ComplexExchanger is ExchangerI {
     function sellTokens(address _recipient, uint256 tokensCount) public {
         require(getState() == State.PROCESSING_ORDERS);
         require(tokensCount <= token.allowance(msg.sender, this));
-        
-        token.transferFrom(msg.sender, this, tokensCount);
 
-        address recipient = _recipient == 0x0 ? msg.sender : _recipient;
         uint256 cryptoAmount = tokensCount.mul(RATE_MULTIPLIER) / sellRate;
+        require(cryptoAmount != 0);
+
+        token.transferFrom(msg.sender, this, tokensCount);
+        address recipient = _recipient == 0x0 ? msg.sender : _recipient;
 
         if (cryptoAmount > this.balance) {
             uint256 extraTokens = (cryptoAmount - this.balance).mul(sellRate) / RATE_MULTIPLIER;
@@ -280,6 +284,7 @@ contract ComplexExchanger is ExchangerI {
         require(getState() == State.LOCKED && msg.sender == withdrawWallet);
         ReserveWithdraw(this.balance);
         withdrawWallet.transfer(this.balance);
+        token.burn(tokenBalance());
     }
 
     /**
