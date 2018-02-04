@@ -24,7 +24,8 @@ contract ComplexExchanger is ExchangerI {
     uint256 public buyFee;
     uint256 public sellFee;
 
-    uint256 constant ACTUAL_RATE = 15 minutes;
+    uint256 constant ORACLE_ACTUAL = 10 minutes;
+    uint256 constant ORACLE_TIMEOUT = 10 minutes;
     uint256 constant RATE_PERIOD = 10 minutes;
     uint256 constant MIN_READY_ORACLES = 2;
     uint256 constant REVERSE_PERCENT = 100;
@@ -252,9 +253,10 @@ contract ComplexExchanger is ExchangerI {
             OracleI oracle = OracleI(oracles[i]);
             if ((oracle.rate() != 0) && 
                 !oracle.waitQuery() &&
-                (now - oracle.updateTime()) < ACTUAL_RATE))
+                (now - oracle.callbackTime()) < ORACLE_ACTUAL)
                 count++;
         }
+
         return count;
     }
 
@@ -264,7 +266,7 @@ contract ComplexExchanger is ExchangerI {
     function waitOracles() public view returns (uint256) {
         uint256 count = 0;
         for (uint256 i = 0; i < oracles.length; i++) {
-            if (OracleI(oracles[i]).waitQuery()) {
+            if (OracleI(oracles[i]).waitQuery() && (now - requestTime) < ORACLE_TIMEOUT) {
                 count++;
             }
         }
