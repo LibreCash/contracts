@@ -2,835 +2,289 @@ pragma solidity ^0.4.17;
 
 import "./zeppelin/math/SafeMath.sol";
 import "./zeppelin/math/Math.sol";
-import "./zeppelin/lifecycle/Pausable.sol";
 import "./interfaces/I_Oracle.sol";
 import "./interfaces/I_Exchanger.sol";
 import "./token/LibreCash.sol";
 
-contract ComplexExchanger is Pausable, ExchangerI {
+
+contract ComplexExchanger is ExchangerI {
     using SafeMath for uint256;
+
     address public tokenAddress;
-    LibreCash libreToken;
-    address withdrawWallet;
-    uint256 balanceCap = 100 ether; // Exchanger contract balance cap
+    LibreCash token;
+    address[] public oracles;
+    uint256 public deadline;
+    address public withdrawWallet;
 
-    event BuyOrder(address sender, address recipient, uint256 tokenAmount, uint256 price);
-    event SellOrder(address sender, address recipient, uint256 cryptoAmount, uint256 price);
-    event SellQueueProcessed();
-    event BuyQueueProcessed();
-    event NotEnoughMoney(address recipient);
-    event ErrorSendingEther(address recipient);
-    event BuyOrderCancelled(uint256 orderId, address sender, uint256 cryptoAmount, uint256 parameter);
-    event SellOrderCancelled(uint256 orderId, address sender, uint256 tokenAmount, uint256 parameter);
-    
+    uint256 public requestTime;
+    uint256 public calcTime;
+
+    uint256 public buyRate;
+    uint256 public sellRate;
+    uint256 public buyFee;
+    uint256 public sellFee;
+
+    uint256 constant ORACLE_TIMEOUT = 10 minutes;
+    uint256 constant RATE_PERIOD = 10 minutes;
     uint256 constant MIN_READY_ORACLES = 2;
-    uint256 constant MIN_ORACLES_ENABLED = 2;
     uint256 constant REVERSE_PERCENT = 100;
-    uint256 constant RATE_MULTIPLIER = 1000; // doubling in oracleBase __callback as parseIntRound(..., 3) as 3
-
-    uint256 public relevancePeriod = 23 hours;
-    uint256 public queuePeriod = 60 minutes;
-    uint256 public timeUpdateRequest = 0; // the time of requestUpdateRates()
-    uint256 public oracleTimeout = 10 minutes; // Timeout to wait oracle data
-
-    enum ProcessState {
-        REQUEST_UPDATE_RATES,
-        CALC_RATE,
-        PROCESS_ORDERS,
-        ORDER_CREATION
-    }
-
-    ProcessState public contractState;
-
-    modifier canStartEmission() {
-        require((now >= timeUpdateRequest + relevancePeriod) || 
-                (contractState == ProcessState.REQUEST_UPDATE_RATES));
-        _;
-        contractState = ProcessState.CALC_RATE;
-        timeUpdateRequest = now;
-    }
-
-    modifier calcRatesAllowed() {
-        require(contractState == ProcessState.CALC_RATE);
-
-        processWaitingOracles(); // revert transaction if has oracles waiting less then 10 min.
-        if (numReadyOracles() < MIN_READY_ORACLES) {
-            contractState = ProcessState.REQUEST_UPDATE_RATES;
-            OracleError("Not enough ready oracles. Please, request update rates again");
-            return;
-        }
-        
-        _;
-        bool ordersProcessed = (sellNextOrder == 0) && (buyNextOrder == 0);
-        contractState = ordersProcessed ? ProcessState.ORDER_CREATION : ProcessState.PROCESS_ORDERS;
-    }
-
-    modifier queueProcessingAllowed() {
-        require((contractState == ProcessState.PROCESS_ORDERS) && 
-                (now <= timeUpdateRequest + queuePeriod));
-        _;
-        bool ordersProcessed = (sellNextOrder == 0) && (buyNextOrder == 0);
-        if (ordersProcessed)
-            contractState = ProcessState.ORDER_CREATION;
-    }
-
-    modifier orderCreationAllowed() {
-        require((contractState == ProcessState.ORDER_CREATION) || 
-                (now > timeUpdateRequest + queuePeriod));
-        _;
-        contractState = ProcessState.ORDER_CREATION;
-    }
-
-    struct Limit {
-        uint256 min;
-        uint256 max;
-    }
-
-    Limit public buyLimit = Limit(1 wei, 99999 * 1 ether);
-    Limit public sellLimit = Limit(1 wei, 99999 * 1 ether);
-
-    // 01-emission start
-
-    /**
-     * @dev Creates buy order.
-     * @param _recipient Recipient.
-     * @param _rateLimit Max affordable buying rate, 0 to allow all.
-     */
-    function createBuyOrder(address _recipient, uint256 _rateLimit) payable public whenNotPaused orderCreationAllowed {
-        require((_recipient != 0x0) && (msg.value >= buyLimit.min) && (msg.value <= buyLimit.max));
-
-        if (buyNextOrder == buyOrders.length) {
-            buyOrders.length++;
-        }
-        buyOrders[buyNextOrder++] = OrderData({
-            sender: msg.sender,
-            recipient: _recipient,
-            amount: msg.value,
-            timestamp: now,
-            rateLimit: _rateLimit
-        });
-        withdraw();
-    }
-
-    /**
-     * @dev Creates sell order.
-     * @param _recipient Recipient.
-     * @param _tokensCount Amount of tokens to sell.
-     * @param _rateLimit Min affordable selling rate, 0 to allow all.
-     */
-    function createSellOrder(address _recipient, uint256 _tokensCount, uint256 _rateLimit) public whenNotPaused orderCreationAllowed {
-        require((_recipient != 0x0) && (_tokensCount >= sellLimit.min) && (_tokensCount <= sellLimit.max));
-        address tokenOwner = msg.sender;
-        require(_tokensCount <= libreToken.allowance(tokenOwner,this));
-        libreToken.transferFrom(tokenOwner, this, _tokensCount);
-
-        if (sellNextOrder == sellOrders.length) {
-            sellOrders.length++;
-        }
-        sellOrders[sellNextOrder++] = OrderData({
-            sender: tokenOwner,
-            recipient: _recipient,
-            amount: _tokensCount,
-            timestamp: now,
-            rateLimit: _rateLimit
-        });
-    }
-
-    /**
-     * @dev Fallback function.
-     */
-    function() external whenNotPaused orderCreationAllowed payable {
-        createBuyOrder(msg.sender, 0); // 0 - without price limits
-    }
-    /**
-     * @dev Sets max buy sum (in Wei).
-     * @param _minBuyLimit - min buy sum in Wei.
-     * @param _maxBuyLimit - max buy sum in Wei.
-     */
-    function setBuyLimits(uint _minBuyLimit, uint _maxBuyLimit) public onlyOwner {
-        buyLimit.min = _minBuyLimit;
-        buyLimit.max = _maxBuyLimit;
-    }
-
+    uint256 constant RATE_MULTIPLIER = 1000;
+    uint256 constant MAX_RATE = 5000 * RATE_MULTIPLIER;
+    uint256 constant MIN_RATE = 100 * RATE_MULTIPLIER;
     
-    /**
-     * @dev Sets max sell tokens amount.
-     * @param _maxSellLimit - max sell tokens.
-     * @param _minSellLimit - min sell tokens.
-     */
-    function setSellLimits(uint _minSellLimit, uint _maxSellLimit) public onlyOwner {
-        sellLimit.min = _minSellLimit;
-        sellLimit.max = _maxSellLimit;
-    }
+    event InvalidRate(uint256 rate, address oracle);
+    event OracleRequest(address oracle);
+    event Buy(address sender, address recipient, uint256 tokenAmount, uint256 price);
+    event Sell(address sender, address recipient, uint256 cryptoAmount, uint256 price);
+    event ReserveRefill(uint256 amount);
+    event ReserveWithdraw(uint256 amount);
 
-     /**
-     * @dev Set wallet to withdraw balace proficite (above cap).
-     * @param addressToWithdaw wallet address to withdraw money.
-     */    
-    function setWithdraw(address addressToWithdaw) public onlyOwner {
-        require(addressToWithdaw != 0x0); 
-        withdrawWallet = addressToWithdaw;   
-    }
-
-    /**
-     * @dev Withdraw proficite ether to withdraw wallet.
-     */ 
-    function withdraw() internal {
-        require(withdrawWallet != 0x0);
-        if(this.balance > balanceCap) {
-            withdrawWallet.transfer(this.balance.sub(balanceCap));
-        }
-    }
- 
-    
-    // 01-emission end
-
-    // 02-queue start
-    struct OrderData {
-        address sender;
-        address recipient;
-        uint256 amount;
-        uint256 timestamp;
-        uint256 rateLimit;
-    }
-
-    OrderData[] private buyOrders; // buy orders queue
-    OrderData[] private sellOrders; // sell orders queue
-    uint256 buyOrderIndex = 0; // store number of first order
-    uint256 sellOrderIndex = 0;
-
-    uint256 private buyNextOrder = 0; // store number order after last
-    uint256 private sellNextOrder = 0;
-
-    mapping (address => uint256) balanceEther; // internal
-    uint256 overallRefundValue = 0;
-
-    /**
-     * @dev Sends refund.
-     */
-    function claimBalance() public {
-        require(balanceEther[msg.sender] > 0);
-        uint256 sendBalance = balanceEther[msg.sender];
-        
-        if (this.balance < sendBalance) {
-            sendBalance = this.balance;
-            NotEnoughMoney(msg.sender);
-        }
-
-        overallRefundValue = overallRefundValue.sub(sendBalance);
-        balanceEther[msg.sender] -= sendBalance;
-        
-        if ( !msg.sender.send(sendBalance)) {
-            overallRefundValue = overallRefundValue.add(sendBalance);
-            balanceEther[msg.sender] += sendBalance;
-            ErrorSendingEther(msg.sender);
-        }
-    }
-
-     /**
-     * @dev Gets the possible refund amount.
-     */
-    function getBalance() public view returns (uint256) {
-        return balanceEther[msg.sender];
-    }
-
-    /**
-     * @dev Gets the possible refund amount for owner
-     */
-    function getBalance(address _address) public view onlyOwner returns (uint256) {
-        return balanceEther[_address];
-    }
-
-    /**
-     * @dev Cancels buy order.
-     * @param _orderID The ID of order.
-     * @param _parameter More information on cancellation (for example, order limit).
-     */
-    function cancelBuyOrder(uint256 _orderID, uint256 _parameter) private returns (bool) {
-        if (buyOrders[_orderID].recipient == 0x0)
-            return false;
-
-        address sender = buyOrders[_orderID].sender;
-        uint256 amount = buyOrders[_orderID].amount;
-
-        balanceEther[sender] = balanceEther[sender].add(amount);
-        buyOrders[_orderID].recipient = 0x0; // Mark order as completed or cancelled
-        BuyOrderCancelled(_orderID, sender, amount, _parameter);
-        overallRefundValue = overallRefundValue.add(amount);
-                    
-        return true;
+    enum State {
+        PROCESSING_ORDERS,
+        CALC_RATES,
+        REQUEST_RATES,
+        LOCKED
     }
     
-    /**
-     * @dev Cancels sell order.
-     * @param _orderID The ID of order.
-     * @param _parameter More information on cancellation (for example, order limit).
-     */
-    function cancelSellOrder(uint256 _orderID, uint256 _parameter) private returns(bool) {
-        if (sellOrders[_orderID].recipient == 0x0)
-            return false;
-
-        address sender = sellOrders[_orderID].sender;
-        uint256 tokensAmount = sellOrders[_orderID].amount;
-        
-        sellOrders[_orderID].recipient = 0x0; // Mark order as completed or cancelled
-        SellOrderCancelled(_orderID, sender, tokensAmount, _parameter);
-        libreToken.transfer(sender, tokensAmount);
-        return true;
+    function ComplexExchanger(
+        address _token,
+        uint256 _buyFee,
+        uint256 _sellFee,
+        address[] _oracles,
+        uint256 _deadline, 
+        address _withdrawWallet
+    ) public
+    {
+        tokenAddress = _token;
+        token = LibreCash(tokenAddress);
+        oracles = _oracles;
+        buyFee = _buyFee;
+        sellFee = _sellFee;
+        deadline = _deadline;
+        withdrawWallet = _withdrawWallet;
     }
 
     /**
-     * @dev Fills buy order from queue.
-     * @param _orderID The order ID.
+     * @dev Returns the contract state.
      */
-    function processBuyOrder(uint256 _orderID) internal {
-        if (buyOrders[_orderID].recipient == 0x0 || contractTokens() == 0)
-            return;
+    function getState() public view returns (State) {
+        if (now >= deadline)
+            return State.LOCKED;
 
-        uint256 cryptoAmount = buyOrders[_orderID].amount;
-        uint256 tokensAmount = cryptoAmount.mul(cryptoFiatRateBuy) / RATE_MULTIPLIER;
-        address sender = buyOrders[_orderID].sender;
-        address recipient = buyOrders[_orderID].recipient;
-        uint256 maxRate = buyOrders[_orderID].rateLimit;
-        uint256 availableTokens = contractTokens();
+        if (now - calcTime < RATE_PERIOD)
+            return State.PROCESSING_ORDERS;
 
-        if ((maxRate != 0) && (cryptoFiatRateBuy > maxRate)) {
-            cancelBuyOrder(_orderID, maxRate);
-        } else {
+        if ((now - requestTime < ORACLE_TIMEOUT && readyOracles() > MIN_READY_ORACLES) ||
+            (now - requestTime >= ORACLE_TIMEOUT && readyOracles() == oracleCount()))
+            return State.CALC_RATES;
+
+        return State.REQUEST_RATES;
+    }
+
+    /**
+     * @dev Allows user to buy tokens by ether.
+     * @param _recipient The recipient of tokens.
+     */
+    function buyTokens(address _recipient) public payable {
+        require(getState() == State.PROCESSING_ORDERS);
+        require(tokenBalance() > 0);
+        
+        uint256 availableTokens = tokenBalance();
+        uint256 tokensAmount = msg.value.mul(buyRate) / RATE_MULTIPLIER;
+        uint256 refundAmount = 0;
+        // if recipient set as 0x0 - recipient is sender
+        address recipient = _recipient == 0x0 ? msg.sender : _recipient;
+
+        if (tokensAmount > availableTokens) {
+            refundAmount = tokensAmount.sub(availableTokens).mul(RATE_MULTIPLIER) / buyRate;
+            tokensAmount = availableTokens;
+        }
+
+        token.transfer(recipient, tokensAmount);
+        Buy(msg.sender, recipient, tokensAmount, buyRate);
+        if (refundAmount > 0)
+            recipient.transfer(refundAmount);
+    }
+
+    /**
+     * @dev Allows user to sell tokens and get ether.
+     * @param _recipient The recipient of ether.
+     * @param tokensCount The count of tokens to sell.
+     */
+    function sellTokens(address _recipient, uint256 tokensCount) public {
+        require(getState() == State.PROCESSING_ORDERS);
+        require(tokensCount <= token.allowance(msg.sender, this));
+        
+        token.transferFrom(msg.sender, this, tokensCount);
+
+        address recipient = _recipient == 0x0 ? msg.sender : _recipient;
+        uint256 cryptoAmount = tokensCount.mul(RATE_MULTIPLIER) / sellRate;
+
+        if (cryptoAmount > this.balance) {
+            uint256 extraTokens = (cryptoAmount - this.balance).mul(sellRate) / RATE_MULTIPLIER;
+            cryptoAmount = this.balance;
+            token.transfer(msg.sender, extraTokens);
+        }
+
+        Sell(msg.sender, recipient, cryptoAmount, sellRate);
+        recipient.transfer(cryptoAmount);
+    }
+
+    /**
+     * @dev Requests oracles rates updating; funds oracles if needed.
+     */
+    function requestRates() public payable {
+        require(getState() == State.REQUEST_RATES);
+        // Or just sub msg.value
+        // If it will be below zero - it will throw revert()
+        // require(msg.value >= requestPrice());
+        uint256 value = msg.value;
+
+        for (uint256 i = 0; i < oracles.length; i++) {
+            OracleI oracle = OracleI(oracles[i]);
+            uint callPrice = oracle.getPrice();
             
-            if( tokensAmount > availableTokens ) {
-                uint256 refundAmount = tokensAmount.sub(availableTokens).mul(RATE_MULTIPLIER) / cryptoFiatRateBuy;
-                tokensAmount = availableTokens;
-                balanceEther[sender] = balanceEther[sender].add(refundAmount);
+            // If oracle needs funds - refill it
+            if (oracles[i].balance < callPrice) {
+                value = value.sub(callPrice);
+                oracles[i].transfer(callPrice);
             }
-
-            buyOrders[_orderID].recipient = 0x0; // Mark order as completed or cancelled
-            libreToken.transfer(recipient, tokensAmount);
-            BuyOrder(sender, recipient, tokensAmount, cryptoFiatRateBuy);
+            
+            if (oracle.updateRate())
+                OracleRequest(oracles[i]);
         }
+        requestTime = now;
     }
 
     /**
-     * @dev Fill buy orders queue.
-     * @param _limit Order limit.
+     * @dev Returns cost of requestRates function.
      */
-    function processBuyQueue(uint256 _limit) public whenNotPaused queueProcessingAllowed {
-        bool processAll = ((_limit == 0) || ((buyOrderIndex + _limit) > buyNextOrder));
-        uint256 lastOrder = processAll ? buyNextOrder : buyOrderIndex + _limit;
-
-        for (uint i = buyOrderIndex; i < lastOrder; i++) {
-            processBuyOrder(i);
+    function requestPrice() public view returns(uint256) {
+        uint256 requestCost = 0;
+        for (uint256 i = 0; i < oracles.length; i++) {
+            if (!OracleI(oracles[i]).waitQuery())
+                requestCost += OracleI(oracles[i]).getPrice();
         }
-
-        if (lastOrder == buyNextOrder) {
-            buyOrderIndex = 0;
-            buyNextOrder = 0;
-            BuyQueueProcessed();
-        } else {
-            buyOrderIndex = lastOrder;
-        }
+        return requestCost;
     }
 
     /**
-     * @dev Fills sell order from queue.
-     * @param _orderID The order ID.
+     * @dev Calculates buy and sell rates after oracles have received it.
      */
-    function processSellOrder(uint256 _orderID) internal {
-        if (sellOrders[_orderID].recipient == 0x0)
-            return;
-        
-        address recipient = sellOrders[_orderID].recipient;
-        address sender = sellOrders[_orderID].sender;
-        uint256 tokensAmount = sellOrders[_orderID].amount;
-        uint256 cryptoAmount = tokensAmount.mul(RATE_MULTIPLIER) / cryptoFiatRateSell;
-        uint256 minRate = sellOrders[_orderID].rateLimit;
+    function calcRates() public {
+        require(getState() == State.CALC_RATES);
+        requestTimeout();
 
-        if ((minRate != 0) && (cryptoFiatRateSell < minRate)) {
-            cancelSellOrder(_orderID, minRate);
-        } else {
-            balanceEther[recipient] = balanceEther[recipient].add(cryptoAmount);
-            overallRefundValue = overallRefundValue.add(cryptoAmount);
-            SellOrder(sender, recipient, cryptoAmount, cryptoFiatRateSell);
-        }      
-    }
+        uint256 minRate = 2**256 - 1; // Max for UINT256
+        uint256 maxRate = 0;
+        uint256 validOracles = 0;
 
-    /**
-     * @dev Fill sell orders queue.
-     * @param _limit Order limit.
-     */
-    function processSellQueue(uint256 _limit) public whenNotPaused queueProcessingAllowed {
-        bool processAll = ((_limit == 0) || ((sellOrderIndex + _limit) > sellNextOrder));
-        uint256 lastOrder = processAll ? sellNextOrder : sellOrderIndex + _limit;
-                
-        for (uint i = sellOrderIndex; i < lastOrder; i++) {
-            processSellOrder(i);
+        for (uint256 i = 0; i < oracles.length; i++) {
+            OracleI oracle = OracleI(oracles[i]);
+            uint256 rate = oracle.rate();
+            if (oracle.waitQuery()) {
+                continue;
+            }
+            if (isRateValid(rate)) {
+                minRate = Math.min256(rate, minRate);
+                maxRate = Math.max256(rate, maxRate);
+                validOracles++;
+            } else {
+                InvalidRate(rate, oracles[i]);
+            }
         }
-
-        if (lastOrder == sellNextOrder) {
-            sellOrderIndex = 0;
-            sellNextOrder = 0;
-        } else {
-            sellOrderIndex = lastOrder;
-            SellQueueProcessed();
-        }
-    }
-    // 02-queue end
-
-
-    // admin start
-    /**
-     * @dev Cancels buy order (by the owner).
-     * @param _orderID The order ID.
-     */
-    function cancelBuyOrderOwner(uint256 _orderID) public onlyOwner {
-        if (!cancelBuyOrder(_orderID, 0))
+        // If valid rates data is insufficient - throw
+        if (validOracles < MIN_READY_ORACLES)
             revert();
+
+        //TODO: Shorten this expressions
+        buyRate = minRate.mul(REVERSE_PERCENT * RATE_MULTIPLIER - buyFee * RATE_MULTIPLIER / REVERSE_PERCENT) / REVERSE_PERCENT / RATE_MULTIPLIER;
+        sellRate = maxRate.mul(REVERSE_PERCENT * RATE_MULTIPLIER + sellFee * RATE_MULTIPLIER / REVERSE_PERCENT) / REVERSE_PERCENT / RATE_MULTIPLIER;
+
+        calcTime = now;
     }
 
     /**
-     * @dev Cancels sell order (by the owner).
-     * @param _orderID The order ID.
+     * @dev Returns contract oracles' count.
      */
-    function cancelSellOrderOwner(uint256 _orderID) public onlyOwner {
-        if (!cancelSellOrder(_orderID, 0))
-            revert();
+    function oracleCount() public view returns(uint256) {
+        return oracles.length;
     }
 
     /**
-     * @dev Gets buy order (by the owner).
-     * @param _orderID The order ID.
+     * @dev Returns token balance of the sender.
      */
-    function getBuyOrder(uint256 _orderID) public view returns (address, address, uint256, uint256, uint256) {
-        require(msg.sender == owner || msg.sender == buyOrders[_orderID].sender);
-        require((buyNextOrder > 0) && (buyNextOrder >= _orderID) && (buyOrderIndex <= _orderID));
-        return (
-            buyOrders[_orderID].sender, 
-            buyOrders[_orderID].recipient,
-            buyOrders[_orderID].amount, 
-            buyOrders[_orderID].timestamp,
-            buyOrders[_orderID].rateLimit
-        );
+    function tokenBalance() public view returns(uint256) {
+        return token.balanceOf(address(this));
     }
 
     /**
-     * @dev Gets sell order (by the owner).
-     * @param _orderID The order ID.
+     * @dev Returns data for an oracle by its id in the array.
      */
-    function getSellOrder(uint256 _orderID) public view returns (address, address, uint256, uint256, uint256) {
-        require(msg.sender == owner || msg.sender == sellOrders[_orderID].sender);
-        require((sellNextOrder > 0) && (sellNextOrder >= _orderID) && (sellOrderIndex <= _orderID));
-        return (sellOrders[_orderID].sender, sellOrders[_orderID].recipient,
-                sellOrders[_orderID].amount, sellOrders[_orderID].timestamp,
-                sellOrders[_orderID].rateLimit);
-    }
-
-    /**
-     * @dev Gets user orders.
-     */
-    function getMyOrders() public view returns(uint[], uint[]) {
-        uint count = 0;
-        for (uint256 i = buyOrderIndex; i < buyNextOrder; i++) {
-            if (buyOrders[i].recipient != 0x0 && buyOrders[i].sender == msg.sender)
-                count++;
-        }
-
-        uint[] memory myBuy = new uint[](count);
-        count = 0;
-        for (i = buyOrderIndex; i < buyNextOrder; i++) {
-            if (buyOrders[i].recipient != 0x0 && buyOrders[i].sender == msg.sender)
-                myBuy[count++] = i;
-        }
-
-        count = 0;
-        for (i = sellOrderIndex; i < sellNextOrder; i++) {
-            if (sellOrders[i].recipient != 0x0 && sellOrders[i].sender == msg.sender) 
-                count++;
-        }
-
-        uint[] memory mySell = new uint[](count);
-        count = 0;
-        for (i = sellOrderIndex; i < sellNextOrder; i++) {
-            if (sellOrders[i].recipient != 0x0 && sellOrders[i].sender == msg.sender) 
-                mySell[count++] = i;
-        }
-        return (myBuy, mySell);
-    }
-
-    /**
-     * @dev Gets sell order count.
-     */
-    function getSellOrdersCount() public view returns(uint256) {
-        uint256 count = 0;
-        for (uint256 i = sellOrderIndex; i < sellNextOrder; i++) {
-            if (sellOrders[i].recipient != 0x0) 
-                count++;
-        }
-        return count;
-    }
-
-    /**
-     * @dev Gets buy order count.
-     */
-    function getBuyOrdersCount() public view returns(uint256) {
-        uint256 count = 0;
-        for (uint256 i = buyOrderIndex; i < buyNextOrder; i++) {
-            if (buyOrders[i].recipient != 0x0) 
-                count++;
-        }
-        return count;
-    }
-    
-    /**
-     * @dev Attaches token contract.
-     * @param _tokenAddress The token address.
-     */
-    function attachToken(address _tokenAddress) public onlyOwner {
-        require(_tokenAddress != 0x0);
-        tokenAddress = _tokenAddress;
-        libreToken = LibreCash(tokenAddress);
-    }
-
-    // admin end
-
-
-    // 03-oracles methods start
-    event OracleAdded(address indexed _address, bytes32 name);
-    event OracleEnabled(address indexed _address, bytes32 name);
-    event OracleDisabled(address indexed _address, bytes32 name);
-    event OracleDeleted(address indexed _address, bytes32 name);
-    event OracleRequest(address indexed _address, bytes32 name);
-    event OracleError(string description);
-
-    struct OracleData {
-        bytes32 name;
-        bool enabled;
-        address next;
-    }
-
-    mapping (address => OracleData) oracles;
-    uint256 public countOracles;
-    uint256 public numEnabledOracles;
-    address public firstOracle = 0x0;
-
-    uint256 public cryptoFiatRateBuy = 1000;
-    uint256 public cryptoFiatRateSell = 1000;
-    uint256 public buyFee = 0;
-    uint256 public sellFee = 0;
-    uint256 constant MAX_FEE = 7000; // 70%
-
-    address public scheduler;
-
-    /**
-     * @dev Gets oracle data.
-     * @param _address Oracle address.
-     */
-    function getOracleData(address _address) 
+    function getOracleData(uint number) 
         public 
         view 
-        returns (bytes32, bytes32, uint256, bool, bool, uint256, address)
-                /* name, type, upd_time, enabled, waiting, rate, next */
+        returns (bytes32, bytes32, bool, uint256, uint256, uint256)
+                /* name, type, waitQuery, updTime, clbTime, rate */
     {
-        OracleI currentOracle = OracleI(_address);
-        OracleData memory oracle = oracles[_address];
+        OracleI curOracle = OracleI(oracles[number]);
 
-        return(
-            oracle.name,
-            currentOracle.oracleType(),
-            currentOracle.updateTime(),
-            oracle.enabled,
-            currentOracle.waitQuery(),
-            currentOracle.rate(),
-            oracle.next
+        return( 
+            curOracle.oracleName(),
+            curOracle.oracleType(),
+            curOracle.waitQuery(),
+            curOracle.updateTime(),
+            curOracle.callbackTime(),
+            curOracle.rate()
         );
     }
 
     /**
      * @dev Returns ready (which have data to be used) oracles count.
      */
-    function numReadyOracles() public view returns (uint256) {
-        uint256 numOracles = 0;
-        for (address current = firstOracle; current != 0x0; current = oracles[current].next) {
-            if (!oracles[current].enabled) 
-                continue;
-            OracleI currentOracle = OracleI(current);
-            if ((currentOracle.rate() != 0) && (!currentOracle.waitQuery())) 
-                numOracles++;
+    function readyOracles() public view returns (uint256) {
+        // TODO: Refactor it to use in processing waintin oracles 
+        uint256 count = 0;
+        for (uint256 i = 0; i < oracles.length; i++) {
+            OracleI oracle = OracleI(oracles[i]);
+            if ((oracle.rate() != 0) && (!oracle.waitQuery()))
+                count++;
         }
-        return numOracles;
+        return count;
     }
 
     /**
-     * @dev Lets owner to set relevance period.
-     * @param _period Period up to MAX_RELEVANCE_PERIOD hours.
+     * @dev Withdraws balance only to special hardcoded wallet ONLY WHEN contract is locked.
      */
-    function setRelevancePeriod(uint256 _period) public onlyOwner {
-        relevancePeriod = _period;
+    function withdrawReserve() public {
+        require(getState() == State.LOCKED && msg.sender == withdrawWallet);
+        ReserveWithdraw(this.balance);
+        withdrawWallet.transfer(this.balance);
     }
 
     /**
-     * @dev Lets owner to set queue period.
-     * @param _period Period from MIN_QUEUE_PERIOD.
+     * @dev Allows to deposit eth to the contract without creating orders.
      */
-    function setQueuePeriod(uint256 _period) public onlyOwner {
-        queuePeriod = _period;
+    function refillBalance() public payable {
+        ReserveRefill(msg.value);
     }
 
     /**
-     * @dev Lets owner to set  Oracle timeout period.
-     * @param _period Oracle data waiting timeout.
+     * @dev Returns if given rate is within limits; internal.
+     * @param rate Rate.
      */
-    function setOracleTimeout(uint256 _period) public onlyOwner {
-        oracleTimeout = _period;
+    function isRateValid(uint256 rate) internal pure returns(bool) {
+        return rate >= MIN_RATE && rate <= MAX_RATE;
     }
 
     /**
-     * @dev Returns whether the oracle exists in the bank.
-     * @param _oracle The oracle's address.
+     * @dev Clears slow oracles status; internal.
      */
-    function oracleExists(address _oracle) internal view returns (bool) {
-        return !(oracles[_oracle].name == bytes32(0));
-    }
-
-    /**
-     * @dev Sets buyFee and sellFee.
-     * @param _buyFee The buy fee.
-     * @param _sellFee The sell fee.
-     */
-    function setFees(uint256 _buyFee, uint256 _sellFee) public onlyOwner {
-        require(_buyFee <= MAX_FEE);
-        require(_sellFee <= MAX_FEE);
-
-        if (sellFee != _sellFee) {
-            uint256 maximalOracleRate = cryptoFiatRateSell.mul(RATE_MULTIPLIER).mul(REVERSE_PERCENT) / (RATE_MULTIPLIER * REVERSE_PERCENT + sellFee * RATE_MULTIPLIER / REVERSE_PERCENT);
-            sellFee = _sellFee;
-            cryptoFiatRateSell = maximalOracleRate.mul(RATE_MULTIPLIER * REVERSE_PERCENT + sellFee * RATE_MULTIPLIER / REVERSE_PERCENT) / (RATE_MULTIPLIER * REVERSE_PERCENT);
-        }
-        if (buyFee != _buyFee) {
-            uint256 minimalOracleRate = cryptoFiatRateBuy.mul(RATE_MULTIPLIER * REVERSE_PERCENT) / (RATE_MULTIPLIER * REVERSE_PERCENT - buyFee * RATE_MULTIPLIER / REVERSE_PERCENT);
-            buyFee = _buyFee;
-            cryptoFiatRateBuy = minimalOracleRate.mul(RATE_MULTIPLIER * REVERSE_PERCENT - buyFee * RATE_MULTIPLIER / REVERSE_PERCENT) / (RATE_MULTIPLIER * REVERSE_PERCENT);
-        }
-    }
-    
-    /**
-     * @dev Adds an oracle.
-     * @param _address The oracle address.
-     */
-    function addOracle(address _address) public onlyOwner {
-        require((_address != 0x0) && (!oracleExists(_address)));
-        OracleI currentOracle = OracleI(_address);
-        bytes32 oracleName = currentOracle.oracleName();
-        require(oracleName != bytes32(0));
-        OracleData memory newOracle = OracleData({
-            name: oracleName,
-            enabled: true,
-            next: 0x0
-        });
-
-        oracles[_address] = newOracle;
-        if (firstOracle == 0x0) {
-            firstOracle = _address;
-        } else {
-            address cur = firstOracle;
-            for (; oracles[cur].next != 0x0; cur = oracles[cur].next) {}
-            oracles[cur].next = _address;
-        }
-
-        countOracles++;
-        numEnabledOracles++;
-        OracleAdded(_address, oracleName);
-    }
-
-    /**
-     * @dev Disables an oracle.
-     * @param _address The oracle address.
-     */
-    function disableOracle(address _address) public onlyOwner {
-        require((oracleExists(_address)) && (oracles[_address].enabled));
-        oracles[_address].enabled = false;
-        numEnabledOracles--;
-        OracleDisabled(_address, oracles[_address].name);
-    }
-
-    /**
-     * @dev Enables an oracle.
-     * @param _address The oracle address.
-     */
-    function enableOracle(address _address) public onlyOwner {
-        require((oracleExists(_address)) && (!oracles[_address].enabled));
-        oracles[_address].enabled = true;
-        numEnabledOracles++;
-        OracleEnabled(_address, oracles[_address].name);
-    }
-
-    /**
-     * @dev Deletes an oracle.
-     * @param _address The oracle address.
-     */
-    function deleteOracle(address _address) public onlyOwner {
-        require(oracleExists(_address));
-        OracleDeleted(_address, oracles[_address].name);
-        if (firstOracle == _address) {
-            firstOracle = oracles[_address].next;
-        } else {
-            address prev = firstOracle;
-            for (; oracles[prev].next != _address; prev = oracles[prev].next) { }
-            oracles[prev].next = oracles[_address].next;
-        }
-        
-        countOracles--;
-        if (oracles[_address].enabled)
-            numEnabledOracles--;
-        delete oracles[_address];
-    }
-
-    /**
-     * @dev Sends money to oracles and start requestUpdateRates.
-     * @param fund Desired balance of every oracle.
-     */
-    function schedulerUpdateRate(uint256 fund) public {
-        require(msg.sender == scheduler);
-        for (address cur = firstOracle; cur != 0x0; cur = oracles[cur].next) {
-            if (oracles[cur].enabled)
-                cur.transfer((fund == 0) ? (OracleI(cur).getPrice()) : (fund));
-        }
-        requestUpdateRates();
-    }
-
-    /**
-     * @dev Set scheduler
-     * @param _scheduler new scheduler address.
-     */
-    function setScheduler(address _scheduler) public onlyOwner {
-        require(_scheduler != 0x0);
-        scheduler = _scheduler;
-    }
-    
-    /**
-     * @dev Get need money for oracles.
-     */
-    function getOracleDeficit() public view returns (uint256) {
-        uint256 deficit = 0;
-        for (address curr = firstOracle; curr != 0x0; curr = oracles[curr].next) {
-            if (oracles[curr].enabled) {
-                OracleI oracle = OracleI(curr);
-                uint callPrice = oracle.getPrice();
-                if (curr.balance < callPrice) {
-                    deficit += callPrice - curr.balance;
-                }
-            }   
-        }
-        return deficit;
-    }
-
-    /**
-     * @dev Gets bank reserve.
-     */
-    function getReservePercent() public view returns (uint256) {
-        uint256 reserve = 0;
-        uint256 curBalance = this.balance;
-        if ((curBalance != 0) && (cryptoFiatRateSell != 0)) {
-            uint256 reserveBalance = curBalance;
-            for (uint i = buyOrderIndex; i < buyNextOrder; i++) {
-                if (buyOrders[i].recipient != 0x0) {
-                    reserveBalance = reserveBalance.sub(buyOrders[i].amount);
-                }
+    function requestTimeout() internal {
+        for (uint i = 0; i < oracles.length; i++) {
+            if (OracleI(oracles[i]).waitQuery() && requestTime + ORACLE_TIMEOUT < now) {
+                revert();
             }
-            reserveBalance = reserveBalance.sub(overallRefundValue);
-            uint256 canGetCryptoBySellingTokens = (libreToken.totalSupply() * RATE_MULTIPLIER) / cryptoFiatRateSell;
-            reserve = (reserveBalance * REVERSE_PERCENT * 100) / canGetCryptoBySellingTokens;
         }
-        return reserve;
     }
-
-    /**
-     * @dev Requests every enabled oracle to get the actual rate.
-     */
-    function requestUpdateRates() payable public canStartEmission {
-        require(numEnabledOracles >= MIN_ORACLES_ENABLED);
-        uint256 sendValue = msg.value;
-
-        for (address cur = firstOracle; cur != 0x0; cur = oracles[cur].next) {
-            if (oracles[cur].enabled) {
-                OracleI oracle = OracleI(cur);
-                uint callPrice = oracle.getPrice();
-                if (cur.balance < callPrice) {
-                    sendValue = sendValue.sub(callPrice);
-                    cur.transfer(callPrice);
-                }
-                if (!oracle.waitQuery()) {
-                    if (oracle.updateRate())
-                        OracleRequest(cur, oracles[cur].name);
-                }
-            }
-        } // foreach oracles
-    }
-
-    /**
-     * @dev Clears too-long-waiting oracles.
-     */
-    function processWaitingOracles() internal {
-        for (address cur = firstOracle; cur != 0x0; cur = oracles[cur].next) {
-            if (!oracles[cur].enabled) 
-                continue;
-
-            OracleI currentOracle = OracleI(cur);
-            if (currentOracle.waitQuery()) {
-                // If oracle wait more then 10 mins
-                if (currentOracle.updateTime() < now - 10 minutes) {
-                    currentOracle.clearState(); // Reset Oracle State
-                } else {
-                // If have oracles waited less than TIMEOUT - revert transaction
-                    revert();
-                }
-            }
-        } // foreach oracles
-    }
-
-     // 03-oracles methods end
-
-
-    // 04-spread calc start 
-    /**
-     * @dev Processes data from ready oracles to get rates.
-     */
-    function calcRates() public calcRatesAllowed {
-        uint256 minimalRate = 2**256 - 1; // Max for UINT256
-        uint256 maximalRate = 0;
-
-        for (address cur = firstOracle; cur != 0x0; cur = oracles[cur].next) {
-            OracleData memory currentOracleData = oracles[cur];
-            OracleI currentOracle = OracleI(cur);
-            uint256 _rate = currentOracle.rate();
-            if ((currentOracleData.enabled) && (!currentOracle.waitQuery()) && (_rate != 0)) {
-                minimalRate = Math.min256(_rate, minimalRate);
-                maximalRate = Math.max256(_rate, maximalRate);
-            }
-        } // foreach oracles
-        cryptoFiatRateBuy = minimalRate.mul(REVERSE_PERCENT * RATE_MULTIPLIER - buyFee * RATE_MULTIPLIER / REVERSE_PERCENT) / REVERSE_PERCENT / RATE_MULTIPLIER;
-        cryptoFiatRateSell = maximalRate.mul(REVERSE_PERCENT * RATE_MULTIPLIER + sellFee * RATE_MULTIPLIER / REVERSE_PERCENT) / REVERSE_PERCENT / RATE_MULTIPLIER;
-    }
-    // 04-spread calc end
-
-    // system methods start
-
-    /**
-     * @dev Returns current token's total count.
-     */
-    function totalTokenCount() public view returns (uint256) {
-        return libreToken.totalSupply();
-    }
-
-    /**
-     * @dev Returns this contract token's balance.
-     */
-    function contractTokens() public view returns (uint256) {
-        return libreToken.balanceOf(this);
-    }
-
-    
-    /**
-     * @dev Method used to refill contract balance without creating order
-     */
-    function refilBalance() payable {}
 }
