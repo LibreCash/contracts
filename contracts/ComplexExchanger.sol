@@ -41,11 +41,11 @@ contract ComplexExchanger is ExchangerI {
     event ReserveWithdraw(uint256 amount);
 
     enum State {
-        PROCESSING_ORDERS,
-        CALC_RATES,
-        REQUEST_RATES,
         LOCKED,
-        WAIT_ORACLES
+        PROCESSING_ORDERS,
+        WAIT_ORACLES,
+        CALC_RATES,
+        REQUEST_RATES
     }
     
     function ComplexExchanger(
@@ -76,7 +76,7 @@ contract ComplexExchanger is ExchangerI {
         if (now - calcTime < RATE_PERIOD)
             return State.PROCESSING_ORDERS;
 
-        if (waitingOracles() != 0 ) 
+        if (waitingOracles() != 0)
             return State.WAIT_ORACLES;
         
         if (readyOracles() >= MIN_READY_ORACLES)
@@ -177,7 +177,6 @@ contract ComplexExchanger is ExchangerI {
      */
     function calcRates() public {
         require(getState() == State.CALC_RATES);
-        requestTimeout();
 
         uint256 minRate = 2**256 - 1; // Max for UINT256
         uint256 maxRate = 0;

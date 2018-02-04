@@ -109,6 +109,12 @@ async function applyDeps(contracts,deployer,config) {
       await setBankOracle(exchanger,oracle)
     });
 
+    writeContractData({
+        contractName: "ComplexExchanger",
+        contractABI: exchangerArtifact._json.abi,
+        contractAddress: exchangerArtifact.address,
+    });
+
   console.log(`Finish applying contracts deps`);
 }
 
