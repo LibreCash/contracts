@@ -6,6 +6,7 @@ import "./interfaces/I_Oracle.sol";
 import "./interfaces/I_Exchanger.sol";
 import "./token/LibreCash.sol";
 
+
 contract ComplexExchanger is ExchangerI {
     using SafeMath for uint256;
 
@@ -15,7 +16,6 @@ contract ComplexExchanger is ExchangerI {
     uint256 public deadline;
     address public withdrawWallet;
 
-    uint256 public totalHolded;
     uint256 public requestTime;
     uint256 public calcTime;
 
@@ -23,8 +23,6 @@ contract ComplexExchanger is ExchangerI {
     uint256 public sellRate;
     uint256 public buyFee;
     uint256 public sellFee;
-
-    mapping(address => uint256) balances;
 
     uint256 constant ORACLE_TIMEOUT = 10 minutes;
     uint256 constant RATE_PERIOD = 10 minutes;
@@ -36,8 +34,8 @@ contract ComplexExchanger is ExchangerI {
     
     event InvalidRate(uint256 rate, address oracle);
     event OracleRequest(address oracle);
-    event BuyOrder(address sender, address recipient, uint256 tokenAmount, uint256 price);
-    event SellOrder(address sender, address recipient, uint256 cryptoAmount, uint256 price);
+    event Buy(address sender, address recipient, uint256 tokenAmount, uint256 price);
+    event Sell(address sender, address recipient, uint256 cryptoAmount, uint256 price);
     event ReserveRefill(uint256 amount);
     event ReserveWithdraw(uint256 amount);
 
@@ -66,14 +64,16 @@ contract ComplexExchanger is ExchangerI {
         withdrawWallet = _withdrawWallet;
     }
 
-    function getState() view internal returns (State) {
-        
-        if(now >= deadline)
+    /**
+     * @dev Returns the contract state.
+     */
+    function getState() public view returns (State) {
+        if (now >= deadline)
             return State.LOCKED;
 
-        if( now - calcTime < RATE_PERIOD )
+        if (now - calcTime < RATE_PERIOD)
             return State.PROCESSING_ORDERS;
-        // Check it
+
         if ((now - requestTime < ORACLE_TIMEOUT && readyOracles() > MIN_READY_ORACLES) ||
             (now - requestTime >= ORACLE_TIMEOUT && readyOracles() == oracleCount()))
             return State.CALC_RATES;
@@ -81,29 +81,38 @@ contract ComplexExchanger is ExchangerI {
         return State.REQUEST_RATES;
     }
 
-    function buyTokens(address _recipient) payable public {
+    /**
+     * @dev Allows user to buy tokens by ether.
+     * @param _recipient The recipient of tokens.
+     */
+    function buyTokens(address _recipient) public payable {
         require(getState() == State.PROCESSING_ORDERS);
+        require(tokenBalance() > 0);
         
         uint256 availableTokens = tokenBalance();
         uint256 tokensAmount = msg.value.mul(buyRate) / RATE_MULTIPLIER;
+        uint256 refundAmount = 0;
         // if recipient set as 0x0 - recipient is sender
         address recipient = _recipient == 0x0 ? msg.sender : _recipient;
-        
-        //TODO: Refactor it
-        if( tokensAmount > availableTokens ) {
-            uint256 refundAmount = tokensAmount.sub(availableTokens).mul(RATE_MULTIPLIER) / buyRate;
+
+        if (tokensAmount > availableTokens) {
+            refundAmount = tokensAmount.sub(availableTokens).mul(RATE_MULTIPLIER) / buyRate;
             tokensAmount = availableTokens;
-            balances[msg.sender] = balances[msg.sender].add(refundAmount);
-            totalHolded = totalHolded.add(refundAmount);
         }
 
         token.transfer(recipient, tokensAmount);
-        BuyOrder(msg.sender, recipient, tokensAmount, buyRate);
+        Buy(msg.sender, recipient, tokensAmount, buyRate);
+        if (refundAmount > 0)
+            recipient.transfer(refundAmount);
     }
 
+    /**
+     * @dev Allows user to sell tokens and get ether.
+     * @param _recipient The recipient of ether.
+     * @param tokensCount The count of tokens to sell.
+     */
     function sellTokens(address _recipient, uint256 tokensCount) public {
         require(getState() == State.PROCESSING_ORDERS);
-        require(totalHolded < this.balance);
         require(tokensCount <= token.allowance(msg.sender, this));
         
         token.transferFrom(msg.sender, this, tokensCount);
@@ -111,65 +120,57 @@ contract ComplexExchanger is ExchangerI {
         address recipient = _recipient == 0x0 ? msg.sender : _recipient;
         uint256 cryptoAmount = tokensCount.mul(RATE_MULTIPLIER) / sellRate;
 
-        if (cryptoAmount > this.balance - totalHolded) {
-            uint256 extraTokens = (cryptoAmount - (this.balance - totalHolded)).mul(sellRate) / RATE_MULTIPLIER;
-            cryptoAmount = this.balance - totalHolded;
+        if (cryptoAmount > this.balance) {
+            uint256 extraTokens = (cryptoAmount - this.balance).mul(sellRate) / RATE_MULTIPLIER;
+            cryptoAmount = this.balance;
             token.transfer(msg.sender, extraTokens);
         }
 
-        balances[msg.sender] = balances[msg.sender].add(cryptoAmount);
-        totalHolded = totalHolded.add(cryptoAmount);
-        SellOrder(msg.sender, recipient, cryptoAmount, sellRate);
+        Sell(msg.sender, recipient, cryptoAmount, sellRate);
+        recipient.transfer(cryptoAmount);
     }
 
-    function requestRates() payable public {
+    /**
+     * @dev Requests oracles rates updating; funds oracles if needed.
+     */
+    function requestRates() public payable {
         require(getState() == State.REQUEST_RATES);
         // Or just sub msg.value
         // If it will be below zero - it will throw revert()
         // require(msg.value >= requestPrice());
         uint256 value = msg.value;
 
-        for(uint256 i = 0; i < oracles.length; i++) {
+        for (uint256 i = 0; i < oracles.length; i++) {
             OracleI oracle = OracleI(oracles[i]);
             uint callPrice = oracle.getPrice();
             
-            // If oracle need funds - refill it
+            // If oracle needs funds - refill it
             if (oracles[i].balance < callPrice) {
                 value = value.sub(callPrice);
                 oracles[i].transfer(callPrice);
             }
             
-            // if oracle ready - do request
-            if (!oracle.waitQuery()) {
-                if (oracle.updateRate())
+            if (oracle.updateRate())
                 OracleRequest(oracles[i]);
-            }
         }
         requestTime = now;
     }
 
-    function requestTimeout() internal {
-        // TODO: Move timeouts into oracle's contract
-        // e.g Oracle allow to create new request if timeout reached 
-        for(uint i = 0; i < oracles.length; i++) {
-            OracleI oracle = OracleI(oracles[i]);
-            if (oracle.waitQuery() && requestTime < (now - ORACLE_TIMEOUT)) {
-                 oracle.clearState(); // Reset Oracle State 
-            } else {
-                revert();
-            }
-        }
-    }
-
-    function requestPrice() view public returns(uint256) {
+    /**
+     * @dev Returns cost of requestRates function.
+     */
+    function requestPrice() public view returns(uint256) {
         uint256 requestCost = 0;
-        for(uint256 i = 0; i < oracles.length; i++) {
+        for (uint256 i = 0; i < oracles.length; i++) {
             if (!OracleI(oracles[i]).waitQuery())
                 requestCost += OracleI(oracles[i]).getPrice();
         }
         return requestCost;
     }
 
+    /**
+     * @dev Calculates buy and sell rates after oracles have received it.
+     */
     function calcRates() public {
         require(getState() == State.CALC_RATES);
         requestTimeout();
@@ -178,19 +179,22 @@ contract ComplexExchanger is ExchangerI {
         uint256 maxRate = 0;
         uint256 validOracles = 0;
 
-        for( uint256 i = 0; i < oracles.length; i++) {
+        for (uint256 i = 0; i < oracles.length; i++) {
             OracleI oracle = OracleI(oracles[i]);
             uint256 rate = oracle.rate();
-            if( isRateValid(rate) ) {
+            if (oracle.waitQuery()) {
+                continue;
+            }
+            if (isRateValid(rate)) {
                 minRate = Math.min256(rate, minRate);
                 maxRate = Math.max256(rate, maxRate);
                 validOracles++;
             } else {
-                InvalidRate(rate,oracles[i]);
+                InvalidRate(rate, oracles[i]);
             }
         }
         // If valid rates data is insufficient - throw
-        if( validOracles < MIN_READY_ORACLES)
+        if (validOracles < MIN_READY_ORACLES)
             revert();
 
         //TODO: Shorten this expressions
@@ -200,27 +204,28 @@ contract ComplexExchanger is ExchangerI {
         calcTime = now;
     }
 
-    function isRateValid(uint256 rate) pure internal returns(bool) {
-        return rate >= MIN_RATE && rate <= MAX_RATE;
-    }
-
-    function balanceOf(address _owner) view public returns(uint256) {
-        return balances[_owner];
-    }
-
+    /**
+     * @dev Returns contract oracles' count.
+     */
     function oracleCount() public view returns(uint256) {
         return oracles.length;
     }
 
+    /**
+     * @dev Returns token balance of the sender.
+     */
     function tokenBalance() public view returns(uint256) {
         return token.balanceOf(address(this));
     }
 
+    /**
+     * @dev Returns data for an oracle by its id in the array.
+     */
     function getOracleData(uint number) 
         public 
         view 
         returns (bytes32, bytes32, bool, uint256, uint256, uint256)
-                /* name, type, waitQuery, updTime, clbTime, rate, */
+                /* name, type, waitQuery, updTime, clbTime, rate */
     {
         OracleI curOracle = OracleI(oracles[number]);
 
@@ -234,34 +239,52 @@ contract ComplexExchanger is ExchangerI {
         );
     }
 
-    function claimBalance() public {
-        require(balanceOf(msg.sender) > 0);
-        totalHolded = totalHolded.sub(balanceOf(msg.sender));
-        msg.sender.transfer(balanceOf(msg.sender));
-    }
-
     /**
      * @dev Returns ready (which have data to be used) oracles count.
      */
     function readyOracles() public view returns (uint256) {
         // TODO: Refactor it to use in processing waintin oracles 
-        uint256 oraclesNumber = 0;
-        for(uint256 i = 0; i < oracles.length; i++) {
+        uint256 count = 0;
+        for (uint256 i = 0; i < oracles.length; i++) {
             OracleI oracle = OracleI(oracles[i]);
             if ((oracle.rate() != 0) && (!oracle.waitQuery()))
-                oraclesNumber++;
+                count++;
         }
-        return oraclesNumber;
+        return count;
     }
 
+    /**
+     * @dev Withdraws balance only to special hardcoded wallet ONLY WHEN contract is locked.
+     */
     function withdrawReserve() public {
         require(getState() == State.LOCKED && msg.sender == withdrawWallet);
-        uint256 balance = this.balance - totalHolded;
-        withdrawWallet.transfer(balance);
-        ReserveWithdraw(balance);
+        ReserveWithdraw(this.balance);
+        withdrawWallet.transfer(this.balance);
     }
 
-    function refillBalance() payable public {
+    /**
+     * @dev Allows to deposit eth to the contract without creating orders.
+     */
+    function refillBalance() public payable {
         ReserveRefill(msg.value);
+    }
+
+    /**
+     * @dev Returns if given rate is within limits; internal.
+     * @param rate Rate.
+     */
+    function isRateValid(uint256 rate) internal pure returns(bool) {
+        return rate >= MIN_RATE && rate <= MAX_RATE;
+    }
+
+    /**
+     * @dev Clears slow oracles status; internal.
+     */
+    function requestTimeout() internal {
+        for (uint i = 0; i < oracles.length; i++) {
+            if (OracleI(oracles[i]).waitQuery() && requestTime + ORACLE_TIMEOUT < now) {
+                revert();
+            }
+        }
     }
 }

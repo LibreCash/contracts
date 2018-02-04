@@ -94,7 +94,7 @@ async function applyDeps(contracts,deployer,config) {
     await deployer.deploy(
       exchangerArtifact,
       /*Constructor params*/
-      config.token.address, // Token address
+      config.token, // Token address
       config.buyFee, // Buy Fee
       config.sellFee, // Sell Fee,
       config.oracles,// oracles (array of address)
