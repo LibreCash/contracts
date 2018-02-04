@@ -297,15 +297,4 @@ contract ComplexExchanger is ExchangerI {
     function isRateValid(uint256 rate) internal pure returns(bool) {
         return rate >= MIN_RATE && rate <= MAX_RATE;
     }
-
-    /**
-     * @dev Clears slow oracles status; internal.
-     */
-    function requestTimeout() internal {
-        for (uint i = 0; i < oracles.length; i++) {
-            if (OracleI(oracles[i]).waitQuery() && requestTime + ORACLE_TIMEOUT < now) {
-                revert();
-            }
-        }
-    }
 }
