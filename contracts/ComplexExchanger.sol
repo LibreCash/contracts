@@ -24,6 +24,7 @@ contract ComplexExchanger is ExchangerI {
     uint256 public buyFee;
     uint256 public sellFee;
 
+    uint256 constant ORACLE_ACTUAL = 10 minutes;
     uint256 constant ORACLE_TIMEOUT = 10 minutes;
     uint256 constant RATE_PERIOD = 10 minutes;
     uint256 constant MIN_READY_ORACLES = 2;
@@ -40,10 +41,11 @@ contract ComplexExchanger is ExchangerI {
     event ReserveWithdraw(uint256 amount);
 
     enum State {
+        LOCKED,
         PROCESSING_ORDERS,
+        WAIT_ORACLES,
         CALC_RATES,
-        REQUEST_RATES,
-        LOCKED
+        REQUEST_RATES
     }
     
     function ComplexExchanger(
@@ -74,8 +76,10 @@ contract ComplexExchanger is ExchangerI {
         if (now - calcTime < RATE_PERIOD)
             return State.PROCESSING_ORDERS;
 
-        if ((now - requestTime < ORACLE_TIMEOUT && readyOracles() > MIN_READY_ORACLES) ||
-            (now - requestTime >= ORACLE_TIMEOUT && readyOracles() == oracleCount()))
+        if (waitingOracles() != 0)
+            return State.WAIT_ORACLES;
+        
+        if (readyOracles() >= MIN_READY_ORACLES)
             return State.CALC_RATES;
 
         return State.REQUEST_RATES;
@@ -173,7 +177,6 @@ contract ComplexExchanger is ExchangerI {
      */
     function calcRates() public {
         require(getState() == State.CALC_RATES);
-        requestTimeout();
 
         uint256 minRate = 2**256 - 1; // Max for UINT256
         uint256 maxRate = 0;
@@ -247,9 +250,26 @@ contract ComplexExchanger is ExchangerI {
         uint256 count = 0;
         for (uint256 i = 0; i < oracles.length; i++) {
             OracleI oracle = OracleI(oracles[i]);
-            if ((oracle.rate() != 0) && (!oracle.waitQuery()))
+            if ((oracle.rate() != 0) && 
+                !oracle.waitQuery() &&
+                (now - oracle.callbackTime()) < ORACLE_ACTUAL)
                 count++;
         }
+
+        return count;
+    }
+
+    /**
+     * @dev Returns wait query oracle count.
+     */
+    function waitingOracles() public view returns (uint256) {
+        uint256 count = 0;
+        for (uint256 i = 0; i < oracles.length; i++) {
+            if (OracleI(oracles[i]).waitQuery() && (now - requestTime) < ORACLE_TIMEOUT) {
+                count++;
+            }
+        }
+
         return count;
     }
 
@@ -275,16 +295,5 @@ contract ComplexExchanger is ExchangerI {
      */
     function isRateValid(uint256 rate) internal pure returns(bool) {
         return rate >= MIN_RATE && rate <= MAX_RATE;
-    }
-
-    /**
-     * @dev Clears slow oracles status; internal.
-     */
-    function requestTimeout() internal {
-        for (uint i = 0; i < oracles.length; i++) {
-            if (OracleI(oracles[i]).waitQuery() && requestTime + ORACLE_TIMEOUT < now) {
-                revert();
-            }
-        }
     }
 }
