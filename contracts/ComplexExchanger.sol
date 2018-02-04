@@ -76,11 +76,11 @@ contract ComplexExchanger is ExchangerI {
         if (now - calcTime < RATE_PERIOD)
             return State.PROCESSING_ORDERS;
 
-        if (waitOracles() == 0) {
-            if (readyOracles() >= MIN_READY_ORACLES)
-                return State.CALC_RATES;
-        } else 
+        if (waitingOracles() != 0 ) 
             return State.WAIT_ORACLES;
+        
+        if (readyOracles() >= MIN_READY_ORACLES)
+            return State.CALC_RATES;
 
         return State.REQUEST_RATES;
     }
@@ -263,7 +263,7 @@ contract ComplexExchanger is ExchangerI {
     /**
      * @dev Returns wait query oracle count.
      */
-    function waitOracles() public view returns (uint256) {
+    function waitingOracles() public view returns (uint256) {
         uint256 count = 0;
         for (uint256 i = 0; i < oracles.length; i++) {
             if (OracleI(oracles[i]).waitQuery() && (now - requestTime) < ORACLE_TIMEOUT) {
