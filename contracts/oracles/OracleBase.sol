@@ -21,6 +21,8 @@ contract OracleBase is Ownable, usingOraclize, OracleI {
         string datasource;
         string arguments;
     }
+    
+    uint256 constant TIMEOUT = 10 minutes;
 
     bytes32 public oracleName = "Base Oracle";
     bytes16 public oracleType = "Undefined";
@@ -31,7 +33,7 @@ contract OracleBase is Ownable, usingOraclize, OracleI {
     mapping(bytes32=>bool) validIds; // ensure that each query response is processed only once
     address public bankAddress;
     uint256 public rate;
-    bool public waitQuery = false;
+    bool waitQuery = false;
     OracleConfig public oracleConfig; // заполняется конструктором потомка константами из него же
 
     // public для тестов, но может и оставим
@@ -130,6 +132,16 @@ contract OracleBase is Ownable, usingOraclize, OracleI {
         waitQuery = true;
         updateTime = now;
         return true;
+    }
+
+    /**
+     * @dev Requests updating rate from oraclize.
+     */
+    function waitQuery() public view returns (bool) {
+        if (waitQuery && (now - updateTime) < TIMEOUT))
+            return true;
+
+        return false;
     }
 
     /**

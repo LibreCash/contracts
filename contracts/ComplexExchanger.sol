@@ -24,7 +24,7 @@ contract ComplexExchanger is ExchangerI {
     uint256 public buyFee;
     uint256 public sellFee;
 
-    uint256 constant ORACLE_TIMEOUT = 10 minutes;
+    uint256 constant ACTUAL_RATE = 15 minutes;
     uint256 constant RATE_PERIOD = 10 minutes;
     uint256 constant MIN_READY_ORACLES = 2;
     uint256 constant REVERSE_PERCENT = 100;
@@ -43,7 +43,8 @@ contract ComplexExchanger is ExchangerI {
         PROCESSING_ORDERS,
         CALC_RATES,
         REQUEST_RATES,
-        LOCKED
+        LOCKED,
+        WAIT_ORACLES
     }
     
     function ComplexExchanger(
@@ -74,9 +75,11 @@ contract ComplexExchanger is ExchangerI {
         if (now - calcTime < RATE_PERIOD)
             return State.PROCESSING_ORDERS;
 
-        if ((now - requestTime < ORACLE_TIMEOUT && readyOracles() > MIN_READY_ORACLES) ||
-            (now - requestTime >= ORACLE_TIMEOUT && readyOracles() == oracleCount()))
-            return State.CALC_RATES;
+        if (waitOracles() == 0) {
+            if (readyOracles() >= MIN_READY_ORACLES)
+                return State.CALC_RATES;
+        } else 
+            return State.WAIT_ORACLES;
 
         return State.REQUEST_RATES;
     }
@@ -247,9 +250,25 @@ contract ComplexExchanger is ExchangerI {
         uint256 count = 0;
         for (uint256 i = 0; i < oracles.length; i++) {
             OracleI oracle = OracleI(oracles[i]);
-            if ((oracle.rate() != 0) && (!oracle.waitQuery()))
+            if ((oracle.rate() != 0) && 
+                !oracle.waitQuery() &&
+                (now - oracle.updateTime()) < ACTUAL_RATE))
                 count++;
         }
+        return count;
+    }
+
+    /**
+     * @dev Returns wait query oracle count.
+     */
+    function waitOracles() public view returns (uint256) {
+        uint256 count = 0;
+        for (uint256 i = 0; i < oracles.length; i++) {
+            if (OracleI(oracles[i]).waitQuery()) {
+                count++;
+            }
+        }
+
         return count;
     }
 
