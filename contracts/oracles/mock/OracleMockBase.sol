@@ -62,10 +62,6 @@ contract OracleMockBase is Ownable {
         rate = newRate;
     }
 
-    function clearState() public onlyBank {
-        waitQuery = false;
-    }
-
     /**
     * @dev Method used for oracle funding   
     */    
