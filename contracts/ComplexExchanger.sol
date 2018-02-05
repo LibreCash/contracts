@@ -132,14 +132,14 @@ contract ComplexExchanger is ExchangerI {
         uint256 cryptoAmount = tokensCount.mul(RATE_MULTIPLIER) / sellRate;
         require(cryptoAmount != 0);
 
-        token.transferFrom(msg.sender, this, tokensCount);
-        address recipient = _recipient == 0x0 ? msg.sender : _recipient;
-
         if (cryptoAmount > this.balance) {
             uint256 extraTokens = (cryptoAmount - this.balance).mul(sellRate) / RATE_MULTIPLIER;
             cryptoAmount = this.balance;
-            token.transfer(msg.sender, extraTokens);
+            tokensCount -= extraTokens;
         }
+
+        token.transferFrom(msg.sender, this, tokensCount);
+        address recipient = _recipient == 0x0 ? msg.sender : _recipient;
 
         Sell(msg.sender, recipient, cryptoAmount, sellRate);
         recipient.transfer(cryptoAmount);
