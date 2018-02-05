@@ -57,6 +57,12 @@ contract ComplexExchanger is ExchangerI {
         address _withdrawWallet
     ) public
     {
+        require(
+            _withdrawWallet != address(0x0) &&
+            _token != address(0x0) &&
+            _deadline > now
+        );
+
         tokenAddress = _token;
         token = LibreCash(tokenAddress);
         oracles = _oracles;
