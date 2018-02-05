@@ -85,16 +85,6 @@ contract OracleBase is Ownable, usingOraclize, OracleI {
     }
 
     /**
-     * Clears queryId, updateTime and rate.
-     */
-    function clearState() public onlyBank {
-        waitQuery = false;
-        rate = 0;
-        updateTime = 0;
-        callbackTime = 0;
-    }
-
-    /**
      * @dev Sets bank address.
      * @param bank Address of the bank contract.
      */

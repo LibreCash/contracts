@@ -37,15 +37,6 @@ contract OwnOracle is Ownable {
     }
 
     /**
-     * @dev Clears queryId, updateTime and rate. Needs then response doesn't got properly.
-     */
-    function clearState() public onlyBank {
-        waitQuery = false;
-        rate = 0;
-        updateTime = 0;
-    }
-
-    /**
      * @dev Sets bank address.
      * @param bank Address of the bank contract.
      */
