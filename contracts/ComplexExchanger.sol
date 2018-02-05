@@ -60,7 +60,8 @@ contract ComplexExchanger is ExchangerI {
         require(
             _withdrawWallet != address(0x0) &&
             _token != address(0x0) &&
-            _deadline > now
+            _deadline > now &&
+            _oracles.length >= MIN_READY_ORACLES
         );
 
         tokenAddress = _token;
