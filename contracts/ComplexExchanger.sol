@@ -135,7 +135,7 @@ contract ComplexExchanger is ExchangerI {
         if (cryptoAmount > this.balance) {
             uint256 extraTokens = (cryptoAmount - this.balance).mul(sellRate) / RATE_MULTIPLIER;
             cryptoAmount = this.balance;
-            tokensCount -= extraTokens;
+            tokensCount = tokensCount.sub(extraTokens);
         }
 
         token.transferFrom(msg.sender, this, tokensCount);
