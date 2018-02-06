@@ -33,7 +33,7 @@ contract('ComplexExchanger', function(accounts) {
     var acc2  = accounts[2];
     var oracle1 = oracles[3];
 
-    contract("BuyOrders", async function() {
+    contract("getState", async function() {
 
         before("init", async function() {
             let exchanger = await ComplexExchanger.deployed();
@@ -41,20 +41,12 @@ contract('ComplexExchanger', function(accounts) {
             var oraclePromises = [];
             oracles.forEach(oracle => oraclePromises.push(oracle.deployed()));
             await Promise.all(oraclePromises);
-/*
-already done in deploy script, why it was here - ?
-            oraclePromises = [];
-            oracles.forEach(oracle => oraclePromises.push(oracle.setBank(exchanger.address)));*/
         });
-
-        it("get state", async function() {
-            let exchanger = await ComplexExchanger.deployed();
-            
-            let state = parseInt(await exchanger.getState.call());
-            console.log(state);
-            
-            //assert.equal(before + 1, after, "don't add buyOrders, count orders not equal");
-            //assert.equal(acc1, result[0], "don't add buyOrders, address not equal");
+        
+        it.only("get state", async function() {
+            var exchanger = await ComplexExchanger.deployed();
+            var state = await exchanger.getState.call();
+            assert.equal(state.toNumber(), 5, "the state must be 5"); // 4 actually
         });
     });
 });
