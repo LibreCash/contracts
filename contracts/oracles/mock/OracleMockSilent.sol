@@ -7,7 +7,7 @@ import "./OracleMockBase.sol";
 contract OracleSilent is OracleMockBase {
     function OracleMockTest() {
         oracleName = "Silent Oracle";
-        rate = 0;
+        mockRate = 0;
     }
 
     function updateRate() external returns(bool) {
