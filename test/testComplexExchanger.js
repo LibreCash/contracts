@@ -101,6 +101,7 @@ contract('ComplexExchanger', function(accounts) {
     });
 
     context("requestRate", function() {
+
         beforeEach("check state", async function() {
             let exchanger = await ComplexExchanger.deployed();
             let state = + await exchanger.getState.call();
@@ -157,6 +158,41 @@ contract('ComplexExchanger', function(accounts) {
             }
 
             return true;
+        });
+    });
+
+    context("calcRate", function() {
+
+        beforeEach("check state", async function() {
+            let exchanger = await ComplexExchanger.deployed();
+            let state = + await exchanger.getState.call();
+            assert.equal(state, StateENUM.CALC_RATES,"Don't correct state!!");
+        });
+
+        it("readyOracles < MIN", async function() {
+            let exchanger = await ComplexExchanger.deployed();
+            //??
+        });
+    });
+
+    context("withdrawReserve", function() {
+
+        before("check state", async function() {
+            let exchanger = await ComplexExchanger.deployed();
+            let state = + await exchanger.getState.call();
+            assert.equal(state, StateENUM.LOCKED,"Don't correct state!!");
+        });
+
+        it("Don't withdraw if not wallet", async function() {
+            let exchanger = await ComplexExchanger.deployed();
+
+            try {
+                await exchanger.withdrawReserve({from: acc1});
+            } catch(e) {
+                return true;
+            }
+
+            throw new Error("Not wallet withdraw reserve!!");
         });
     });
 });
