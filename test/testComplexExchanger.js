@@ -27,13 +27,21 @@ function sleep(miliseconds) {
      next:6
 };
 
+const StateENUM = {
+    LOCKED: 0,
+    PROCESSING_ORDERS: 1,
+    WAIT_ORACLES: 2,
+    CALC_RATES: 3,
+    REQUEST_RATES: 4
+}
+
 contract('ComplexExchanger', function(accounts) {
     var owner = accounts[0];
     var acc1  = accounts[1];
     var acc2  = accounts[2];
     var oracle1 = oracles[3];
 
-    contract("getState", async function() {
+    context("getState", async function() {
 
         before("init", async function() {
             let exchanger = await ComplexExchanger.deployed();
@@ -66,11 +74,16 @@ contract('ComplexExchanger', function(accounts) {
         });
     });
 
-    contract("requestRate", function() {
+    context("requestRate", function() {
+        beforeEach("check state", async function() {
+            let exchanger = await ComplexExchanger.deployed();
+            let state = + await exchanger.getState.call();
+            assert.equal(state, StateENUM.REQUEST_RATES,"Don't correct state!!")
+        });
+
         it("payAmount == zero", async function() {
             let exchanger = await ComplexExchanger.deployed();
-            let state = await exchanger.getState.call();
-            console.log("state",state);
+            
 
             try {
                 await exchanger.requestRates();
@@ -96,8 +109,7 @@ contract('ComplexExchanger', function(accounts) {
 
         it("payAmount == oraclesCost", async function() {
             let exchanger = await ComplexExchanger.deployed();
-            let oraclesCost = await exchanger.requestPrice.call();
-            console.log("oraclesCost",oraclesCost, + oraclesCost);
+            let oraclesCost = + await exchanger.requestPrice.call();
 
             try {
                 await exchanger.requestRates({value: oraclesCost});
