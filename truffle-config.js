@@ -8,7 +8,7 @@ module.exports = {
       // https://github.com/trufflesuite/truffle/issues/271
     },
     mainnet: {
-      network_id: "mainnet", // rinkeby, ropsten, main network, etc.
+      network_id: "*", // rinkeby, ropsten, main network, etc.
       host: "localhost",
       port: 8545,
       gas: 6000000 // чтобы деплоилось - править когда gas limit ему не нравится (дефолт вроде как 4712388, и с ним ошибка)
