@@ -33,7 +33,7 @@ contract('ComplexExchanger', function(accounts) {
     var acc2  = accounts[2];
     var oracle1 = oracles[3];
 
-    contract("BuyOrders", async function() {
+    contract("getState", async function() {
 
         before("init", async function() {
             let exchanger = await ComplexExchanger.deployed();
@@ -41,20 +41,28 @@ contract('ComplexExchanger', function(accounts) {
             var oraclePromises = [];
             //oracles.forEach(oracle => oraclePromises.push(oracle.deployed()));
             //await Promise.all(oraclePromises);
-/*
-already done in deploy script, why it was here - ?
-            oraclePromises = [];
-            oracles.forEach(oracle => oraclePromises.push(oracle.setBank(exchanger.address)));*/
         });
-
-        it("get state", async function() {
-            let exchanger = await ComplexExchanger.deployed();
-            
-            let state = + await exchanger.getState.call();
-            console.log(state);
-            
-            //assert.equal(before + 1, after, "don't add buyOrders, count orders not equal");
-            //assert.equal(acc1, result[0], "don't add buyOrders, address not equal");
+        
+        it.only("get initial states", async function() {
+            var exchanger = await ComplexExchanger.deployed();
+            var state = await exchanger.getState.call();
+            var buyFee = await exchanger.buyFee.call();
+            var sellFee = await exchanger.sellFee.call();
+            var deadline = await exchanger.deadline.call();
+            var calcTime = await exchanger.calcTime.call();
+            var requestTime = await exchanger.requestTime.call();
+            //var _oracles = await exchanger.oracles.call();
+            //console.log(_oracles);
+            var tokenAddress = await exchanger.tokenAddress.call();
+            var withdrawWallet = await exchanger.withdrawWallet.call();
+            assert.equal(state.toNumber(), 4, "the state must be 4 (REQUEST_RATES)");
+            assert.equal(buyFee.toNumber(), 0, "the buy fee must be 0");
+            assert.equal(sellFee.toNumber(), 0, "the sell fee must be 0");
+            assert.equal(calcTime.toNumber(), 0, "the calcTime must be 0");
+            assert.equal(requestTime.toNumber(), 0, "the requestTime fee must be 0");
+            assert.isAbove(deadline.toNumber(), parseInt(new Date().getTime()/1000), "the deadline must be more then now");
+            assert.isAtLeast(tokenAddress.length, 40, "the tokenAddress must be a string (here) with length >= 40");
+            assert.isAtLeast(withdrawWallet.length, 40, "the withdrawWallet must be a string (here) with length >= 40");
         });
     });
 
