@@ -39,14 +39,30 @@ contract('ComplexExchanger', function(accounts) {
             let exchanger = await ComplexExchanger.deployed();
 
             var oraclePromises = [];
-            oracles.forEach(oracle => oraclePromises.push(oracle.deployed()));
-            await Promise.all(oraclePromises);
+            //oracles.forEach(oracle => oraclePromises.push(oracle.deployed()));
+            //await Promise.all(oraclePromises);
         });
         
-        it.only("get state", async function() {
+        it.only("get initial states", async function() {
             var exchanger = await ComplexExchanger.deployed();
             var state = await exchanger.getState.call();
-            assert.equal(state.toNumber(), 5, "the state must be 5"); // 4 actually
+            var buyFee = await exchanger.buyFee.call();
+            var sellFee = await exchanger.sellFee.call();
+            var deadline = await exchanger.deadline.call();
+            var calcTime = await exchanger.calcTime.call();
+            var requestTime = await exchanger.requestTime.call();
+            //var _oracles = await exchanger.oracles.call();
+            //console.log(_oracles);
+            var tokenAddress = await exchanger.tokenAddress.call();
+            var withdrawWallet = await exchanger.withdrawWallet.call();
+            assert.equal(state.toNumber(), 4, "the state must be 4 (REQUEST_RATES)");
+            assert.equal(buyFee.toNumber(), 0, "the buy fee must be 0");
+            assert.equal(sellFee.toNumber(), 0, "the sell fee must be 0");
+            assert.equal(calcTime.toNumber(), 0, "the calcTime must be 0");
+            assert.equal(requestTime.toNumber(), 0, "the requestTime fee must be 0");
+            assert.isAbove(deadline.toNumber(), parseInt(new Date().getTime()/1000), "the deadline must be more then now");
+            assert.isAtLeast(tokenAddress.length, 40, "the tokenAddress must be a string (here) with length >= 40");
+            assert.isAtLeast(withdrawWallet.length, 40, "the withdrawWallet must be a string (here) with length >= 40");
         });
     });
 });
