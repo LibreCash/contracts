@@ -21,52 +21,52 @@ module.exports = async function(deployer, network) {
         'oracles/OracleMockTest'
      ]
     },
-    exchangerConfig = {
+
+    appendContract = (network == "mainnet") ?  сontractsList.mainnet : сontractsList.local;
+    oracles = appendContract.map( (oracle) => {
+        name = path.posix.basename(oracle);
+        return artifacts.require(`./${name}.sol`);
+    });
+
+  cash = artifacts.require('./LibreCash.sol');
+  exchanger = artifacts.require(`./ComplexExchanger.sol`);
+  
+  config = {
       buyFee:0,
       sellFee:0,
       deadline:getTimestamp(2018,02,07),
       withdrawWallet:web3.eth.coinbase,
-      token:web3.eth.coinbase, // Sets later after LibreCash deployment
-      oracles:[] 
-    };
+  };
 
-    //appendContract = (network == "mainnet") ?  сontractsList.mainnet : сontractsList.local;
-    //contracts = сontractsList.base.concat(appendContract);
-      contracts = [];
-    //var contractsToDeploy = {};
-
-  //contracts.forEach(function(contractPath) {
-    //let name = path.posix.basename(contractPath);
-    //contractsToDeploy[name] = artifacts.require(`./${contractPath}.sol`);
-  //});
-
-  //await Promise.all(contracts.map((data)=>deployContract(deployer,data)));
-  config = exchangerConfig;
-
-  OracleMockLiza = artifacts.require(`./OracleMockLiza.sol`);
-  OracleMockSasha = artifacts.require(`./OracleMockSasha.sol`);
-  OracleMockKlara = artifacts.require(`./OracleMockKlara.sol`);
-  exchangerArtifact = artifacts.require(`./ComplexExchanger.sol`);
-  deployer.deploy(OracleMockLiza)
-    .then( () => {return deployer.deploy(OracleMockSasha);})
-    .then( () => {return deployer.deploy(OracleMockKlara);})
-    .then( () => {return OracleMockLiza.deployed()})
-    .then( (liza) => {contracts.push(liza.address);return OracleMockSasha.deployed()})
-    .then( (sasha) => {contracts.push(sasha.address);return OracleMockKlara.deployed()})
-    .then( (klara) => {
-        contracts.push(klara.address);
-        console.log(contracts);
-        return deployer.deploy(
-      exchangerArtifact,
-      /*Constructor params*/
-      config.token, // Token address
-      config.buyFee, // Buy Fee
-      config.sellFee, // Sell Fee,
-      contracts,// oracles (array of address)
-      config.deadline, // deadline,
-      config.withdrawWallet // withdraw wallet
-    );
+  deployer.deploy(cash)
+    .then( () => {return Promise.all(oracles.map( (oracle) => {return deployer.deploy(oracle);}))})
+    .then( () => {
+        oraclePromise = oracles.map( (oracle) => {return oracle.deployed();});
+        oraclePromise.push(cash.deployed());
+        return Promise.all(oraclePromise)
     })
+    .then( (contracts) => {
+        cashContract = contracts.pop();
+        let oraclesAddress = contracts.map((oracle) => {return oracle.address});
+        return deployer.deploy(
+          exchanger,
+          /*Constructor params*/
+          cashContract.address, // Token address
+          config.buyFee, // Buy Fee
+          config.sellFee, // Sell Fee,
+          oraclesAddress,// oracles (array of address)
+          config.deadline, // deadline,
+          config.withdrawWallet // withdraw wallet
+        );
+    })
+    .then( () => {
+        oraclePromise = oracles.map( (oracle) => {return oracle.deployed();});
+        oraclePromise.push(exchanger.deployed());
+        return Promise.all(oraclePromise);
+    })
+    .then( (contracts) => {
+        exch = contracts.pop();
+        return Promise.all(contracts.map( (oracle) => {return oracle.setBank(exch.address);}));})
     .then( () => console.log("END DEPLOY"));
   
   //await applyDeps(contractsToDeploy,deployer,exchangerConfig);
