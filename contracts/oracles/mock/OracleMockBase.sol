@@ -12,14 +12,16 @@ contract OracleMockBase is Ownable {
 
     bytes32 public oracleName = "Mocked Base Oracle";
     bytes16 public oracleType = "Mocked Undefined";
-    uint public rate;
+    uint256 public rate;
     event PriceTicker(uint price);
 
     uint256 public updateTime;
     uint256 public callbackTime;
     address public bankAddress;
     bool public waitQuery = false;
-    uint public price = 10000000000;
+    uint256 constant MOCK_REQUEST_PRICE = 10000000000;
+    uint256 public price = 0;
+    
     
     modifier onlyBank() {
         require(msg.sender == bankAddress);
@@ -55,6 +57,9 @@ contract OracleMockBase is Ownable {
         updateTime = now;
         callbackTime = now;
         PriceTicker(rate);
+        if(price == 0) 
+            price = MOCK_REQUEST_PRICE;
+            
         return true;
     }
     
