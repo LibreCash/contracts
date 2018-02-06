@@ -39,8 +39,8 @@ contract('ComplexExchanger', function(accounts) {
             let exchanger = await ComplexExchanger.deployed();
 
             var oraclePromises = [];
-            oracles.forEach(oracle => oraclePromises.push(oracle.deployed()));
-            await Promise.all(oraclePromises);
+            //oracles.forEach(oracle => oraclePromises.push(oracle.deployed()));
+            //await Promise.all(oraclePromises);
 /*
 already done in deploy script, why it was here - ?
             oraclePromises = [];
@@ -50,11 +50,67 @@ already done in deploy script, why it was here - ?
         it("get state", async function() {
             let exchanger = await ComplexExchanger.deployed();
             
-            let state = parseInt(await exchanger.getState.call());
+            let state = + await exchanger.getState.call();
             console.log(state);
             
             //assert.equal(before + 1, after, "don't add buyOrders, count orders not equal");
             //assert.equal(acc1, result[0], "don't add buyOrders, address not equal");
+        });
+    });
+
+    contract("requestRate", function() {
+        it("payAmount == zero", async function() {
+            let exchanger = await ComplexExchanger.deployed();
+            let state = await exchanger.getState.call();
+            console.log("state",state);
+
+            try {
+                await exchanger.requestRates();
+            } catch(e) {
+                return true;
+            }
+            
+            throw new Error("Don't throw if send 0 eth!");
+        });
+
+        it("payAmount < oraclesCost", async function() {
+            let exchanger = await ComplexExchanger.deployed();
+            let oraclesCost = + await exchanger.requestPrice.call();
+
+            try {
+                await exchanger.requestRates({value: oraclesCost - 100});
+            } catch(e) {
+                return true;
+            }
+
+            throw new Error("Don't throw if send < oraclesCost");
+        });
+
+        it("payAmount == oraclesCost", async function() {
+            let exchanger = await ComplexExchanger.deployed();
+            let oraclesCost = await exchanger.requestPrice.call();
+            console.log("oraclesCost",oraclesCost, + oraclesCost);
+
+            try {
+                await exchanger.requestRates({value: oraclesCost});
+            } catch(e) {
+                throw new Error("throw if send == oraclesCost");
+            }
+
+            return true;
+        });
+
+        it("payAmount > oraclesCost", async function() {
+            let exchanger = await ComplexExchanger.deployed();
+            let oraclesCost = + await exchanger.requestPrice.call();
+
+            try {
+                await exchanger.requestRates({value: oraclesCost + 100});
+            } catch(e) {
+                throw new Error("throw if send > oraclesCost");
+            }
+
+            return true;
         });
     });
 });

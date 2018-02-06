@@ -3,7 +3,7 @@ module.exports = {
     development: {
       host: "localhost",
       port: 8545,
-      network_id: "dev", // local
+      network_id: "*", // local
       gas: 6000000 // чтобы деплоилось - править когда gas limit ему не нравится (дефолт вроде как 4712388, и с ним ошибка)
       // https://github.com/trufflesuite/truffle/issues/271
     },
