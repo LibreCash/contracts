@@ -51,8 +51,11 @@ contract('ComplexExchanger', function(accounts) {
             var deadline = await exchanger.deadline.call();
             var calcTime = await exchanger.calcTime.call();
             var requestTime = await exchanger.requestTime.call();
-            //var _oracles = await exchanger.oracles.call();
-            //console.log(_oracles);
+            var requestPrice = await exchanger.requestPrice.call();
+            var oracleCount = await exchanger.oracleCount.call();
+            //var tokenBalance = await exchanger.tokenBalance.call();
+            var readyOracles = await exchanger.readyOracles.call();
+            var waitingOracles = await exchanger.waitingOracles.call();
             var tokenAddress = await exchanger.tokenAddress.call();
             var withdrawWallet = await exchanger.withdrawWallet.call();
             assert.equal(state.toNumber(), 4, "the state must be 4 (REQUEST_RATES)");
@@ -60,9 +63,32 @@ contract('ComplexExchanger', function(accounts) {
             assert.equal(sellFee.toNumber(), 0, "the sell fee must be 0");
             assert.equal(calcTime.toNumber(), 0, "the calcTime must be 0");
             assert.equal(requestTime.toNumber(), 0, "the requestTime fee must be 0");
+            // uncomment next line after fixing mock oracles
+            //assert.equal(requestPrice.toNumber(), 0, "the initial oracle queries price must be 0");
+            assert.isAbove(oracleCount.toNumber(), 2, "the initial oracle count must be more than, for example, 2");
+            //assert.equal(tokenBalance.toNumber(), 0, "the initial token balance must be 0");
+            assert.equal(readyOracles.toNumber(), 0, "the initial ready oracle count must be 0");
+            assert.equal(waitingOracles.toNumber(), 0, "the initial waiting oracle count must be 0");
             assert.isAbove(deadline.toNumber(), parseInt(new Date().getTime()/1000), "the deadline must be more then now");
-            assert.isAtLeast(tokenAddress.length, 40, "the tokenAddress must be a string (here) with length >= 40");
-            assert.isAtLeast(withdrawWallet.length, 40, "the withdrawWallet must be a string (here) with length >= 40");
+            assert.isAtLeast(tokenAddress.length, 40, "the tokenAddress must be a string (in the test) with length >= 40");
+            assert.isAtLeast(withdrawWallet.length, 40, "the withdrawWallet must be a string (in the test) with length >= 40");
+            console.log(tokenAddress);
+
+            // go for oracles
+            for (var i = 0; i < oracleCount.toNumber(); i++) {
+                let _oracle = await exchanger.oracles.call(i);
+                assert.isAtLeast(_oracle.length, 40, "each oracle address must be a string (here) with length >= 40");
+                let _oracleData = await exchanger.getOracleData.call(i);
+                assert.isArray(_oracleData, "the returned oracle data must be an array");
+                assert.lengthOf(_oracleData, 6, "there must be exact 6 items in the returned oracle data");
+                let [_oracleName, _oracleType, _waitQuery, _updateTime, _callbackTime, _rate] = _oracleData;
+                assert.equal((_oracleName.length - "0x".length) / 2, 32, "oracle name must be bytes32");
+                assert.equal((_oracleType.length - "0x".length) / 2, 16, "oracle type must be bytes16");
+                assert.equal(_waitQuery, false, "the new oracle shouldn't be waiting");
+                assert.equal(_updateTime.toNumber(), 0, "the new oracle's update time should be 0");
+                assert.equal(_callbackTime.toNumber(), 0, "the new oracle's update time should be 0");
+                assert.equal(_rate.toNumber(), 0, "the new oracle's rate should be 0");
+            }
         });
     });
 
