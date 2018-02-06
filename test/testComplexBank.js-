@@ -277,7 +277,7 @@ contract('ComplexBank', function(accounts) {
             } catch(e) {}
         });
 
-        it.only("add sellOrders", async function() {
+        it("add sellOrders", async function() {
             let bank = await ComplexBank.deployed();
             let cash = await LibreCash.deployed();
 

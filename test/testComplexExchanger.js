@@ -65,4 +65,60 @@ contract('ComplexExchanger', function(accounts) {
             assert.isAtLeast(withdrawWallet.length, 40, "the withdrawWallet must be a string (here) with length >= 40");
         });
     });
+
+    contract("requestRate", function() {
+        it("payAmount == zero", async function() {
+            let exchanger = await ComplexExchanger.deployed();
+            let state = await exchanger.getState.call();
+            console.log("state",state);
+
+            try {
+                await exchanger.requestRates();
+            } catch(e) {
+                return true;
+            }
+            
+            throw new Error("Don't throw if send 0 eth!");
+        });
+
+        it("payAmount < oraclesCost", async function() {
+            let exchanger = await ComplexExchanger.deployed();
+            let oraclesCost = + await exchanger.requestPrice.call();
+
+            try {
+                await exchanger.requestRates({value: oraclesCost - 100});
+            } catch(e) {
+                return true;
+            }
+
+            throw new Error("Don't throw if send < oraclesCost");
+        });
+
+        it("payAmount == oraclesCost", async function() {
+            let exchanger = await ComplexExchanger.deployed();
+            let oraclesCost = await exchanger.requestPrice.call();
+            console.log("oraclesCost",oraclesCost, + oraclesCost);
+
+            try {
+                await exchanger.requestRates({value: oraclesCost});
+            } catch(e) {
+                throw new Error("throw if send == oraclesCost");
+            }
+
+            return true;
+        });
+
+        it("payAmount > oraclesCost", async function() {
+            let exchanger = await ComplexExchanger.deployed();
+            let oraclesCost = + await exchanger.requestPrice.call();
+
+            try {
+                await exchanger.requestRates({value: oraclesCost + 100});
+            } catch(e) {
+                throw new Error("throw if send > oraclesCost");
+            }
+
+            return true;
+        });
+    });
 });
