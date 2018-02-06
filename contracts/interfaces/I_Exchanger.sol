@@ -11,7 +11,7 @@ interface ExchangerI {
 
     /* Data getters */
     function tokenBalance() public view returns(uint256);
-    function getOracleData(uint number) public view returns (bytes32, bytes32, bool, uint256, uint256, uint256);
+    function getOracleData(uint number) public view returns (address, bytes32, bytes16, bool, uint256, uint256, uint256);
 
     /* Balance methods */
     function refillBalance() payable public;

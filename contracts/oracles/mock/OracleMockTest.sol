@@ -7,6 +7,6 @@ import "./OracleMockBase.sol";
 contract OracleMockTest is OracleMockBase {
     function OracleMockTest() {
         oracleName = "Test (Mocked Oracle, 1000)";
-        rate = 1000;
+        mockRate = 1000;
     }
 }

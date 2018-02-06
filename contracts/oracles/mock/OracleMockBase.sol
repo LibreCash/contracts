@@ -12,7 +12,8 @@ contract OracleMockBase is Ownable {
 
     bytes32 public oracleName = "Mocked Base Oracle";
     bytes16 public oracleType = "Mocked Undefined";
-    uint256 public rate;
+    uint256 public rate = 0;
+    uint256 public mockRate;
     event PriceTicker(uint price);
 
     uint256 public updateTime;
@@ -56,10 +57,12 @@ contract OracleMockBase is Ownable {
     function updateRate() external onlyBank returns (bool) {
         updateTime = now;
         callbackTime = now;
-        PriceTicker(rate);
+        rate = mockRate;
+
         if(price == 0) 
             price = MOCK_REQUEST_PRICE;
-            
+
+        PriceTicker(rate);     
         return true;
     }
     

@@ -238,12 +238,13 @@ contract ComplexExchanger is ExchangerI {
     function getOracleData(uint number) 
         public 
         view 
-        returns (bytes32, bytes32, bool, uint256, uint256, uint256)
-                /* name, type, waitQuery, updTime, clbTime, rate */
+        returns (address, bytes32, bytes16, bool, uint256, uint256, uint256)
+                /* address, name, type, waitQuery, updTime, clbTime, rate */
     {
         OracleI curOracle = OracleI(oracles[number]);
 
-        return( 
+        return(
+            oracles[number],
             curOracle.oracleName(),
             curOracle.oracleType(),
             curOracle.waitQuery(),
