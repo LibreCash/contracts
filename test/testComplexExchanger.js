@@ -1,3 +1,7 @@
+const
+    Reverter = require('./helpers/reverter'),
+    reverter = new Reverter(web3);
+
 var ComplexExchanger = artifacts.require("ComplexExchanger");
 var LibreCash = artifacts.require("LibreCash");
 
@@ -167,39 +171,42 @@ contract('ComplexExchanger', function(accounts) {
 
     context("requestRate", function() {
 
-        beforeEach("check state", async function() {
+        before("init", async function() {
             let exchanger = await ComplexExchanger.deployed();
             let state = + await exchanger.getState.call();
-            assert.equal(state, StateENUM.REQUEST_RATES,"Don't correct state!!")
+            assert.equal(state, StateENUM.REQUEST_RATES,"Don't correct state!!");
+            
+            reverter.snapshot((e) => {
+                if (e != undefined)
+                    console.log(e);
+            });
         });
 
-        it("payAmount == zero", async function() {
-            let exchanger = await ComplexExchanger.deployed();
-            
+        afterEach("revert", function() {
+            reverter.revert((e) => {
+                if (e != undefined)
+                    console.log(e);
+            });
+        });
 
+        it("(1) payAmount < oraclesCost", async function() {
+            let exchanger = await ComplexExchanger.deployed();
+            let oraclesCost = + await exchanger.requestPrice.call();
             try {
                 await exchanger.requestRates();
             } catch(e) {
-                return true;
-            }
-            
-            throw new Error("Don't throw if send 0 eth!");
-        });
-
-        it("payAmount < oraclesCost", async function() {
-            let exchanger = await ComplexExchanger.deployed();
-            let oraclesCost = + await exchanger.requestPrice.call();
-
-            try {
-                await exchanger.requestRates({value: oraclesCost - 100});
-            } catch(e) {
-                return true;
+                try {
+                    await exchanger.requestRates({value: oraclesCost/2});
+                } catch(e) {
+                    return true;
+                }
             }
 
-            throw new Error("Don't throw if send < oraclesCost");
+            if (oraclesCost > 0)
+                throw new Error("Don't throw if send < oraclesCost");
         });
 
-        it("payAmount == oraclesCost", async function() {
+        it("(2) payAmount == oraclesCost", async function() {
             let exchanger = await ComplexExchanger.deployed();
             let oraclesCost = + await exchanger.requestPrice.call();
 
@@ -212,17 +219,19 @@ contract('ComplexExchanger', function(accounts) {
             return true;
         });
 
-        it("payAmount > oraclesCost", async function() {
+        it("(3) payAmount > oraclesCost", async function() {
             let exchanger = await ComplexExchanger.deployed();
             let oraclesCost = + await exchanger.requestPrice.call();
+            let before = + web3.eth.getBalance(owner);
 
             try {
                 await exchanger.requestRates({value: oraclesCost + 100});
             } catch(e) {
                 throw new Error("throw if send > oraclesCost");
             }
+            let after = + web3.eth.getBalance(owner);
 
-            return true;
+            //assert.equal(before, after + oraclesCost, "Balance not equal!!");
         });
     });
 
@@ -245,6 +254,7 @@ contract('ComplexExchanger', function(accounts) {
         before("check state", async function() {
             let exchanger = await ComplexExchanger.deployed();
             let state = + await exchanger.getState.call();
+            console.log(web3.currentProvider.host);
             assert.equal(state, StateENUM.LOCKED,"Don't correct state!!");
         });
 
