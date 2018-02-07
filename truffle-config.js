@@ -4,14 +4,13 @@ module.exports = {
       host: "localhost",
       port: 8545,
       network_id: "*", // local
-      gas: 6000000 // чтобы деплоилось - править когда gas limit ему не нравится (дефолт вроде как 4712388, и с ним ошибка)
-      // https://github.com/trufflesuite/truffle/issues/271
+      gas: 6000000
     },
     mainnet: {
       network_id: "*", // rinkeby, ropsten, main network, etc.
       host: "localhost",
       port: 8545,
-      gas: 6000000 // чтобы деплоилось - править когда gas limit ему не нравится (дефолт вроде как 4712388, и с ним ошибка)
+      gas: 6000000
     }
   },
    

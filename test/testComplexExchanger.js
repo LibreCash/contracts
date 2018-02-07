@@ -2,6 +2,9 @@ const
     Reverter = require('./helpers/reverter'),
     reverter = new Reverter(web3);
 
+const truffleTestGasPrice = 100000000000,
+      tokenMultiplier = Math.pow(10, 18);
+
 var ComplexExchanger = artifacts.require("ComplexExchanger");
 var LibreCash = artifacts.require("LibreCash");
 
@@ -104,10 +107,10 @@ contract('ComplexExchanger', function(accounts) {
     });
 
     context("buy/sell", async function() {
-        before("buy tokens", async function() {
+        beforeEach(async function() {
             var token = await LibreCash.deployed(),
                 exchanger = await ComplexExchanger.deployed();
-            var sumToMint = 100000 * Math.pow(10, 18);
+            var sumToMint = 1000 * tokenMultiplier;
             var mint = await token.mint(exchanger.address, sumToMint);
             assert.equal(mint.receipt.status, 1, "mint tx failed");
     
@@ -143,28 +146,62 @@ contract('ComplexExchanger', function(accounts) {
             assert.equal(state.toNumber(), 1, "the state after calcRates must be 1 (PROCESSING_ORDERS)");
         });
     
-        it.only("buy tokens", async function() {
+        it("buy tokens", async function() {
             var exchanger = await ComplexExchanger.deployed(),
                 token = await LibreCash.deployed(),
                 buyFee = await exchanger.buyFee.call(),
-                sellFee = await exchanger.sellFee.call();
-            var ethToSend = 5,
+                sellFee = await exchanger.sellFee.call(),
+                buyRate = (await exchanger.buyRate.call()) / 1000;
+            var ethToSend = 1,
                 weiToSend = web3.toWei(ethToSend, 'ether'),
-                balanceBefore = web3.eth.getBalance(acc1).toNumber();
-            var buyTx = await exchanger.buyTokens(acc1, { from: acc1, value: weiToSend });
+                balanceBefore = +web3.eth.getBalance(owner);
+            var buyTx = await exchanger.buyTokens(owner, { from: owner, value: weiToSend });
             assert.equal(buyTx.receipt.status, 1, "buyTokens tx failed");
-            var factGasInEth = web3.fromWei(balanceBefore - web3.eth.getBalance(acc1).toNumber() - weiToSend, 'ether');
-            assert.isAbove(factGasInEth, 0, "used gas must be positive");
-            assert.isBelow(factGasInEth, 0.1, "seems too much gas used");
-            
-            var buyRate = (await exchanger.buyRate.call()) / 1000,
-                boughtTokens = (await token.balanceOf.call(acc1)) / Math.pow(10, 18);
+            // this is the gas only when exchanger doesn't refund
+            var zeroBalance = balanceBefore - +web3.eth.getBalance(owner) - weiToSend -
+                truffleTestGasPrice * buyTx.receipt.gasUsed;
+            // if zeroBalance is below 100000, it is insufficient
+            assert.isBelow(Math.abs(zeroBalance), 100000, "ether sent doesn't fit the balance changed");
+
+            var boughtTokens = (await token.balanceOf.call(owner)) / tokenMultiplier;
 
             console.log(`we sent ${ethToSend} ether`);
             console.log(`rate was ${buyRate}`);
             console.log(`we got ${boughtTokens} tokens`);
             console.log(`shall be ${ethToSend} * ${buyRate} == ${boughtTokens}`);
             assert.equal(ethToSend * buyRate, boughtTokens, "token count doesn't match sent ether multiplied by rate");
+        });
+    
+        it("buy more tokens than exch. has", async function() {
+            var exchanger = await ComplexExchanger.deployed(),
+                token = await LibreCash.deployed(),
+                buyFee = await exchanger.buyFee.call(),
+                sellFee = await exchanger.sellFee.call(),
+                tokenBalance = await exchanger.tokenBalance.call(),
+                buyRate = (await exchanger.buyRate.call()) / 1000,
+                exchangerBalance = (await token.balanceOf.call(exchanger.address)) / tokenMultiplier;
+            // exchangerBalance shall be 1000 tokens now, let's try to buy 1500 tokens
+            var tokensToBuy = 1500,
+                ethToSend = tokensToBuy / buyRate,
+                weiToSend = web3.toWei(ethToSend, 'ether'),
+                balanceBefore = web3.eth.getBalance(owner).toNumber();
+            
+            var buyTx = await exchanger.buyTokens(owner, { from: owner, value: weiToSend });
+            assert.equal(buyTx.receipt.status, 1, "buyTokens tx failed");
+            var weiUsedForGas = truffleTestGasPrice * buyTx.receipt.gasUsed;
+            var balanceDelta = balanceBefore - +web3.eth.getBalance(owner);
+            var balanceDeltaNet = balanceDelta - weiUsedForGas;
+
+            assert.isAbove(balanceDelta, 0, "balance delta must be positive - very strange if ever thrown");
+            var boughtTokens = await token.balanceOf.call(owner);
+
+            console.log(`we sent ${ethToSend} ether`);
+            console.log(`but balance change is ${balanceDeltaNet / tokenMultiplier}`);
+            console.log(`rate was ${buyRate}`);
+            console.log(`so we got ${+boughtTokens / tokenMultiplier} tokens`);
+            console.log(`shall be ${web3.fromWei(balanceDeltaNet, 'ether')} * ${buyRate} == ${+boughtTokens / tokenMultiplier}`);
+            // if the difference is below 10000000, it is insufficient (for example gas price is about 5384400000000000)
+            assert.isBelow(Math.abs(balanceDeltaNet * buyRate - +boughtTokens), 10000000, "token count doesn't match sent ether multiplied by rate");
         });
     
     });
