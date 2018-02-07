@@ -45,10 +45,7 @@ contract('ComplexExchanger', function(accounts) {
 
         before("init", async function() {
             let exchanger = await ComplexExchanger.deployed();
-
-            var oraclePromises = [];
-            //oracles.forEach(oracle => oraclePromises.push(oracle.deployed()));
-            //await Promise.all(oraclePromises);
+            oracles.forEach(async oracle => await oracle.deployed());
         });
         
         it.only("get initial states", async function() {
@@ -61,7 +58,7 @@ contract('ComplexExchanger', function(accounts) {
             var requestTime = await exchanger.requestTime.call();
             var requestPrice = await exchanger.requestPrice.call();
             var oracleCount = await exchanger.oracleCount.call();
-            //var tokenBalance = await exchanger.tokenBalance.call();
+            var tokenBalance = await exchanger.tokenBalance.call();
             var readyOracles = await exchanger.readyOracles.call();
             var waitingOracles = await exchanger.waitingOracles.call();
             var tokenAddress = await exchanger.tokenAddress.call();
@@ -73,13 +70,12 @@ contract('ComplexExchanger', function(accounts) {
             assert.equal(requestTime.toNumber(), 0, "the requestTime fee must be 0");
             assert.equal(requestPrice.toNumber(), 0, "the initial oracle queries price must be 0");
             assert.isAbove(oracleCount.toNumber(), 2, "the initial oracle count must be more than, for example, 2");
-            //assert.equal(tokenBalance.toNumber(), 0, "the initial token balance must be 0");
+            assert.equal(tokenBalance.toNumber(), 0, "the initial token balance must be 0");
             assert.equal(readyOracles.toNumber(), 0, "the initial ready oracle count must be 0");
             assert.equal(waitingOracles.toNumber(), 0, "the initial waiting oracle count must be 0");
             assert.isAbove(deadline.toNumber(), parseInt(new Date().getTime()/1000), "the deadline must be more then now");
             assert.isAtLeast(tokenAddress.length, 40, "the tokenAddress must be a string (in the test) with length >= 40");
             assert.isAtLeast(withdrawWallet.length, 40, "the withdrawWallet must be a string (in the test) with length >= 40");
-            console.log(tokenAddress);
 
             // go for oracles
             for (var i = 0; i < oracleCount.toNumber(); i++) {
@@ -98,6 +94,14 @@ contract('ComplexExchanger', function(accounts) {
                 assert.equal(_rate.toNumber(), 0, "the new oracle's rate should be 0");
             }
         });
+    });
+
+    it("buy tokens", async function() {
+        var exchanger = await ComplexExchanger.deployed();
+        var state = await exchanger.getState.call();
+        var buyFee = await exchanger.buyFee.call();
+        var sellFee = await exchanger.sellFee.call();
+        console.log([buyFee, sellFee, state]);        
     });
 
     context("requestRate", function() {
