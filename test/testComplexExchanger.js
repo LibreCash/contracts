@@ -1,6 +1,8 @@
 const
     Reverter = require('./helpers/reverter'),
-    reverter = new Reverter(web3);
+    reverter = new Reverter(web3),
+    TimeMachine = require('./helpers/timemachine'),
+    timeMachine = new TimeMachine(web3);
 
 var ComplexExchanger = artifacts.require("ComplexExchanger");
 
@@ -55,7 +57,7 @@ contract('ComplexExchanger', function(accounts) {
             //await Promise.all(oraclePromises);
         });
         
-        it.only("get initial states", async function() {
+        it("get initial states", async function() {
             var exchanger = await ComplexExchanger.deployed();
             var state = await exchanger.getState.call();
             var buyFee = await exchanger.buyFee.call();
@@ -185,15 +187,24 @@ contract('ComplexExchanger', function(accounts) {
     });
 
     context("withdrawReserve", function() {
+        var jump;
 
         before("check state", async function() {
             let exchanger = await ComplexExchanger.deployed();
+            let deadline = + await exchanger.deadline.call();
+
+            jump = deadline - web3.eth.getBlock(web3.eth.blockNumber).timestamp;
+            await timeMachine.jump(jump);
+
             let state = + await exchanger.getState.call();
-            console.log(web3.currentProvider.host);
             assert.equal(state, StateENUM.LOCKED,"Don't correct state!!");
         });
 
-        it("Don't withdraw if not wallet", async function() {
+        after("clear", async function() {
+            await timeMachine.jump(-jump);
+        });
+
+        it("(1) Don't withdraw if not wallet", async function() {
             let exchanger = await ComplexExchanger.deployed();
 
             try {
@@ -204,5 +215,28 @@ contract('ComplexExchanger', function(accounts) {
 
             throw new Error("Not wallet withdraw reserve!!");
         });
+
+        it("(2) withdraw if call wallet", async function() {
+            let exchanger = await ComplexExchanger.deployed();
+
+            let eBalanceBefore = web3.eth.getBalance(exchanger.address);
+            if (eBalanceBefore == 0) {
+                await exchanger.refillBalance({value: web3.toWei(5,'ether')});
+                eBalanceBefore = web3.eth.getBalance(exchanger.address);
+            }
+
+            let wBalanceBefore = web3.eth.getBalance(owner);
+            try {
+                await exchanger.withdrawReserve();
+            } catch(e) {
+                throw new Error("Wallet don't withdraw reserve!!");
+            }
+
+            let eBalanceAfter = web3.eth.getBalance(exchanger.address);
+            let wBalanceAfter = web3.eth.getBalance(owner);
+
+            assert.isTrue(eBalanceBefore > eBalanceAfter, "Balance don't changed");
+            assert.equal(eBalanceAfter, 0, "Withdraw don't all balance");
+        })
     });
 });
