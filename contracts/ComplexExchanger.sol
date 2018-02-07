@@ -154,7 +154,6 @@ contract ComplexExchanger is ExchangerI {
         // If it will be below zero - it will throw revert()
         // require(msg.value >= requestPrice());
         uint256 value = msg.value;
-        uint256 refundAmount = value.sub(requestPrice());
 
         for (uint256 i = 0; i < oracles.length; i++) {
             OracleI oracle = OracleI(oracles[i]);
@@ -170,9 +169,9 @@ contract ComplexExchanger is ExchangerI {
                 OracleRequest(oracles[i]);
         }
         requestTime = now;
-        
-        if(refundAmount > 0)
-            msg.sender.transfer(refundAmount);
+
+        if (value > 0)
+            msg.sender.transfer(value);
     }
 
     /**
