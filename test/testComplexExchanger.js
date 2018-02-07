@@ -1,6 +1,8 @@
 const
     Reverter = require('./helpers/reverter'),
-    reverter = new Reverter(web3);
+    reverter = new Reverter(web3),
+    TimeMachine = require('./helpers/timemachine'),
+    timeMachine = new TimeMachine(web3);
 
 const truffleTestGasPrice = 100000000000,
       tokenMultiplier = Math.pow(10, 18);
@@ -45,11 +47,22 @@ const StateENUM = {
     REQUEST_RATES: 4
 }
 
+const 
+    minutes = 60,
+    ORACLE_ACTUAL = 10 * minutes,
+    ORACLE_TIMEOUT = 10 * minutes,
+    RATE_PERIOD = 10 * minutes,
+    MIN_READY_ORACLES = 2,
+    REVERSE_PERCENT = 100,
+    RATE_MULTIPLIER = 1000,
+    MAX_RATE = 5000 * RATE_MULTIPLIER,
+    MIN_RATE = 100 * RATE_MULTIPLIER;
+
 contract('ComplexExchanger', function(accounts) {
     var owner = accounts[0];
     var acc1  = accounts[1];
     var acc2  = accounts[2];
-    var oracle1 = oracles[3];
+    var oracleTest = oracles[3];
 
     context("getState", async function() {
 
@@ -273,29 +286,110 @@ contract('ComplexExchanger', function(accounts) {
     });
 
     context("calcRate", function() {
-
-        beforeEach("check state", async function() {
-            let exchanger = await ComplexExchanger.deployed();
-            let state = + await exchanger.getState.call();
-            assert.equal(state, StateENUM.CALC_RATES,"Don't correct state!!");
-        });
-
-        it("readyOracles < MIN", async function() {
-            let exchanger = await ComplexExchanger.deployed();
-            //??
-        });
-    });
-
-    context("withdrawReserve", function() {
+        var oraclesDeployed = [];
 
         before("check state", async function() {
             let exchanger = await ComplexExchanger.deployed();
             let state = + await exchanger.getState.call();
-            console.log(web3.currentProvider.host);
+
+            if (state != StateENUM.CALC_RATES) {
+                await exchanger.requestRates({value: web3.toWei(5,'ether')});
+                state = + await exchanger.getState.call();
+            }
+
+            assert.equal(state, StateENUM.CALC_RATES,"Don't correct state!!");
+
+            reverter.snapshot((e) => {
+                if (e != undefined)
+                    console.log(e);
+            });
+        });
+
+        afterEach("revert", function() {
+            reverter.revert((e) => {
+                if (e != undefined)
+                    console.log(e);
+            });
+        });
+
+        it("(1) validOracles < MIN", async function() {
+            let exchanger = await ComplexExchanger.deployed();
+            for (let i = 0; i < MIN_READY_ORACLES; i++) {
+                let oracle = await oracles[i].deployed();
+                await oracle.setRate(MIN_RATE - 1);
+            }
+
+            try {
+                await exchanger.calcRates();
+            } catch(e) {
+                for (let i = 0; i < MIN_READY_ORACLES; i++) {
+                    let oracle = await oracles[i].deployed();
+                    await oracle.setRate(MAX_RATE + 1);
+                }
+
+                try {
+                    await exchanger.calcRates();
+                } catch(e) {
+                    return true;
+                }
+            }
+
+            throw new Error("calcRate call without revert if count valid oracles < MIN");
+        });
+
+        it("(2) validOracles > min", async function() {
+            let exchanger = await ComplexExchanger.deployed();
+
+            try {
+                await exchanger.calcRates();
+            } catch(e) {
+                throw new Error("Error if calcRate with valid oracles");
+            }
+
+            let max, min;
+            for(let i = 0; i < oracles.length; i++) {
+                let oracle = await oracles[i].deployed();
+                let rate = + await oracle.rate.call();
+                if (rate < MIN_RATE || rate > MAX_RATE)
+                    continue;
+
+                max = (max === undefined) ? rate : Math.max(max,rate);
+                min = (min === undefined) ? rate : Math.min(min,rate);
+            }
+
+            let 
+                buyFee = + await exchanger.buyFee.call(),
+                sellFee = + await exchanger.sellFee.call(),
+                buyRate = + await exchanger.buyRate.call(),
+                sellRate = + await exchanger.sellRate.call();
+
+            calcBuyRate = min - min * buyFee/100/REVERSE_PERCENT;
+            calcSellRate = max + max * sellFee/100/REVERSE_PERCENT;
+
+            assert.equal(calcBuyRate, buyRate, "Don't equal calculate and return buyRate");
+            assert.equal(calcSellRate, sellRate , "Don't equal calculate and return sellRate");
+        });
+    });
+
+    context("withdrawReserve", function() {
+        var jump;
+
+        before("check state", async function() {
+            let exchanger = await ComplexExchanger.deployed();
+            let deadline = + await exchanger.deadline.call();
+
+            jump = deadline - web3.eth.getBlock(web3.eth.blockNumber).timestamp;
+            await timeMachine.jump(jump);
+
+            let state = + await exchanger.getState.call();
             assert.equal(state, StateENUM.LOCKED,"Don't correct state!!");
         });
 
-        it("Don't withdraw if not wallet", async function() {
+        after("clear", async function() {
+            await timeMachine.jump(-jump);
+        });
+
+        it("(1) Don't withdraw if not wallet", async function() {
             let exchanger = await ComplexExchanger.deployed();
 
             try {
@@ -305,6 +399,29 @@ contract('ComplexExchanger', function(accounts) {
             }
 
             throw new Error("Not wallet withdraw reserve!!");
+        });
+
+        it("(2) withdraw if call wallet", async function() {
+            let exchanger = await ComplexExchanger.deployed();
+
+            let eBalanceBefore = web3.eth.getBalance(exchanger.address);
+            if (eBalanceBefore == 0) {
+                await exchanger.refillBalance({value: web3.toWei(5,'ether')});
+                eBalanceBefore = web3.eth.getBalance(exchanger.address);
+            }
+
+            let wBalanceBefore = web3.eth.getBalance(owner);
+            try {
+                await exchanger.withdrawReserve();
+            } catch(e) {
+                throw new Error("Wallet don't withdraw reserve!!");
+            }
+
+            let eBalanceAfter = web3.eth.getBalance(exchanger.address);
+            let wBalanceAfter = web3.eth.getBalance(owner);
+
+            assert.isTrue(eBalanceBefore > eBalanceAfter, "Balance don't changed");
+            assert.equal(eBalanceAfter, 0, "Withdraw don't all balance");
         });
     });
 });
