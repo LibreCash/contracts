@@ -32,8 +32,8 @@ module.exports = async function(deployer, network) {
   exchanger = artifacts.require(`./ComplexExchanger.sol`);
   
   config = {
-      buyFee:0,
-      sellFee:0,
+      buyFee:250,
+      sellFee:250,
       deadline:getTimestamp(2018,02,07),
       withdrawWallet:web3.eth.coinbase,
   };
