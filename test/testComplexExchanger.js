@@ -22,6 +22,10 @@ var oracles = [];
 });
 
 const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
+function isTransactionSuccessful(tx, msg) {
+    console.log("[status]", tx.receipt.status);
+    return assert.equal(tx.receipt.status, 1, msg);
+}
 
 function sleep(miliseconds) {
     var currentTime = new Date().getTime();
@@ -137,7 +141,7 @@ contract('ComplexExchanger', function(accounts) {
             assert.equal(requestPrice.toNumber(), 0, "the initial oracle queries price must be 0");
     
             var RR = await exchanger.requestRates();
-            assert.equal(RR.receipt.status, 1, "requestRates tx failed");
+            isTransactionSuccessful(RR, "requestRates tx failed");
             console.log("[test] successful requestRates()");
             state = await exchanger.getState.call();
             //next line for real oracles
@@ -154,7 +158,7 @@ contract('ComplexExchanger', function(accounts) {
             assert.equal(state.toNumber(), 3, "the state after gathering oracle data must be 3 (CALC_RATES)");
             assert.isAtLeast(readyOracles.toNumber(), 2, "ready oracle count must be at least 2");
             var CR = await exchanger.calcRates();
-            assert.equal(CR.receipt.status, 1, "calcRates tx failed");
+            isTransactionSuccessful(CR, "calcRates tx failed");
             state = await exchanger.getState.call();
             assert.equal(state.toNumber(), 1, "the state after calcRates must be 1 (PROCESSING_ORDERS)");
         });
@@ -169,7 +173,7 @@ contract('ComplexExchanger', function(accounts) {
                 weiToSend = web3.toWei(ethToSend, 'ether'),
                 balanceBefore = +web3.eth.getBalance(owner);
             var buyTx = await exchanger.buyTokens(owner, { from: owner, value: weiToSend });
-            assert.equal(buyTx.receipt.status, 1, "buyTokens tx failed");
+            isTransactionSuccessful(buyTx, "buyTokens tx failed");
             // this is the gas only when exchanger doesn't refund
             var zeroBalance = balanceBefore - +web3.eth.getBalance(owner) - weiToSend -
                 truffleTestGasPrice * buyTx.receipt.gasUsed;
