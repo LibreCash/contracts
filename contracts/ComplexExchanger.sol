@@ -169,6 +169,9 @@ contract ComplexExchanger is ExchangerI {
                 OracleRequest(oracles[i]);
         }
         requestTime = now;
+
+        if (value > 0)
+            msg.sender.transfer(value);
     }
 
     /**
