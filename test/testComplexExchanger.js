@@ -45,12 +45,15 @@ function assertUnsuccessfulTx(tx, msg) {
     return assert.equal(tx.receipt.status, 0, msg);
 }
 
-function sleep(miliseconds) {
-    var currentTime = new Date().getTime();
- 
-    while (currentTime + miliseconds >= new Date().getTime()) {
-    }
- }
+function getWeiUsedForGas() {
+    let
+        lastBlock = web3.eth.getBlock("latest"),
+        gasUsed = lastBlock.gasUsed,
+        gasPrice = + web3.eth.getTransaction(lastBlock.transactions[0]).gasPrice;
+
+    return gasUsed * gasPrice;
+}
+
  const OracleENUM = {
      name:0,
      oracleType:1,
@@ -320,7 +323,7 @@ contract('ComplexExchanger', function(accounts) {
             assert.equal(ethToSend * buyRate, boughtTokens, "token count doesn't match sent ether multiplied by rate");
         });
 
-        it.only("(1) buy 0 tokens -> revert", async function() {
+        it("(1) buy 0 tokens -> revert", async function() {
             var exchanger = await ComplexExchanger.deployed(),
                 token = await LibreCash.deployed();
             var ethToSend = 0,
@@ -366,12 +369,18 @@ contract('ComplexExchanger', function(accounts) {
     });
 
     context("requestRate", function() {
+        var jump;
 
         before("init", async function() {
             let exchanger = await ComplexExchanger.deployed();
+
+            await exchanger.requestRates({from: acc1, value: web3.toWei(5,'ether')});
+            jump = Math.max(ORACLE_ACTUAL, ORACLE_TIMEOUT);
+            await timeMachine.jump(jump + 1);
+            
             let state = + await exchanger.getState.call();
             assert.equal(state, StateENUM.REQUEST_RATES,"Don't correct state!!");
-            
+
             reverter.snapshot((e) => {
                 if (e != undefined)
                     console.log(e);
@@ -384,6 +393,10 @@ contract('ComplexExchanger', function(accounts) {
                     console.log(e);
             });
         });
+
+        after("time back", async function() {
+            await timeMachine.jump(jump -1);
+        })
 
         it("(1) payAmount < oraclesCost", async function() {
             let exchanger = await ComplexExchanger.deployed();
@@ -421,13 +434,14 @@ contract('ComplexExchanger', function(accounts) {
             let before = + web3.eth.getBalance(owner);
 
             try {
-                await exchanger.requestRates({value: oraclesCost + 100});
+                await exchanger.requestRates({value: oraclesCost + 10000000});
             } catch(e) {
                 throw new Error("throw if send > oraclesCost");
             }
             let after = + web3.eth.getBalance(owner);
+                weiUsed = getWeiUsedForGas();
 
-            //assert.equal(before, after + oraclesCost, "Balance not equal!!");
+            assert.isBelow((before - after) - weiUsed - oraclesCost, 100000, "Don't back left ether!");
         });
     });
 
@@ -566,7 +580,7 @@ contract('ComplexExchanger', function(accounts) {
             let eBalanceAfter = web3.eth.getBalance(exchanger.address);
             let wBalanceAfter = web3.eth.getBalance(owner);
 
-            assert.isTrue(eBalanceBefore > eBalanceAfter, "Balance don't changed");
+            assert.isTrue(wBalanceBefore < wBalanceAfter, "Balance wallet don't changed");
             assert.equal(eBalanceAfter, 0, "Withdraw don't all balance");
         });
     });
