@@ -22,9 +22,27 @@ var oracles = [];
 });
 
 const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
-function isTransactionSuccessful(tx, msg) {
-    console.log("[status]", tx.receipt.status);
+
+async function runTx(_func, _args) {
+    var funcRes;
+    try {
+        funcRes = await _func(..._args);
+    } catch(e) {
+        if (e.toString().indexOf("VM Exception while processing transaction: revert") != -1) {
+            funcRes = { receipt: {status: 0 }};
+        } else {
+            throw new Error(e.toString());
+        }
+    }
+    return funcRes;
+}
+
+function assertSuccessfulTx(tx, msg) {
     return assert.equal(tx.receipt.status, 1, msg);
+}
+
+function assertUnsuccessfulTx(tx, msg) {
+    return assert.equal(tx.receipt.status, 0, msg);
 }
 
 function sleep(miliseconds) {
@@ -140,8 +158,8 @@ contract('ComplexExchanger', function(accounts) {
             assert.equal(state.toNumber(), 4, "the initial state must be 4 (REQUEST_RATES)");
             assert.equal(requestPrice.toNumber(), 0, "the initial oracle queries price must be 0");
     
-            var RR = await exchanger.requestRates();
-            isTransactionSuccessful(RR, "requestRates tx failed");
+            var RR = await runTx(exchanger.requestRates, []);
+            assertSuccessfulTx(RR, "requestRates tx failed");
             console.log("[test] successful requestRates()");
             state = await exchanger.getState.call();
             //next line for real oracles
@@ -157,13 +175,13 @@ contract('ComplexExchanger', function(accounts) {
     
             assert.equal(state.toNumber(), 3, "the state after gathering oracle data must be 3 (CALC_RATES)");
             assert.isAtLeast(readyOracles.toNumber(), 2, "ready oracle count must be at least 2");
-            var CR = await exchanger.calcRates();
-            isTransactionSuccessful(CR, "calcRates tx failed");
+            var CR = await runTx(exchanger.calcRates, []);
+            assertSuccessfulTx(CR, "calcRates tx failed");
             state = await exchanger.getState.call();
             assert.equal(state.toNumber(), 1, "the state after calcRates must be 1 (PROCESSING_ORDERS)");
         });
     
-        it("buy tokens", async function() {
+        it("(normal) buy tokens", async function() {
             var exchanger = await ComplexExchanger.deployed(),
                 token = await LibreCash.deployed(),
                 buyFee = await exchanger.buyFee.call(),
@@ -172,8 +190,8 @@ contract('ComplexExchanger', function(accounts) {
             var ethToSend = 1,
                 weiToSend = web3.toWei(ethToSend, 'ether'),
                 balanceBefore = +web3.eth.getBalance(owner);
-            var buyTx = await exchanger.buyTokens(owner, { from: owner, value: weiToSend });
-            isTransactionSuccessful(buyTx, "buyTokens tx failed");
+            var buyTx = await runTx(exchanger.buyTokens, [owner, { from: owner, value: weiToSend }]);
+            assertSuccessfulTx(buyTx, "buyTokens tx failed");
             // this is the gas only when exchanger doesn't refund
             var zeroBalance = balanceBefore - +web3.eth.getBalance(owner) - weiToSend -
                 truffleTestGasPrice * buyTx.receipt.gasUsed;
@@ -188,8 +206,19 @@ contract('ComplexExchanger', function(accounts) {
             console.log(`shall be ${ethToSend} * ${buyRate} == ${boughtTokens}`);
             assert.equal(ethToSend * buyRate, boughtTokens, "token count doesn't match sent ether multiplied by rate");
         });
+
+        it.only("(1) buy 0 tokens -> revert", async function() {
+            var exchanger = await ComplexExchanger.deployed(),
+                token = await LibreCash.deployed();
+            var ethToSend = 0,
+                weiToSend = 0,
+                balanceBefore = +web3.eth.getBalance(owner);
+
+            var buyTx = await runTx(exchanger.buyTokens, [owner, { from: owner, value: weiToSend }]);
+            assertUnsuccessfulTx(buyTx, "buyTokens tx with zero eth succeeded - bad");
+        });
     
-        it("buy more tokens than exch. has", async function() {
+        it("(3) buy more tokens than exch. has", async function() {
             var exchanger = await ComplexExchanger.deployed(),
                 token = await LibreCash.deployed(),
                 buyFee = await exchanger.buyFee.call(),
