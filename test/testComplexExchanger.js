@@ -119,6 +119,119 @@ contract('ComplexExchanger', function(accounts) {
         });
     });
 
+    context("waitingOracles", function() {
+        before("init", function() {
+            reverter.snapshot((e) => {
+                if (e != undefined)
+                    console.log(e);
+            });
+        });
+
+        afterEach("revert", function() {
+            reverter.revert((e) => {
+                if (e != undefined)
+                    console.log(e);
+            });
+        });
+
+        it("(1),(3) time wait < ORACLE_TIMEOUT", async function() {
+            let exchanger = await ComplexExchanger.deployed();
+
+            await exchanger.requestRates({value: web3.toWei(5,'ether')});
+            let waiting = + await exchanger.waitingOracles.call();
+            assert.equal(waiting, 0, "WaitingOracles not 0 if 0 waiting!");
+            for(let i=0; i < oracles.length; i++) {
+                let oracle = await oracles[i].deployed();
+                await oracle.setWaitQuery(true);
+                waiting = + await exchanger.waitingOracles.call();
+                assert.equal(waiting, i + 1, `WaitingOracles not ${waiting} if ${i+1} waiting!`);
+            }
+            console.log(waiting);
+        });
+
+        it("(2) time wait > ORACLE_TIMEOUT", async function() {
+            let exchanger = await ComplexExchanger.deployed();
+
+            await exchanger.requestRates({value: web3.toWei(5,'ether')});
+            for(let i=0; i< oracles.length; i++) {
+                let oracle = await oracles[i].deployed();
+                await oracle.setWaitQuery(true);
+            }
+            let waiting = + await exchanger.waitingOracles.call();
+            assert.equal( waiting, oracles.length, "Don't equal waiting oracles!");
+            await timeMachine.jump(ORACLE_TIMEOUT + 1);
+
+            waiting = + await exchanger.waitingOracles.call();
+            assert.equal(waiting, 0, `${waiting} wait oracle when timeout!`);
+
+            await timeMachine.jump(-ORACLE_TIMEOUT - 1);
+        });
+    });
+
+    context("readyOracles", function() {
+
+        before("init", function() {
+            reverter.snapshot((e) => {
+                if (e != undefined)
+                    console.log(e);
+            });
+        });
+
+        afterEach("revert", function() {
+            reverter.revert((e) => {
+                if (e != undefined)
+                    console.log(e);
+            });
+        });
+
+        it("(1),(4) rate == 0 or wait == 0", async function() {
+            let exchanger = await ComplexExchanger.deployed();
+
+            for(let i=0; i < oracles.length; i++) {
+                let oracle = await oracles[i].deployed();
+                await oracle.setRate(0);
+            }
+
+            let ready = + await exchanger.readyOracles.call();
+            assert.equal(ready, 0, "if rate == 0, ready oracles != 0");
+
+            for(let i=0; i < oracles.length; i++) {
+                let oracle = await oracles[i].deployed();
+                await oracle.setRate(10);
+                await oracle.setWaitQuery(true);
+            }
+
+            ready = + await exchanger.readyOracles.call();
+            assert.equal(ready, 0, "if wait oracle, ready oracle != 0");
+        });
+
+        it("(2) callbackTime < ORACLE_ACTUAL", async function() {
+            let exchanger = await ComplexExchanger.deployed();
+
+            await exchanger.requestRates({value: web3.toWei(5,'ether')});
+            for(let i=0; i < oracles.length; i++) {
+                let oracle = await oracles[i].deployed();
+                await oracle.setWaitQuery(true);
+                let ready = + await exchanger.readyOracles.call();
+                assert.equal(ready, oracles.length - i -1, "");
+            }
+        });
+
+        it("(3) callbackTime > ORACLE_ACTUAL", async function() {
+            let exchanger = await ComplexExchanger.deployed();
+
+            await exchanger.requestRates({value: web3.toWei(5,'ether')});
+            let ready = + await exchanger.readyOracles.call();
+            assert.equal(ready, oracles.length, "ready oracle don't equal count oracles");
+
+            await timeMachine.jump(ORACLE_ACTUAL +1);
+            ready = + await exchanger.readyOracles.call();
+            assert.equal(ready, 0, "ready oracles != 0, if ACTUAL timeout");
+
+            await timeMachine.jump(-ORACLE_ACTUAL - 1);
+        });
+    });
+
     context("buy/sell", async function() {
         beforeEach(async function() {
             var token = await LibreCash.deployed(),

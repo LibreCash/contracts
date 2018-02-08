@@ -62,8 +62,12 @@ contract OracleMockBase is Ownable {
         if(price == 0) 
             price = MOCK_REQUEST_PRICE;
 
-        PriceTicker(rate);     
+        PriceTicker(rate);
         return true;
+    }
+
+    function setWaitQuery(bool waiting) external {
+        waitQuery = waiting;
     }
     
     function setRate(uint newRate) external {
