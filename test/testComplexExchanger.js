@@ -254,8 +254,8 @@ contract('ComplexExchanger', function(accounts) {
         });
     });
 
-    context("buy/sell", async function() {
-        beforeEach(async function() {
+    context.only("buy/sell", async function() {
+        before("(2) buy tokens, no token balance -> revert", async function() {
             var token = await LibreCash.deployed(),
                 exchanger = await ComplexExchanger.deployed();
              
@@ -288,56 +288,8 @@ contract('ComplexExchanger', function(accounts) {
             state = await exchanger.getState.call();
             assert.equal(state.toNumber(), StateENUM.PROCESSING_ORDERS, "the state after calcRates must be PROCESSING_ORDERS");
         });
-    
-        it("(normal) buy tokens", async function() {
-            var sumToMint = 1000 * tokenMultiplier;
-            var mint = await runTx(token.mint, [exchanger.address, sumToMint]);
-            assertSuccessfulTx(mint, "mint tx failed");
-            var tokenBalance = await exchanger.tokenBalance.call();
-            assert.equal(tokenBalance.toNumber(), sumToMint, "the token balance after mint is not valid");  
 
-            var exchanger = await ComplexExchanger.deployed(),
-                token = await LibreCash.deployed(),
-                buyFee = await exchanger.buyFee.call(),
-                sellFee = await exchanger.sellFee.call(),
-                buyRate = (await exchanger.buyRate.call()) / 1000;
-            var ethToSend = 1,
-                weiToSend = web3.toWei(ethToSend, 'ether'),
-                balanceBefore = +web3.eth.getBalance(owner);
-            var buyTx = await runTx(exchanger.buyTokens, [owner, { from: owner, value: weiToSend }]);
-            assertSuccessfulTx(buyTx, "buyTokens tx failed");
-            // this is the gas only when exchanger doesn't refund
-            var zeroBalance = balanceBefore - +web3.eth.getBalance(owner) - weiToSend -
-                truffleTestGasPrice * buyTx.receipt.gasUsed;
-            // if zeroBalance is below 100000, it is insufficient
-            assert.isBelow(Math.abs(zeroBalance), 100000, "ether sent doesn't fit the balance changed");
-
-            var boughtTokens = (await token.balanceOf.call(owner)) / tokenMultiplier;
-
-            console.log(`we sent ${ethToSend} ether`);
-            console.log(`rate was ${buyRate}`);
-            console.log(`we got ${boughtTokens} tokens`);
-            console.log(`shall be ${ethToSend} * ${buyRate} == ${boughtTokens}`);
-            assert.equal(ethToSend * buyRate, boughtTokens, "token count doesn't match sent ether multiplied by rate");
-        });
-
-        it("(1) buy 0 tokens -> revert", async function() {
-            var sumToMint = 1000 * tokenMultiplier;
-            var mint = await runTx(token.mint, [exchanger.address, sumToMint]);
-            assertSuccessfulTx(mint, "mint tx failed");
-            var tokenBalance = await exchanger.tokenBalance.call();
-            assert.equal(tokenBalance.toNumber(), sumToMint, "the token balance after mint is not valid");  
-
-            var exchanger = await ComplexExchanger.deployed(),
-                token = await LibreCash.deployed();
-            var ethToSend = 0,
-                weiToSend = 0;
-
-            var buyTx = await runTx(exchanger.buyTokens, [owner, { from: owner, value: weiToSend }]);
-            assertUnsuccessfulTx(buyTx, "buyTokens tx with zero eth succeeded - bad");
-        });
-
-        it.only("(2) buy tokens, no token balance -> revert", async function() {
+        it("(2) buy tokens, no token balance -> revert", async function() {
             var exchanger = await ComplexExchanger.deployed(),
                 token = await LibreCash.deployed();
             var ethToSend = 1,
@@ -346,6 +298,23 @@ contract('ComplexExchanger', function(accounts) {
             var buyTx = await runTx(exchanger.buyTokens, [owner, { from: owner, value: weiToSend }]);
             assertUnsuccessfulTx(buyTx, "buyTokens tx with zero eth succeeded - bad");
         });
+
+        it("(1) buy 0 tokens -> revert", async function() {
+            var exchanger = await ComplexExchanger.deployed(),
+                token = await LibreCash.deployed();
+            var sumToMint = 1000 * tokenMultiplier;
+            var mint = await runTx(token.mint, [exchanger.address, sumToMint]);
+            assertSuccessfulTx(mint, "mint tx failed");
+            var tokenBalance = await exchanger.tokenBalance.call();
+            assert.equal(tokenBalance.toNumber(), sumToMint, "the token balance after mint is not valid");  
+
+            var ethToSend = 0,
+                weiToSend = 0;
+
+            var buyTx = await runTx(exchanger.buyTokens, [owner, { from: owner, value: weiToSend }]);
+            assertUnsuccessfulTx(buyTx, "buyTokens tx with zero eth succeeded - bad");
+        });
+
 
         it("(3) buy more tokens than exch. has", async function() {
             var exchanger = await ComplexExchanger.deployed(),
@@ -357,8 +326,9 @@ contract('ComplexExchanger', function(accounts) {
                 exchangerBalance = (await token.balanceOf.call(exchanger.address)) / tokenMultiplier;
 
             var sumToMint = 1000 * tokenMultiplier;
-            var mint = await runTx(token.mint, [exchanger.address, sumToMint]);
-            assertSuccessfulTx(mint, "mint tx failed");
+            //var mint = await runTx(token.mint, [exchanger.address, sumToMint]);
+            // already have minted in prev. test
+            //assertSuccessfulTx(mint, "mint tx failed");
             var tokenBalance = await exchanger.tokenBalance.call();
             assert.equal(tokenBalance.toNumber(), sumToMint, "the token balance after mint is not valid");  
 
@@ -385,7 +355,74 @@ contract('ComplexExchanger', function(accounts) {
             // if the difference is below 10000000, it is insufficient (for example gas price is about 5384400000000000)
             assert.isBelow(Math.abs(balanceDeltaNet * buyRate - +boughtTokens), 10000000, "token count doesn't match sent ether multiplied by rate");
         });
-    
+
+        it("(4) buy 1000 tokens when balance is 1000 tokens", async function() {
+            var exchanger = await ComplexExchanger.deployed(),
+                token = await LibreCash.deployed(),
+                buyFee = await exchanger.buyFee.call(),
+                sellFee = await exchanger.sellFee.call(),
+                buyRate = (await exchanger.buyRate.call()) / 1000;
+            var accTokensBefore = (await token.balanceOf.call(owner)) / tokenMultiplier;
+            var sumToMint = 1000 * tokenMultiplier;
+            var mint = await runTx(token.mint, [exchanger.address, sumToMint]);
+            assertSuccessfulTx(mint, "mint tx failed");
+            var tokenBalance = await exchanger.tokenBalance.call();
+            assert.equal(tokenBalance.toNumber(), sumToMint, "the token balance after mint is not valid");  
+
+            var tokensToBuy = 1000,
+                ethToSend = tokensToBuy / buyRate,
+                weiToSend = web3.toWei(ethToSend, 'ether'),
+                balanceBefore = +web3.eth.getBalance(owner);
+            var buyTx = await runTx(exchanger.buyTokens, [owner, { from: owner, value: weiToSend }]);
+            assertSuccessfulTx(buyTx, "buyTokens tx failed");
+            // this is the gas only when exchanger doesn't refund
+            var zeroBalance = balanceBefore - +web3.eth.getBalance(owner) - weiToSend -
+                truffleTestGasPrice * buyTx.receipt.gasUsed;
+            // if zeroBalance is below 100000, it is insufficient
+            assert.isBelow(Math.abs(zeroBalance), 100000, "ether sent doesn't fit the balance changed");
+
+            var accTokensAfter = (await token.balanceOf.call(owner)) / tokenMultiplier;
+
+            console.log(`we sent ${ethToSend} ether`);
+            console.log(`rate was ${buyRate}`);
+            console.log(`we got ${accTokensAfter - accTokensBefore} tokens`);
+            console.log(`shall be ${ethToSend} * ${buyRate} == ${accTokensAfter - accTokensBefore}`);
+            assert.equal(ethToSend * buyRate, accTokensAfter - accTokensBefore, "token count doesn't match sent ether multiplied by rate");
+        });
+
+        it("(5) buy tokens for 1 eth", async function() {
+            var exchanger = await ComplexExchanger.deployed(),
+                token = await LibreCash.deployed(),
+                buyFee = await exchanger.buyFee.call(),
+                sellFee = await exchanger.sellFee.call(),
+                buyRate = (await exchanger.buyRate.call()) / 1000;
+            var accTokensBefore = (await token.balanceOf.call(owner)) / tokenMultiplier;
+
+            var sumToMint = 1000 * tokenMultiplier;
+            var mint = await runTx(token.mint, [exchanger.address, sumToMint]);
+            assertSuccessfulTx(mint, "mint tx failed");
+            var tokenBalance = await exchanger.tokenBalance.call();
+            assert.equal(tokenBalance.toNumber(), sumToMint, "the token balance after mint is not valid");  
+
+            var ethToSend = 1,
+                weiToSend = web3.toWei(ethToSend, 'ether'),
+                balanceBefore = +web3.eth.getBalance(owner);
+            var buyTx = await runTx(exchanger.buyTokens, [owner, { from: owner, value: weiToSend }]);
+            assertSuccessfulTx(buyTx, "buyTokens tx failed");
+            // this is the gas only when exchanger doesn't refund
+            var zeroBalance = balanceBefore - +web3.eth.getBalance(owner) - weiToSend -
+                truffleTestGasPrice * buyTx.receipt.gasUsed;
+            // if zeroBalance is below 100000, it is insufficient
+            assert.isBelow(Math.abs(zeroBalance), 100000, "ether sent doesn't fit the balance changed");
+
+            var accTokensAfter = (await token.balanceOf.call(owner)) / tokenMultiplier;
+
+            console.log(`we sent ${ethToSend} ether`);
+            console.log(`rate was ${buyRate}`);
+            console.log(`we got ${accTokensAfter - accTokensBefore} tokens`);
+            console.log(`shall be ${ethToSend} * ${buyRate} == ${accTokensAfter - accTokensBefore}`);
+            assert.equal(ethToSend * buyRate, accTokensAfter - accTokensBefore, "token count doesn't match sent ether multiplied by rate");
+        });
     });
 
     context("requestRate", function() {
