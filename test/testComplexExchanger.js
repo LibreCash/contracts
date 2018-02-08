@@ -305,8 +305,11 @@ contract('ComplexExchanger', function(accounts) {
                 assertSuccessfulTx(sendTx, "unsuccessful refill of exchanger balance");
     // MINT 20
                 var sumToMint = 20 * tokenMultiplier;
-                var mint = await runTx(token.mint, [exchanger.address, sumToMint]);
+                var mint = await runTx(token.mint, [owner, sumToMint]);
                 assertSuccessfulTx(mint, "mint tx failed");
+                var tokens = await token.balanceOf.call(owner);
+                assert.equal(+tokens, sumToMint, "tokens were not minted");
+
             });
 
             it("(1) try to sell more than allowance", async function() {
@@ -332,7 +335,7 @@ contract('ComplexExchanger', function(accounts) {
                 var allowance = await token.allowance.call(owner, exchanger.address);
                 assert.equal(allowanceToSet, allowance, "error setting allowance");
     // SELL 40
-                var sellTx = await runTx(exchanger.sellTokens, [owner, 20 * tokenMultiplier]);
+                var sellTx = await runTx(exchanger.sellTokens, [owner, 40 * tokenMultiplier]);
     // FAIL ?
                 assertUnsuccessfulTx(sellTx, "Selling more tokens than user has shall fail");            
                 
@@ -352,15 +355,46 @@ contract('ComplexExchanger', function(accounts) {
             it("(4) sell 10 tokens", async function() {
                 var token = await LibreCash.deployed(),
                     exchanger = await ComplexExchanger.deployed();
+    // EXVHANGER BALANCE ~40
     // USER BALANCE 20
     // APPROVE 20
     // SELL 10
-// falls here
-                var sellRate = +(await exchanger.sellRate.call()) / 1000;
-                console.log("exchanger balance", +web3.eth.getBalance(exchanger.address));
-                console.log("we shall get eth", 10 * tokenMultiplier / sellRate);
-                var sellTx = await runTx(exchanger.sellTokens, [owner, 10 * tokenMultiplier]);
-                assertSuccessfulTx(sellTx, "Basic sell - shall be success");            
+                var sumToSell = 10 * tokenMultiplier;
+                var tokensBefore = await token.balanceOf.call(owner);
+                var sellTx = await runTx(exchanger.sellTokens, [owner, sumToSell]);
+                assertSuccessfulTx(sellTx, "Basic sell - shall be success");   
+                var tokensAfter = await token.balanceOf.call(owner);
+                assert.equal(+tokensBefore - +tokensAfter, sumToSell, "tokens were not subtracted from balance");        
+            });
+
+            it("(5) sell 40 tokens - more than exch. has", async function() {
+                var token = await LibreCash.deployed(),
+                    exchanger = await ComplexExchanger.deployed();
+    // EXVHANGER BALANCE ~30
+    // MINT 20
+                var sumToMint = 20 * tokenMultiplier;
+                var tokensBefore = await token.balanceOf.call(owner);
+                var mint = await runTx(token.mint, [owner, sumToMint]);
+                assertSuccessfulTx(mint, "mint tx failed");
+                var tokensAfter = await token.balanceOf.call(owner);
+                assert.equal(+tokensAfter - +tokensBefore, sumToMint, "tokens were not minted");
+    // USER BALANCE 30
+    // APPROVE 40
+                var allowanceToSet = 40 * tokenMultiplier;
+                var approve = await runTx(token.approve, [exchanger.address, allowanceToSet, {from: owner} ]);
+                assertSuccessfulTx(approve, "approve tx failed");
+                var allowance = await token.allowance.call(owner, exchanger.address);
+                assert.equal(allowanceToSet, allowance, "error setting allowance");
+    // SELL 40
+                var sumToSell = 40 * tokenMultiplier;
+                var tokensBefore = await token.balanceOf.call(owner);
+                var sellTx = await runTx(exchanger.sellTokens, [owner, sumToSell]);
+                assertSuccessfulTx(sellTx, "Basic sell - shall be success");   
+                var tokensAfter = await token.balanceOf.call(owner);
+                assert.isBelow(+tokensBefore - +tokensAfter, sumToSell, "balance change must be below tokens we tried to sell");        
+    // EXCH BALANCE ~0
+                var balanceExchanger = +web3.eth.getBalance(exchanger.address);
+                assert.equal(balanceExchanger, 0, "exchanger balance must be empty");
             });
         });
 
