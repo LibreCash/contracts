@@ -96,7 +96,7 @@ contract('ComplexExchanger', function(accounts) {
             oracles.forEach(async oracle => await oracle.deployed());
         });
         
-        it.only("get initial states", async function() {
+        it("get initial states", async function() {
             var exchanger = await ComplexExchanger.deployed(),
                 state = await exchanger.getState.call(),
                 buyFee = await exchanger.buyFee.call(),
@@ -112,8 +112,8 @@ contract('ComplexExchanger', function(accounts) {
                 tokenAddress = await exchanger.tokenAddress.call(),
                 withdrawWallet = await exchanger.withdrawWallet.call();
             assert.equal(state.toNumber(), StateENUM.REQUEST_RATES, "the initial state must be REQUEST_RATES");
-            assert.equal(buyFee.toNumber(), 250, "the buy fee must be 0");
-            assert.equal(sellFee.toNumber(), 250, "the sell fee must be 0");
+            assert.equal(buyFee.toNumber(), 250, "the buy fee must be 250");
+            assert.equal(sellFee.toNumber(), 250, "the sell fee must be 250");
             assert.equal(calcTime.toNumber(), 0, "the calcTime must be 0");
             assert.equal(requestTime.toNumber(), 0, "the requestTime fee must be 0");
             assert.equal(requestPrice.toNumber(), 0, "the initial oracle queries price must be 0");
@@ -258,7 +258,7 @@ contract('ComplexExchanger', function(accounts) {
     });
 
     context("buy and sell" , async function() {
-        context.only("sell", async function() {
+        context("sell", async function() {
             it("(-) before buy OR sell, init contracts", async function() {
                 var token = await LibreCash.deployed(),
                     exchanger = await ComplexExchanger.deployed();
