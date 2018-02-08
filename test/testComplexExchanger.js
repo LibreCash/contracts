@@ -108,7 +108,7 @@ contract('ComplexExchanger', function(accounts) {
                 waitingOracles = await exchanger.waitingOracles.call(),
                 tokenAddress = await exchanger.tokenAddress.call(),
                 withdrawWallet = await exchanger.withdrawWallet.call();
-            assert.equal(state.toNumber(), 4, "the initial state must be 4 (REQUEST_RATES)");
+            assert.equal(state.toNumber(), StateENUM.REQUEST_RATES, "the initial state must be REQUEST_RATES");
             assert.equal(buyFee.toNumber(), 0, "the buy fee must be 0");
             assert.equal(sellFee.toNumber(), 0, "the sell fee must be 0");
             assert.equal(calcTime.toNumber(), 0, "the calcTime must be 0");
@@ -155,7 +155,7 @@ contract('ComplexExchanger', function(accounts) {
                 state = await exchanger.getState.call(),
                 requestPrice = await exchanger.requestPrice.call(),
                 oracleCount = await exchanger.oracleCount.call();
-            assert.equal(state.toNumber(), 4, "the initial state must be 4 (REQUEST_RATES)");
+            assert.equal(state.toNumber(), StateENUM.REQUEST_RATES, "the initial state must be REQUEST_RATES");
             assert.equal(requestPrice.toNumber(), 0, "the initial oracle queries price must be 0");
     
             var RR = await runTx(exchanger.requestRates, []);
@@ -163,7 +163,7 @@ contract('ComplexExchanger', function(accounts) {
             console.log("[test] successful requestRates()");
             state = await exchanger.getState.call();
             //next line for real oracles
-            //assert.equal(state.toNumber(), 2, "the state after requestRates must be 2 (WAIT_ORACLES)");
+            //assert.equal(state.toNumber(), StateENUM.WAIT_ORACLES, "the state after requestRates must be WAIT_ORACLES");
     
             var crTimeout = Date.now() + 1000 * 60 * 10; // 10 mins
             do {
@@ -173,12 +173,12 @@ contract('ComplexExchanger', function(accounts) {
                 console.log("delayed");
             } while ((readyOracles.toNumber() != oracleCount.toNumber()) && (Date.now() < crTimeout));
     
-            assert.equal(state.toNumber(), 3, "the state after gathering oracle data must be 3 (CALC_RATES)");
+            assert.equal(state.toNumber(), StateENUM.CALC_RATES, "the state after gathering oracle data must be CALC_RATES");
             assert.isAtLeast(readyOracles.toNumber(), 2, "ready oracle count must be at least 2");
             var CR = await runTx(exchanger.calcRates, []);
             assertSuccessfulTx(CR, "calcRates tx failed");
             state = await exchanger.getState.call();
-            assert.equal(state.toNumber(), 1, "the state after calcRates must be 1 (PROCESSING_ORDERS)");
+            assert.equal(state.toNumber(), StateENUM.PROCESSING_ORDERS, "the state after calcRates must be PROCESSING_ORDERS");
         });
     
         it("(normal) buy tokens", async function() {
