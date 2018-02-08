@@ -455,7 +455,7 @@ contract('ComplexExchanger', function(accounts) {
         });
 
         after("time back", async function() {
-            await timeMachine.jump(jump -1);
+            await timeMachine.jump(-jump -1);
         })
 
         it("(1) payAmount < oraclesCost", async function() {
