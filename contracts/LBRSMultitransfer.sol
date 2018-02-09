@@ -4,7 +4,7 @@ import "./token/LibertyToken.sol";
 import "./zeppelin/ownership/Ownable.sol";
 
 contract LBRSMultitransfer is Ownable {
-    address lbrsToken;
+    address public lbrsToken;
     LibertyToken token;
 
     /**
