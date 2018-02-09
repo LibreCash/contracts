@@ -144,7 +144,7 @@ contract('ComplexExchanger', function(accounts) {
         });
     });
 
-    context.only("waitingOracles", function() {
+    context("waitingOracles", function() {
         before("init", function() {
             reverter.snapshot((e) => {
                 if (e != undefined)
@@ -153,7 +153,6 @@ contract('ComplexExchanger', function(accounts) {
         });
 
         afterEach("revert", function() {
-            console.log('avada reverta');
             reverter.revert((e) => {
                 if (e != undefined)
                     console.log(e);
@@ -163,10 +162,6 @@ contract('ComplexExchanger', function(accounts) {
         it("(1),(3) time wait < ORACLE_TIMEOUT", async function() {
             let exchanger = await ComplexExchanger.deployed();
 
-            var requestPrice = await exchanger.requestPrice.call();
-            var state = await exchanger.getState.call();
-            console.log("price", +requestPrice);
-            console.log("state", +state);
             await exchanger.requestRates({value: web3.toWei(5,'ether')});
             let waiting = + await exchanger.waitingOracles.call();
             assert.equal(waiting, 0, "WaitingOracles not 0 if 0 waiting!");
@@ -183,9 +178,7 @@ contract('ComplexExchanger', function(accounts) {
             let exchanger = await ComplexExchanger.deployed();
 
             var requestPrice = await exchanger.requestPrice.call();
-            var state = await exchanger.getState.call();
-            console.log("price", +requestPrice);
-            console.log("state", +state);
+            assert.equal(+requestPrice, 0, "requestPrice should be 0 again after revert");
             var rR = await runTx(exchanger.requestRates, [{value: requestPrice}]);
             assertSuccessfulTx(rR);
             for(let i=0; i< oracles.length; i++) {
@@ -270,6 +263,13 @@ contract('ComplexExchanger', function(accounts) {
     context("buy and sell" , async function() {
         before("init", function() {
             reverter.snapshot((e) => {
+                if (e != undefined)
+                    console.log(e);
+            });
+        });
+
+        after("clear", function() {
+            reverter.revert((e) => {
                 if (e != undefined)
                     console.log(e);
             });
@@ -544,7 +544,8 @@ contract('ComplexExchanger', function(accounts) {
         before("init", async function() {
             let exchanger = await ComplexExchanger.deployed();
 
-            await exchanger.requestRates({from: acc1, value: web3.toWei(5,'ether')});
+            var requestRates = await runTx(exchanger.requestRates, [{from: acc1, value: web3.toWei(5,'ether')}]);
+            assertSuccessfulTx(requestRates, "requestRates tx falls");
             jump = Math.max(ORACLE_ACTUAL, ORACLE_TIMEOUT);
             await timeMachine.jump(jump + 1);
             
