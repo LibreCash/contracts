@@ -144,7 +144,7 @@ contract('ComplexExchanger', function(accounts) {
         });
     });
 
-    context("waitingOracles", function() {
+    context.only("waitingOracles", function() {
         before("init", function() {
             reverter.snapshot((e) => {
                 if (e != undefined)
@@ -153,6 +153,7 @@ contract('ComplexExchanger', function(accounts) {
         });
 
         afterEach("revert", function() {
+            console.log('avada reverta');
             reverter.revert((e) => {
                 if (e != undefined)
                     console.log(e);
@@ -162,6 +163,10 @@ contract('ComplexExchanger', function(accounts) {
         it("(1),(3) time wait < ORACLE_TIMEOUT", async function() {
             let exchanger = await ComplexExchanger.deployed();
 
+            var requestPrice = await exchanger.requestPrice.call();
+            var state = await exchanger.getState.call();
+            console.log("price", +requestPrice);
+            console.log("state", +state);
             await exchanger.requestRates({value: web3.toWei(5,'ether')});
             let waiting = + await exchanger.waitingOracles.call();
             assert.equal(waiting, 0, "WaitingOracles not 0 if 0 waiting!");
@@ -177,7 +182,12 @@ contract('ComplexExchanger', function(accounts) {
         it("(2) time wait > ORACLE_TIMEOUT", async function() {
             let exchanger = await ComplexExchanger.deployed();
 
-            await exchanger.requestRates({value: web3.toWei(5,'ether')});
+            var requestPrice = await exchanger.requestPrice.call();
+            var state = await exchanger.getState.call();
+            console.log("price", +requestPrice);
+            console.log("state", +state);
+            var rR = await runTx(exchanger.requestRates, [{value: requestPrice}]);
+            assertSuccessfulTx(rR);
             for(let i=0; i< oracles.length; i++) {
                 let oracle = await oracles[i].deployed();
                 await oracle.setWaitQuery(true);
