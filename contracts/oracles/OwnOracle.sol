@@ -31,9 +31,7 @@ contract OwnOracle is Ownable {
     /**
      * @dev Constructor.
      */
-    function OwnOracle(address bank) {
-        bankAddress = bank;
-        BankSet(bankAddress);
+    function OwnOracle() {
     }
 
     /**
