@@ -54,14 +54,20 @@ const StateENUM = {
 
 const 
     minutes = 60,
-    ORACLE_ACTUAL = 10 * minutes,
-    ORACLE_TIMEOUT = 10 * minutes,
-    RATE_PERIOD = 10 * minutes,
-    MIN_READY_ORACLES = 2,
     REVERSE_PERCENT = 100,
     RATE_MULTIPLIER = 1000,
-    MAX_RATE = 5000 * RATE_MULTIPLIER,
-    MIN_RATE = 100 * RATE_MULTIPLIER;
+
+    exConfig = {
+        buyFee:250,
+        sellFee:250,
+        MIN_RATE:100 * RATE_MULTIPLIER,
+        MAX_RATE:5000 * RATE_MULTIPLIER,
+        MIN_READY_ORACLES:2,
+        ORACLE_ACTUAL:10 * minutes,
+        ORACLE_TIMEOUT:10 * minutes,
+        RATE_PERIOD:10 * minutes
+    };
+    
 
 contract('ComplexExchanger', function(accounts) {
     var owner = accounts[0];
@@ -92,18 +98,18 @@ contract('ComplexExchanger', function(accounts) {
                 tokenAddress = await exchanger.tokenAddress.call(),
                 withdrawWallet = await exchanger.withdrawWallet.call();
             assert.equal(state.toNumber(), StateENUM.REQUEST_RATES, "the initial state must be REQUEST_RATES");
-            assert.equal(buyFee.toNumber(), 250, "the buy fee must be 250");
-            assert.equal(sellFee.toNumber(), 250, "the sell fee must be 250");
+            assert.equal(buyFee.toNumber(), exConfig.buyFee, `the buy fee must be ${exConfig.buyFee}`);
+            assert.equal(sellFee.toNumber(), exConfig.sellFee, `the sell fee must be ${exConfig.sellFee}`);
             assert.equal(calcTime.toNumber(), 0, "the calcTime must be 0");
             assert.equal(requestTime.toNumber(), 0, "the requestTime fee must be 0");
             assert.equal(requestPrice.toNumber(), 0, "the initial oracle queries price must be 0");
-            assert.isAbove(oracleCount.toNumber(), 2, "the initial oracle count must be more than, for example, 2");
+            assert.isAbove(oracleCount.toNumber(),exConfig.MIN_READY_ORACLES, `the initial oracle count must be more than, ${exConfig.MIN_READY_ORACLES}`);
             assert.equal(tokenBalance.toNumber(), 0, "the initial token balance must be 0");
             assert.equal(readyOracles.toNumber(), 0, "the initial ready oracle count must be 0");
             assert.equal(waitingOracles.toNumber(), 0, "the initial waiting oracle count must be 0");
             assert.isAbove(deadline.toNumber(), parseInt(new Date().getTime()/1000), "the deadline must be more then now");
-            assert.isAtLeast(tokenAddress.length, 40, "the tokenAddress must be a string (in the test) with length >= 40");
-            assert.isAtLeast(withdrawWallet.length, 40, "the withdrawWallet must be a string (in the test) with length >= 40");
+            assert.isTrue(web3.isAddress(tokenAddress), "the tokenAddress must be a valid address");
+            assert.isTrue(web3.isAddress(withdrawWallet), "the withdrawWallet must be a valid address");
 
             // go for oracles
             for (var i = 0; i < oracleCount.toNumber(); i++) {
@@ -114,6 +120,7 @@ contract('ComplexExchanger', function(accounts) {
                 assert.lengthOf(_oracleData, 7, "there must be exact 7 items in the returned oracle data");
                 let [_oracleAddress, _oracleName, _oracleType, _waitQuery, _updateTime, _callbackTime, _rate] = _oracleData;
                 assert.equal(_oracle, _oracleAddress, "the oracle address got by oracles(i) should be equal to the one from getOracleData(i)");
+                assert.isTrue(web3.isAddress(_oracle),"the oracle address must be valid");
                 assert.equal((_oracleName.length - "0x".length) / 2, 32, "oracle name must be bytes32");
                 assert.equal((_oracleType.length - "0x".length) / 2, 16, "oracle type must be bytes16");
                 assert.equal(_waitQuery, false, "the new oracle shouldn't be waiting");
@@ -167,12 +174,12 @@ contract('ComplexExchanger', function(accounts) {
             }
             let waiting = + await exchanger.waitingOracles.call();
             assert.equal( waiting, oracles.length, "Don't equal waiting oracles!");
-            await timeMachine.jump(ORACLE_TIMEOUT + 1);
+            await timeMachine.jump(exConfig.ORACLE_TIMEOUT + 1);
 
             waiting = + await exchanger.waitingOracles.call();
             assert.equal(waiting, 0, `${waiting} wait oracle when timeout!`);
 
-            await timeMachine.jump(-ORACLE_TIMEOUT - 1);
+            await timeMachine.jump(-exConfig.ORACLE_TIMEOUT - 1);
         });
     });
 
@@ -232,11 +239,11 @@ contract('ComplexExchanger', function(accounts) {
             let ready = + await exchanger.readyOracles.call();
             assert.equal(ready, oracles.length, "ready oracle don't equal count oracles");
 
-            await timeMachine.jump(ORACLE_ACTUAL +1);
+            await timeMachine.jump(exConfig.ORACLE_ACTUAL +1);
             ready = + await exchanger.readyOracles.call();
             assert.equal(ready, 0, "ready oracles != 0, if ACTUAL timeout");
 
-            await timeMachine.jump(-ORACLE_ACTUAL - 1);
+            await timeMachine.jump(-exConfig.ORACLE_ACTUAL - 1);
         });
     });
 
@@ -526,7 +533,7 @@ contract('ComplexExchanger', function(accounts) {
 
             var requestRates = await assertTx.run(exchanger.requestRates, [{from: acc1, value: web3.toWei(5,'ether')}]);
             assertTx.success(requestRates, "requestRates tx falls");
-            jump = Math.max(ORACLE_ACTUAL, ORACLE_TIMEOUT);
+            jump = Math.max(exConfig.ORACLE_ACTUAL, exConfig.ORACLE_TIMEOUT);
             await timeMachine.jump(jump + 1);
             
             let state = + await exchanger.getState.call();
@@ -625,17 +632,17 @@ contract('ComplexExchanger', function(accounts) {
 
         it("(1) validOracles < MIN", async function() {
             let exchanger = await ComplexExchanger.deployed();
-            for (let i = 0; i < MIN_READY_ORACLES; i++) {
+            for (let i = 0; i < exConfig.MIN_READY_ORACLES; i++) {
                 let oracle = await oracles[i].deployed();
-                await oracle.setRate(MIN_RATE - 1);
+                await oracle.setRate(exConfig.MIN_RATE - 1);
             }
 
             try {
                 await exchanger.calcRates();
             } catch(e) {
-                for (let i = 0; i < MIN_READY_ORACLES; i++) {
+                for (let i = 0; i < exConfig.MIN_READY_ORACLES; i++) {
                     let oracle = await oracles[i].deployed();
-                    await oracle.setRate(MAX_RATE + 1);
+                    await oracle.setRate(exConfig.MAX_RATE + 1);
                 }
 
                 try {
@@ -661,7 +668,7 @@ contract('ComplexExchanger', function(accounts) {
             for(let i = 0; i < oracles.length; i++) {
                 let oracle = await oracles[i].deployed();
                 let rate = + await oracle.rate.call();
-                if (rate < MIN_RATE || rate > MAX_RATE)
+                if (rate < exConfig.MIN_RATE || rate > exConfig.MAX_RATE)
                     continue;
 
                 max = (max === undefined) ? rate : Math.max(max,rate);
