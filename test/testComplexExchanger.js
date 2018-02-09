@@ -258,6 +258,13 @@ contract('ComplexExchanger', function(accounts) {
     });
 
     context("buy and sell" , async function() {
+        before("init", function() {
+            reverter.snapshot((e) => {
+                if (e != undefined)
+                    console.log(e);
+            });
+        });
+
         it("(-) before all, init contracts", async function() {
             var token = await LibreCash.deployed(),
                 exchanger = await ComplexExchanger.deployed();
