@@ -257,315 +257,267 @@ contract('ComplexExchanger', function(accounts) {
         });
     });
 
-    context("buy and sell" , async function() {
-        context.only("sell", async function() {
-            it("(-) before buy OR sell, init contracts", async function() {
-                var token = await LibreCash.deployed(),
-                    exchanger = await ComplexExchanger.deployed();
-                 
-                var exchanger = await ComplexExchanger.deployed(),
-                    state = await exchanger.getState.call(),
-                    requestPrice = await exchanger.requestPrice.call(),
-                    oracleCount = await exchanger.oracleCount.call();
-                assert.equal(state.toNumber(), StateENUM.REQUEST_RATES, "the initial state must be REQUEST_RATES");
-                assert.equal(requestPrice.toNumber(), 0, "the initial oracle queries price must be 0");
-        
-                var RR = await runTx(exchanger.requestRates, []);
-                assertSuccessfulTx(RR, "requestRates tx failed");
-                console.log("[test] successful requestRates()");
-                state = await exchanger.getState.call();
-                //next line for real oracles
-                //assert.equal(state.toNumber(), StateENUM.WAIT_ORACLES, "the state after requestRates must be WAIT_ORACLES");
-        
-                var crTimeout = Date.now() + 1000 * 60 * 10; // 10 mins
-                do {
-                    readyOracles = await exchanger.readyOracles.call();
-                    waitingOracles = await exchanger.waitingOracles.call();
-                    await delay(1000);
-                    console.log("delayed");
-                } while ((readyOracles.toNumber() != oracleCount.toNumber()) && (Date.now() < crTimeout));
-        
-                assert.equal(state.toNumber(), StateENUM.CALC_RATES, "the state after gathering oracle data must be CALC_RATES");
-                assert.isAtLeast(readyOracles.toNumber(), 2, "ready oracle count must be at least 2");
-                var CR = await runTx(exchanger.calcRates, []);
-                assertSuccessfulTx(CR, "calcRates tx failed");
-                state = await exchanger.getState.call();
-                assert.equal(state.toNumber(), StateENUM.PROCESSING_ORDERS, "the state after calcRates must be PROCESSING_ORDERS");
-            });
-    
-            it("(-) before sell, init contracts", async function() {
-                var token = await LibreCash.deployed(),
-                    exchanger = await ComplexExchanger.deployed();
-    // EXCH BALANCE ~40
-                var sellRate = +(await exchanger.sellRate.call()) / 1000;
-                //console.log(sellRate);
-                var weiToSendToContract = 40 * tokenMultiplier / sellRate;
-                //console.log(weiToSendToContract / tokenMultiplier);
-                var sendTx = await runTx(exchanger.refillBalance, [{ from: owner, to: exchanger.address, value: weiToSendToContract }]);
-                assertSuccessfulTx(sendTx, "unsuccessful refill of exchanger balance");
-    // MINT 20
-                var sumToMint = 20 * tokenMultiplier;
-                var mint = await runTx(token.mint, [owner, sumToMint]);
-                assertSuccessfulTx(mint, "mint tx failed");
-                var tokens = await token.balanceOf.call(owner);
-                assert.equal(+tokens, sumToMint, "tokens were not minted");
-
-            });
-
-            it("(1) try to sell more than allowance", async function() {
-                var token = await LibreCash.deployed(),
-                    exchanger = await ComplexExchanger.deployed();
-    // APPROVE 10
-                var approve = await runTx(token.approve, [exchanger.address, 10 * tokenMultiplier]);
-                assertSuccessfulTx(approve, "approve tx failed");
-    // SELL 20
-                var sellTx = await runTx(exchanger.sellTokens, [owner, 20 * tokenMultiplier]);
-    // FAIL ?
-                assertUnsuccessfulTx(sellTx, "Selling more tokens than allowed shall fail");            
-            });
-
-            it("(2) try to sell more than user has", async function() {
-                var token = await LibreCash.deployed(),
-                    exchanger = await ComplexExchanger.deployed();
-    // USER BALANCE 20
-    // APPROVE 20
-                var allowanceToSet = 20 * tokenMultiplier;
-                var approve = await runTx(token.approve, [exchanger.address, allowanceToSet, {from: owner} ]);
-                assertSuccessfulTx(approve, "approve tx failed");
-                var allowance = await token.allowance.call(owner, exchanger.address);
-                assert.equal(allowanceToSet, allowance, "error setting allowance");
-    // SELL 40
-                var sellTx = await runTx(exchanger.sellTokens, [owner, 40 * tokenMultiplier]);
-    // FAIL ?
-                assertUnsuccessfulTx(sellTx, "Selling more tokens than user has shall fail");            
+    context.only("buy and sell" , async function() {
+        it("(-) before all, init contracts", async function() {
+            var token = await LibreCash.deployed(),
+                exchanger = await ComplexExchanger.deployed();
                 
-            });
-
-            it("(3) try to sell tokens equiv. to less than 1 wei", async function() {
-                var token = await LibreCash.deployed(),
-                    exchanger = await ComplexExchanger.deployed();
-    // USER BALANCE 20
-    // APPROVE 20
-    // SELL 1 / tokenMultiplier
-                var sellTx = await runTx(exchanger.sellTokens, [owner, 1]);
-    // FAIL ?
-                assertUnsuccessfulTx(sellTx, "Selling minimal count of tokens shall result in 0 eth and revert");            
-            });
-
-            it("(4) sell 10 tokens", async function() {
-                var token = await LibreCash.deployed(),
-                    exchanger = await ComplexExchanger.deployed();
-    // EXVHANGER BALANCE ~40
-    // USER BALANCE 20
-    // APPROVE 20
-    // SELL 10
-                var sumToSell = 10 * tokenMultiplier;
-                var tokensBefore = await token.balanceOf.call(owner);
-                var sellTx = await runTx(exchanger.sellTokens, [owner, sumToSell]);
-                assertSuccessfulTx(sellTx, "Basic sell - shall be success");   
-                var tokensAfter = await token.balanceOf.call(owner);
-                assert.equal(+tokensBefore - +tokensAfter, sumToSell, "tokens were not subtracted from balance");        
-            });
-
-            it("(5) sell 40 tokens - more than exch. has", async function() {
-                var token = await LibreCash.deployed(),
-                    exchanger = await ComplexExchanger.deployed();
-    // EXVHANGER BALANCE ~30
-    // MINT 20
-                var sumToMint = 20 * tokenMultiplier;
-                var tokensBefore = await token.balanceOf.call(owner);
-                var mint = await runTx(token.mint, [owner, sumToMint]);
-                assertSuccessfulTx(mint, "mint tx failed");
-                var tokensAfter = await token.balanceOf.call(owner);
-                assert.equal(+tokensAfter - +tokensBefore, sumToMint, "tokens were not minted");
-    // USER BALANCE 30
-    // APPROVE 40
-                var allowanceToSet = 40 * tokenMultiplier;
-                var approve = await runTx(token.approve, [exchanger.address, allowanceToSet, {from: owner} ]);
-                assertSuccessfulTx(approve, "approve tx failed");
-                var allowance = await token.allowance.call(owner, exchanger.address);
-                assert.equal(allowanceToSet, allowance, "error setting allowance");
-    // SELL 40
-                var sumToSell = 40 * tokenMultiplier;
-                var tokensBefore = await token.balanceOf.call(owner);
-                var sellTx = await runTx(exchanger.sellTokens, [owner, sumToSell]);
-                assertSuccessfulTx(sellTx, "Basic sell - shall be success");   
-                var tokensAfter = await token.balanceOf.call(owner);
-                assert.isBelow(+tokensBefore - +tokensAfter, sumToSell, "balance change must be below tokens we tried to sell");        
-    // EXCH BALANCE ~0
-                var balanceExchanger = +web3.eth.getBalance(exchanger.address);
-                assert.equal(balanceExchanger, 0, "exchanger balance must be empty");
-            });
+            var exchanger = await ComplexExchanger.deployed(),
+                state = await exchanger.getState.call(),
+                requestPrice = await exchanger.requestPrice.call(),
+                oracleCount = await exchanger.oracleCount.call();
+            assert.equal(state.toNumber(), StateENUM.REQUEST_RATES, "the initial state must be REQUEST_RATES");
+            assert.equal(requestPrice.toNumber(), 0, "the initial oracle queries price must be 0");
+    
+            var RR = await runTx(exchanger.requestRates, []);
+            assertSuccessfulTx(RR, "requestRates tx failed");
+            console.log("[test] successful requestRates()");
+            state = await exchanger.getState.call();
+            //next line for real oracles
+            //assert.equal(state.toNumber(), StateENUM.WAIT_ORACLES, "the state after requestRates must be WAIT_ORACLES");
+    
+            var crTimeout = Date.now() + 1000 * 60 * 10; // 10 mins
+            do {
+                readyOracles = await exchanger.readyOracles.call();
+                waitingOracles = await exchanger.waitingOracles.call();
+                await delay(1000);
+                console.log("delayed");
+            } while ((+readyOracles != +oracleCount) && (Date.now() < crTimeout));
+    
+            assert.equal(+state, StateENUM.CALC_RATES, "the state after gathering oracle data must be CALC_RATES");
+            assert.isAtLeast(readyOracles.toNumber(), 2, "ready oracle count must be at least 2");
+            var CR = await runTx(exchanger.calcRates, []);
+            assertSuccessfulTx(CR, "calcRates tx failed");
+            state = await exchanger.getState.call();
+            assert.equal(+state, StateENUM.PROCESSING_ORDERS, "the state after calcRates must be PROCESSING_ORDERS");
         });
 
-        context("buy", async function() {
-            it("(-) before buy OR sell, init contracts", async function() {
-                var token = await LibreCash.deployed(),
-                    exchanger = await ComplexExchanger.deployed();
-                 
-                var exchanger = await ComplexExchanger.deployed(),
-                    state = await exchanger.getState.call(),
-                    requestPrice = await exchanger.requestPrice.call(),
-                    oracleCount = await exchanger.oracleCount.call();
-                assert.equal(state.toNumber(), StateENUM.REQUEST_RATES, "the initial state must be REQUEST_RATES");
-                assert.equal(requestPrice.toNumber(), 0, "the initial oracle queries price must be 0");
-        
-                var RR = await runTx(exchanger.requestRates, []);
-                assertSuccessfulTx(RR, "requestRates tx failed");
-                console.log("[test] successful requestRates()");
-                state = await exchanger.getState.call();
-                //next line for real oracles
-                //assert.equal(state.toNumber(), StateENUM.WAIT_ORACLES, "the state after requestRates must be WAIT_ORACLES");
-        
-                var crTimeout = Date.now() + 1000 * 60 * 10; // 10 mins
-                do {
-                    readyOracles = await exchanger.readyOracles.call();
-                    waitingOracles = await exchanger.waitingOracles.call();
-                    await delay(1000);
-                    console.log("delayed");
-                } while ((readyOracles.toNumber() != oracleCount.toNumber()) && (Date.now() < crTimeout));
-        
-                assert.equal(state.toNumber(), StateENUM.CALC_RATES, "the state after gathering oracle data must be CALC_RATES");
-                assert.isAtLeast(readyOracles.toNumber(), 2, "ready oracle count must be at least 2");
-                var CR = await runTx(exchanger.calcRates, []);
-                assertSuccessfulTx(CR, "calcRates tx failed");
-                state = await exchanger.getState.call();
-                assert.equal(state.toNumber(), StateENUM.PROCESSING_ORDERS, "the state after calcRates must be PROCESSING_ORDERS");
-            });
-    
-            it("(2) buy tokens, no token balance -> revert", async function() {
-                var exchanger = await ComplexExchanger.deployed(),
-                    token = await LibreCash.deployed();
-                var ethToSend = 1,
-                    weiToSend = web3.toWei(ethToSend, 'ether');  
+        it("(-) before sell, init contracts", async function() {
+            var token = await LibreCash.deployed(),
+                exchanger = await ComplexExchanger.deployed();
+// EXCH BALANCE ~40
+            var sellRate = +(await exchanger.sellRate.call()) / 1000;
+            var weiToSendToContract = 40 * tokenMultiplier / sellRate;
+            var sendTx = await runTx(exchanger.refillBalance, [{ from: owner, to: exchanger.address, value: weiToSendToContract }]);
+            assertSuccessfulTx(sendTx, "unsuccessful refill of exchanger balance");
+// MINT 20
+            var sumToMint = 20 * tokenMultiplier;
+            var mint = await runTx(token.mint, [owner, sumToMint]);
+            assertSuccessfulTx(mint, "mint tx failed");
+            var tokens = await token.balanceOf.call(owner);
+            assert.equal(+tokens, sumToMint, "tokens were not minted");
+        });
 
-                var buyTx = await runTx(exchanger.buyTokens, [owner, { from: owner, value: weiToSend }]);
-                assertUnsuccessfulTx(buyTx, "buyTokens tx with zero eth succeeded - bad");
-            });
+        it("(1-sell) try to sell more than allowance", async function() {
+            var token = await LibreCash.deployed(),
+                exchanger = await ComplexExchanger.deployed();
+// APPROVE 10
+            var approve = await runTx(token.approve, [exchanger.address, 10 * tokenMultiplier]);
+            assertSuccessfulTx(approve, "approve tx failed");
+// SELL 20
+            var sellTx = await runTx(exchanger.sellTokens, [owner, 20 * tokenMultiplier]);
+// FAIL ?
+            assertUnsuccessfulTx(sellTx, "Selling more tokens than allowed shall fail");            
+        });
 
-            it("(1) buy 0 tokens -> revert", async function() {
-                var exchanger = await ComplexExchanger.deployed(),
-                    token = await LibreCash.deployed();
-                var sumToMint = 1000 * tokenMultiplier;
-                var mint = await runTx(token.mint, [exchanger.address, sumToMint]);
-                assertSuccessfulTx(mint, "mint tx failed");
-                var tokenBalance = await exchanger.tokenBalance.call();
-                assert.equal(tokenBalance.toNumber(), sumToMint, "the token balance after mint is not valid");  
+        it("(2-sell) try to sell more than user has", async function() {
+            var token = await LibreCash.deployed(),
+                exchanger = await ComplexExchanger.deployed();
+// USER BALANCE 20
+// APPROVE 20
+            var allowanceToSet = 20 * tokenMultiplier;
+            var approve = await runTx(token.approve, [exchanger.address, allowanceToSet, {from: owner} ]);
+            assertSuccessfulTx(approve, "approve tx failed");
+            var allowance = await token.allowance.call(owner, exchanger.address);
+            assert.equal(allowanceToSet, allowance, "error setting allowance");
+// SELL 40
+            var sellTx = await runTx(exchanger.sellTokens, [owner, 40 * tokenMultiplier]);
+// FAIL ?
+            assertUnsuccessfulTx(sellTx, "Selling more tokens than user has shall fail");            
+        });
 
-                var ethToSend = 0,
-                    weiToSend = 0;
+        it("(3-sell) try to sell tokens equiv. to less than 1 wei", async function() {
+            var token = await LibreCash.deployed(),
+                exchanger = await ComplexExchanger.deployed();
+// USER BALANCE 20
+// APPROVE 20
+// SELL 1 / tokenMultiplier
+            var sellTx = await runTx(exchanger.sellTokens, [owner, 1]);
+// FAIL ?
+            assertUnsuccessfulTx(sellTx, "Selling minimal count of tokens shall result in 0 eth and revert");            
+        });
 
-                var buyTx = await runTx(exchanger.buyTokens, [owner, { from: owner, value: weiToSend }]);
-                assertUnsuccessfulTx(buyTx, "buyTokens tx with zero eth succeeded - bad");
-            });
+        it("(4-sell) sell 10 tokens", async function() {
+            var token = await LibreCash.deployed(),
+                exchanger = await ComplexExchanger.deployed();
+// EXVHANGER BALANCE ~40
+// USER BALANCE 20
+// APPROVE 20
+// SELL 10
+            var sumToSell = 10 * tokenMultiplier;
+            var tokensBefore = await token.balanceOf.call(owner);
+            var sellTx = await runTx(exchanger.sellTokens, [owner, sumToSell]);
+            assertSuccessfulTx(sellTx, "Basic sell - shall be success");   
+            var tokensAfter = await token.balanceOf.call(owner);
+            assert.equal(+tokensBefore - +tokensAfter, sumToSell, "tokens were not subtracted from balance");        
+        });
 
-            it("(3) buy more tokens than exch. has", async function() {
-                var exchanger = await ComplexExchanger.deployed(),
-                    token = await LibreCash.deployed(),
-                    buyFee = await exchanger.buyFee.call(),
-                    sellFee = await exchanger.sellFee.call(),
-                    tokenBalance = await exchanger.tokenBalance.call(),
-                    buyRate = (await exchanger.buyRate.call()) / 1000,
-                    exchangerBalance = (await token.balanceOf.call(exchanger.address)) / tokenMultiplier;
+        it("(5-sell) sell 40 tokens - more than exch. has", async function() {
+            var token = await LibreCash.deployed(),
+                exchanger = await ComplexExchanger.deployed();
+// EXCHANGER BALANCE ~30
+// MINT 20
+            var sumToMint = 20 * tokenMultiplier;
+            var tokensBefore = await token.balanceOf.call(owner);
+            var mint = await runTx(token.mint, [owner, sumToMint]);
+            assertSuccessfulTx(mint, "mint tx failed");
+            var tokensAfter = await token.balanceOf.call(owner);
+            assert.equal(+tokensAfter - +tokensBefore, sumToMint, "tokens were not minted");
+// USER BALANCE 30
+// APPROVE 40
+            var allowanceToSet = 40 * tokenMultiplier;
+            var approve = await runTx(token.approve, [exchanger.address, allowanceToSet, {from: owner} ]);
+            assertSuccessfulTx(approve, "approve tx failed");
+            var allowance = await token.allowance.call(owner, exchanger.address);
+            assert.equal(allowanceToSet, allowance, "error setting allowance");
+// SELL 40
+            var sumToSell = 40 * tokenMultiplier;
+            var tokensBefore = await token.balanceOf.call(owner);
+            var sellTx = await runTx(exchanger.sellTokens, [owner, sumToSell]);
+            assertSuccessfulTx(sellTx, "Basic sell - shall be success");   
+            var tokensAfter = await token.balanceOf.call(owner);
+            assert.isBelow(+tokensBefore - +tokensAfter, sumToSell, "balance change must be below tokens we tried to sell");        
+// EXCH BALANCE ~0
+            var balanceExchanger = +web3.eth.getBalance(exchanger.address);
+            assert.equal(balanceExchanger, 0, "exchanger balance must be 0");
+        });
 
-                var sumToMint = 1000 * tokenMultiplier;
-                //var mint = await runTx(token.mint, [exchanger.address, sumToMint]);
-                // already have minted in prev. test
-                //assertSuccessfulTx(mint, "mint tx failed");
-                var tokenBalance = await exchanger.tokenBalance.call();
-                assert.equal(tokenBalance.toNumber(), sumToMint, "the token balance after mint is not valid");  
+        it("(3-buy) buy more tokens than exch. has", async function() {
+            var exchanger = await ComplexExchanger.deployed(),
+                token = await LibreCash.deployed(),
+                buyFee = await exchanger.buyFee.call(),
+                sellFee = await exchanger.sellFee.call(),
+                tokenBalance = await exchanger.tokenBalance.call(),
+                buyRate = (await exchanger.buyRate.call()) / 1000;
 
-                // exchangerBalance shall be 1000 tokens now, let's try to buy 1500 tokens
-                var tokensToBuy = 1500,
-                    ethToSend = tokensToBuy / buyRate,
-                    weiToSend = web3.toWei(ethToSend, 'ether'),
-                    balanceBefore = web3.eth.getBalance(owner).toNumber();
-                
-                var buyTx = await exchanger.buyTokens(owner, { from: owner, value: weiToSend });
-                assert.equal(buyTx.receipt.status, 1, "buyTokens tx failed");
-                var weiUsedForGas = truffleTestGasPrice * buyTx.receipt.gasUsed;
-                var balanceDelta = balanceBefore - +web3.eth.getBalance(owner);
-                var balanceDeltaNet = balanceDelta - weiUsedForGas;
+            assert.isAbove(+tokenBalance, 0, "the exchanger token balance must not be 0 now");  
+            var tokensToBuy = +tokenBalance * 2;
 
-                assert.isAbove(balanceDelta, 0, "balance delta must be positive - very strange if ever thrown");
-                var boughtTokens = await token.balanceOf.call(owner);
+            var weiToSend = tokensToBuy / buyRate,
+                ethToSend = web3.fromWei(weiToSend, 'ether'),
+                balanceBefore = web3.eth.getBalance(owner).toNumber();
+            
+            var buyTx = await runTx(exchanger.buyTokens, [owner, { from: owner, value: weiToSend }]);
+            assertSuccessfulTx(buyTx, "buyTokens tx failed");
+            var weiUsedForGas = truffleTestGasPrice * buyTx.receipt.gasUsed;
+            var balanceDelta = balanceBefore - +web3.eth.getBalance(owner);
+            var balanceDeltaNet = balanceDelta - weiUsedForGas;
 
-                console.log(`we sent ${ethToSend} ether`);
-                console.log(`but balance change is ${balanceDeltaNet / tokenMultiplier}`);
-                console.log(`rate was ${buyRate}`);
-                console.log(`so we got ${+boughtTokens / tokenMultiplier} tokens`);
-                console.log(`shall be ${web3.fromWei(balanceDeltaNet, 'ether')} * ${buyRate} == ${+boughtTokens / tokenMultiplier}`);
-                // if the difference is below 10000000, it is insufficient (for example gas price is about 5384400000000000)
-                assert.isBelow(Math.abs(balanceDeltaNet * buyRate - +boughtTokens), 10000000, "token count doesn't match sent ether multiplied by rate");
-            });
+            assert.isAbove(balanceDelta, 0, "balance delta must be positive - very strange if ever thrown");
+            var boughtTokens = await token.balanceOf.call(owner);
 
-            it("(4) buy 1000 tokens when balance is 1000 tokens", async function() {
-                var exchanger = await ComplexExchanger.deployed(),
-                    token = await LibreCash.deployed(),
-                    buyFee = await exchanger.buyFee.call(),
-                    sellFee = await exchanger.sellFee.call(),
-                    buyRate = (await exchanger.buyRate.call()) / 1000;
-                var accTokensBefore = (await token.balanceOf.call(owner)) / tokenMultiplier;
-                var sumToMint = 1000 * tokenMultiplier;
-                var mint = await runTx(token.mint, [exchanger.address, sumToMint]);
-                assertSuccessfulTx(mint, "mint tx failed");
-                var tokenBalance = await exchanger.tokenBalance.call();
-                assert.equal(tokenBalance.toNumber(), sumToMint, "the token balance after mint is not valid");  
+            console.log(`we sent ${ethToSend} ether`);
+            console.log(`but balance change is ${balanceDeltaNet / tokenMultiplier}`);
+            console.log(`rate was ${buyRate}`);
+            console.log(`so we got ${+boughtTokens / tokenMultiplier} tokens`);
+            console.log(`shall be ${web3.fromWei(balanceDeltaNet, 'ether')} * ${buyRate} == ${+boughtTokens / tokenMultiplier}`);
+            // if the difference is below 10000000, it is insufficient (for example gas price is about 5384400000000000)
+            assert.isBelow(Math.abs(balanceDeltaNet * buyRate - +boughtTokens), 10000000, "token count doesn't match sent ether multiplied by rate");
+        });
 
-                var tokensToBuy = 1000,
-                    ethToSend = tokensToBuy / buyRate,
-                    weiToSend = web3.toWei(ethToSend, 'ether'),
-                    balanceBefore = +web3.eth.getBalance(owner);
-                var buyTx = await runTx(exchanger.buyTokens, [owner, { from: owner, value: weiToSend }]);
-                assertSuccessfulTx(buyTx, "buyTokens tx failed");
-                // this is the gas only when exchanger doesn't refund
-                var zeroBalance = balanceBefore - +web3.eth.getBalance(owner) - weiToSend -
-                    truffleTestGasPrice * buyTx.receipt.gasUsed;
-                // if zeroBalance is below 100000, it is insufficient
-                assert.isBelow(Math.abs(zeroBalance), 100000, "ether sent doesn't fit the balance changed");
+        it("(4-buy) buy all tokens from exchanger", async function() {
+            var exchanger = await ComplexExchanger.deployed(),
+                token = await LibreCash.deployed(),
+                buyFee = await exchanger.buyFee.call(),
+                sellFee = await exchanger.sellFee.call(),
+                buyRate = (await exchanger.buyRate.call()) / 1000;
+            var accTokensBefore = (await token.balanceOf.call(owner)) / tokenMultiplier;
+            var sumToMint = 1000 * tokenMultiplier;
+            var mint = await runTx(token.mint, [exchanger.address, sumToMint]);
+            assertSuccessfulTx(mint, "mint tx failed");
+            var tokenBalance = await exchanger.tokenBalance.call();
+            assert.equal(+tokenBalance, sumToMint, "the token balance after mint is not valid");  
 
-                var accTokensAfter = (await token.balanceOf.call(owner)) / tokenMultiplier;
+            var tokensToBuy = sumToMint,
+                weiToSend = tokensToBuy / buyRate + 100000, // 100000 wei to fill possible rounding mistakes
+                ethToSend = web3.fromWei(weiToSend, 'ether'),
+                balanceBefore = +web3.eth.getBalance(owner);
+            var buyTx = await runTx(exchanger.buyTokens, [owner, { from: owner, value: weiToSend }]);
+            assertSuccessfulTx(buyTx, "buyTokens tx failed");
 
-                console.log(`we sent ${ethToSend} ether`);
-                console.log(`rate was ${buyRate}`);
-                console.log(`we got ${accTokensAfter - accTokensBefore} tokens`);
-                console.log(`shall be ${ethToSend} * ${buyRate} == ${accTokensAfter - accTokensBefore}`);
-                assert.equal(ethToSend * buyRate, accTokensAfter - accTokensBefore, "token count doesn't match sent ether multiplied by rate");
-            });
+            var zeroBalance = balanceBefore - +web3.eth.getBalance(owner) - weiToSend -
+                truffleTestGasPrice * buyTx.receipt.gasUsed;
+            // if zeroBalance is below 1000000, it is insufficient
+            assert.isBelow(Math.abs(zeroBalance), 1000000, "ether sent doesn't fit the balance changed");
 
-            it("(5) buy tokens for 1 eth", async function() {
-                var exchanger = await ComplexExchanger.deployed(),
-                    token = await LibreCash.deployed(),
-                    buyFee = await exchanger.buyFee.call(),
-                    sellFee = await exchanger.sellFee.call(),
-                    buyRate = (await exchanger.buyRate.call()) / 1000;
-                var accTokensBefore = (await token.balanceOf.call(owner)) / tokenMultiplier;
+            var accTokensAfter = (await token.balanceOf.call(owner)) / tokenMultiplier,
+                exchTokensAfter = (await exchanger.tokenBalance.call()) / tokenMultiplier;
+            assert.equal(exchTokensAfter, 0, "exchanger token balance must be 0 now");
+            console.log(`we sent ${ethToSend} ether`);
+            console.log(`rate was ${buyRate}`);
+            console.log(`we got ${accTokensAfter - accTokensBefore} tokens`);
+            console.log(`shall be ${ethToSend} * ${buyRate} == ${accTokensAfter - accTokensBefore}`);
+            assert.isBelow(ethToSend * buyRate - (accTokensAfter - accTokensBefore), 0.0000001, "token count doesn't match sent ether multiplied by rate");
+        });
 
-                var sumToMint = 1000 * tokenMultiplier;
-                var mint = await runTx(token.mint, [exchanger.address, sumToMint]);
-                assertSuccessfulTx(mint, "mint tx failed");
-                var tokenBalance = await exchanger.tokenBalance.call();
-                assert.equal(tokenBalance.toNumber(), sumToMint, "the token balance after mint is not valid");  
+        it("(2-buy) buy tokens, no token balance -> revert", async function() {
+            var exchanger = await ComplexExchanger.deployed(),
+                token = await LibreCash.deployed(),
+                exchangerTokenBalance = await exchanger.tokenBalance.call();;
+            assert.equal(+exchangerTokenBalance, 0, "exchanger token balance must be 0 now");
 
-                var ethToSend = 1,
-                    weiToSend = web3.toWei(ethToSend, 'ether'),
-                    balanceBefore = +web3.eth.getBalance(owner);
-                var buyTx = await runTx(exchanger.buyTokens, [owner, { from: owner, value: weiToSend }]);
-                assertSuccessfulTx(buyTx, "buyTokens tx failed");
-                // this is the gas only when exchanger doesn't refund
-                var zeroBalance = balanceBefore - +web3.eth.getBalance(owner) - weiToSend -
-                    truffleTestGasPrice * buyTx.receipt.gasUsed;
-                // if zeroBalance is below 100000, it is insufficient
-                assert.isBelow(Math.abs(zeroBalance), 100000, "ether sent doesn't fit the balance changed");
+            var ethToSend = 1,
+                weiToSend = web3.toWei(ethToSend, 'ether');  
 
-                var accTokensAfter = (await token.balanceOf.call(owner)) / tokenMultiplier;
+            var buyTx = await runTx(exchanger.buyTokens, [owner, { from: owner, value: weiToSend }]);
+            assertUnsuccessfulTx(buyTx, "buyTokens tx with zero exchanger balance succeeded - bad");
+        });
 
-                console.log(`we sent ${ethToSend} ether`);
-                console.log(`rate was ${buyRate}`);
-                console.log(`we got ${accTokensAfter - accTokensBefore} tokens`);
-                console.log(`shall be ${ethToSend} * ${buyRate} == ${accTokensAfter - accTokensBefore}`);
-                assert.equal(ethToSend * buyRate, accTokensAfter - accTokensBefore, "token count doesn't match sent ether multiplied by rate");
-            });
+        it("(1-buy) buy 0 tokens -> revert", async function() {
+            var exchanger = await ComplexExchanger.deployed(),
+                token = await LibreCash.deployed();
+            var sumToMint = 1000 * tokenMultiplier;
+            var mint = await runTx(token.mint, [exchanger.address, sumToMint]);
+            assertSuccessfulTx(mint, "mint tx failed");
+            var tokenBalance = await exchanger.tokenBalance.call();
+            assert.equal(+tokenBalance, sumToMint, "the exchanger token balance after mint is not valid");  
+
+            var ethToSend = 0,
+                weiToSend = 0;
+
+            var buyTx = await runTx(exchanger.buyTokens, [owner, { from: owner, value: weiToSend }]);
+            assertUnsuccessfulTx(buyTx, "buyTokens tx with zero eth succeeded - bad");
+        });
+
+        it("(5) buy tokens for 1 eth", async function() {
+            var exchanger = await ComplexExchanger.deployed(),
+                token = await LibreCash.deployed(),
+                buyFee = await exchanger.buyFee.call(),
+                sellFee = await exchanger.sellFee.call(),
+                buyRate = (await exchanger.buyRate.call()) / 1000;
+            var accTokensBefore = (await token.balanceOf.call(owner)) / tokenMultiplier;
+
+            var tokenBalance = await exchanger.tokenBalance.call();
+            assert.isAbove(+tokenBalance, 0, "the exchanger token balance must be above 0 now");  
+
+            var ethToSend = 1,
+                weiToSend = web3.toWei(ethToSend, 'ether'),
+                balanceBefore = +web3.eth.getBalance(owner);
+            var buyTx = await runTx(exchanger.buyTokens, [owner, { from: owner, value: weiToSend }]);
+            assertSuccessfulTx(buyTx, "buyTokens tx failed");
+            
+            var zeroBalance = balanceBefore - +web3.eth.getBalance(owner) - weiToSend -
+                truffleTestGasPrice * buyTx.receipt.gasUsed;
+            // if zeroBalance is below 100000, it is insufficient
+            assert.isBelow(Math.abs(zeroBalance), 100000, "ether sent doesn't fit the balance changed");
+
+            var accTokensAfter = (await token.balanceOf.call(owner)) / tokenMultiplier;
+
+            console.log(`we sent ${ethToSend} ether`);
+            console.log(`rate was ${buyRate}`);
+            console.log(`we got ${accTokensAfter - accTokensBefore} tokens`);
+            console.log(`shall be ${ethToSend} * ${buyRate} == ${accTokensAfter - accTokensBefore}`);
+            assert.equal(ethToSend * buyRate, accTokensAfter - accTokensBefore, "token count doesn't match sent ether multiplied by rate");
         });
     });
 
