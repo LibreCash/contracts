@@ -142,12 +142,14 @@ contract('ComplexExchanger', function(accounts) {
         it("(1),(3) time wait < ORACLE_TIMEOUT", async function() {
             let exchanger = await ComplexExchanger.deployed();
 
-            await exchanger.requestRates({value: web3.toWei(5,'ether')});
+            var requestRates = await assertTx.run(exchanger.requestRates, [{value: web3.toWei(5,'ether')}]);
+            assertTx.success(requestRates, "requestRates failed");
             let waiting = + await exchanger.waitingOracles.call();
             assert.equal(waiting, 0, "WaitingOracles not 0 if 0 waiting!");
             for(let i=0; i < oracles.length; i++) {
                 let oracle = await oracles[i].deployed();
-                await oracle.setWaitQuery(true);
+                var setWaitQuery = await assertTx.run(oracle.setWaitQuery, [true]);
+                assertTx.success(setWaitQuery);
                 waiting = + await exchanger.waitingOracles.call();
                 assert.equal(waiting, i + 1, `WaitingOracles not ${waiting} if ${i+1} waiting!`);
             }
@@ -157,13 +159,12 @@ contract('ComplexExchanger', function(accounts) {
         it("(2) time wait > ORACLE_TIMEOUT", async function() {
             let exchanger = await ComplexExchanger.deployed();
 
-            var requestPrice = await exchanger.requestPrice.call();
-            assert.equal(+requestPrice, 0, "requestPrice should be 0 again after revert");
-            var rR = await assertTx.run(exchanger.requestRates, [{value: requestPrice}]);
-            assertTx.success(rR);
+            var requestRates = await assertTx.run(exchanger.requestRates, [{value: web3.toWei(5,'ether')}]);
+            assertTx.success(requestRates, "requestRates failed");
             for(let i=0; i< oracles.length; i++) {
                 let oracle = await oracles[i].deployed();
-                await oracle.setWaitQuery(true);
+                var setWaitQuery = await assertTx.run(oracle.setWaitQuery, [true]);
+                assertTx.success(setWaitQuery);
             }
             let waiting = + await exchanger.waitingOracles.call();
             assert.equal( waiting, oracles.length, "Don't equal waiting oracles!");
@@ -197,7 +198,8 @@ contract('ComplexExchanger', function(accounts) {
 
             for(let i=0; i < oracles.length; i++) {
                 let oracle = await oracles[i].deployed();
-                await oracle.setRate(0);
+                var setRate = await assertTx.run(oracle.setRate, [0]);
+                assertTx.success(setRate);
             }
 
             let ready = + await exchanger.readyOracles.call();
@@ -205,8 +207,10 @@ contract('ComplexExchanger', function(accounts) {
 
             for(let i=0; i < oracles.length; i++) {
                 let oracle = await oracles[i].deployed();
-                await oracle.setRate(10);
-                await oracle.setWaitQuery(true);
+                var setRate = await assertTx.run(oracle.setRate, [10]);
+                assertTx.success(setRate);
+                var setWaitQuery = await assertTx.run(oracle.setWaitQuery, [true]);
+                assertTx.success(setWaitQuery);
             }
 
             ready = + await exchanger.readyOracles.call();
@@ -216,10 +220,12 @@ contract('ComplexExchanger', function(accounts) {
         it("(2) callbackTime < ORACLE_ACTUAL", async function() {
             let exchanger = await ComplexExchanger.deployed();
 
-            await exchanger.requestRates({value: web3.toWei(5,'ether')});
+            var requestRates = await assertTx.run(exchanger.requestRates, [{value: web3.toWei(5,'ether')}]);
+            assertTx.success(requestRates, "requestRates failed");
             for(let i=0; i < oracles.length; i++) {
                 let oracle = await oracles[i].deployed();
-                await oracle.setWaitQuery(true);
+                var setWaitQuery = await assertTx.run(oracle.setWaitQuery, [true]);
+                assertTx.success(setWaitQuery);
                 let ready = + await exchanger.readyOracles.call();
                 assert.equal(ready, oracles.length - i -1, "");
             }
@@ -228,7 +234,10 @@ contract('ComplexExchanger', function(accounts) {
         it("(3) callbackTime > ORACLE_ACTUAL", async function() {
             let exchanger = await ComplexExchanger.deployed();
 
-            await exchanger.requestRates({value: web3.toWei(5,'ether')});
+            console.log(";;;", +await exchanger.getState.call());
+
+            var requestRates = await assertTx.run(exchanger.requestRates, [{value: web3.toWei(5,'ether')}]);
+            assertTx.success(requestRates, "requestRates failed");
             let ready = + await exchanger.readyOracles.call();
             assert.equal(ready, oracles.length, "ready oracle don't equal count oracles");
 
@@ -266,9 +275,8 @@ contract('ComplexExchanger', function(accounts) {
             assert.equal(state.toNumber(), StateENUM.REQUEST_RATES, "the initial state must be REQUEST_RATES");
             assert.equal(requestPrice.toNumber(), 0, "the initial oracle queries price must be 0");
     
-            var RR = await assertTx.run(exchanger.requestRates, []);
-            assertTx.success(RR, "requestRates tx failed");
-            console.log("[test] successful requestRates()");
+            var requestRates = await assertTx.run(exchanger.requestRates, [{value: web3.toWei(5,'ether')}]);
+            assertTx.success(requestRates, "requestRates failed");
             state = await exchanger.getState.call();
             //next line for real oracles
             //assert.equal(state.toNumber(), StateENUM.WAIT_ORACLES, "the state after requestRates must be WAIT_ORACLES");
@@ -524,8 +532,8 @@ contract('ComplexExchanger', function(accounts) {
         before("init", async function() {
             let exchanger = await ComplexExchanger.deployed();
 
-            var requestRates = await assertTx.run(exchanger.requestRates, [{from: acc1, value: web3.toWei(5,'ether')}]);
-            assertTx.success(requestRates, "requestRates tx falls");
+            var requestRates = await assertTx.run(exchanger.requestRates, [{value: web3.toWei(5,'ether')}]);
+            assertTx.success(requestRates, "requestRates failed");
             jump = Math.max(ORACLE_ACTUAL, ORACLE_TIMEOUT);
             await timeMachine.jump(jump + 1);
             
@@ -570,13 +578,8 @@ contract('ComplexExchanger', function(accounts) {
             let exchanger = await ComplexExchanger.deployed();
             let oraclesCost = + await exchanger.requestPrice.call();
 
-            try {
-                await exchanger.requestRates({value: oraclesCost});
-            } catch(e) {
-                throw new Error("throw if send == oraclesCost");
-            }
-
-            return true;
+            var requestRates = await assertTx.run(exchanger.requestRates, [{value: oraclesCost}]);
+            assertTx.success(requestRates, "requestRates failed");
         });
 
         it("(3) payAmount > oraclesCost", async function() {
@@ -584,15 +587,13 @@ contract('ComplexExchanger', function(accounts) {
             let oraclesCost = + await exchanger.requestPrice.call();
             let before = + web3.eth.getBalance(owner);
 
-            try {
-                await exchanger.requestRates({value: oraclesCost + 10000000});
-            } catch(e) {
-                throw new Error("throw if send > oraclesCost");
-            }
+            var requestRates = await assertTx.run(exchanger.requestRates, [{value: oraclesCost + 10000000}]);
+            assertTx.success(requestRates, "requestRates failed with value: oraclesCost + 10000000");
+
             let after = + web3.eth.getBalance(owner);
                 weiUsed = getWeiUsedForGas();
 
-            assert.isBelow((before - after) - weiUsed - oraclesCost, 100000, "Don't back left ether!");
+            assert.isBelow((before - after) - weiUsed - oraclesCost, 100000, "we didn't get back oversent ether");
         });
     });
 
@@ -604,7 +605,8 @@ contract('ComplexExchanger', function(accounts) {
             let state = + await exchanger.getState.call();
 
             if (state != StateENUM.CALC_RATES) {
-                await exchanger.requestRates({value: web3.toWei(5,'ether')});
+                var requestRates = await assertTx.run(exchanger.requestRates, [{value: web3.toWei(5,'ether')}]);
+                assertTx.success(requestRates, "requestRates failed");
                 state = + await exchanger.getState.call();
             }
 
@@ -627,35 +629,28 @@ contract('ComplexExchanger', function(accounts) {
             let exchanger = await ComplexExchanger.deployed();
             for (let i = 0; i < MIN_READY_ORACLES; i++) {
                 let oracle = await oracles[i].deployed();
-                await oracle.setRate(MIN_RATE - 1);
+                var setRate = await assertTx.run(oracle.setRate, [MIN_RATE - 1]);
+                assertTx.success(setRate, "oracle.setRate(MIN_RATE - 1) failed");
             }
 
-            try {
-                await exchanger.calcRates();
-            } catch(e) {
-                for (let i = 0; i < MIN_READY_ORACLES; i++) {
-                    let oracle = await oracles[i].deployed();
-                    await oracle.setRate(MAX_RATE + 1);
-                }
-
-                try {
-                    await exchanger.calcRates();
-                } catch(e) {
-                    return true;
-                }
+            var calcRates = await assertTx.run(exchanger.calcRates, []);
+            assertTx.fail(calcRates, "calcRates shall fail when we have MIN_RATE - 1");
+            
+            for (let i = 0; i < MIN_READY_ORACLES; i++) {
+                let oracle = await oracles[i].deployed();
+                var setRate = await assertTx.run(oracle.setRate, [MAX_RATE + 1]);
+                assertTx.success(setRate, "oracle.setRate(MIN_RATE - 1) failed");
             }
 
-            throw new Error("calcRate call without revert if count valid oracles < MIN");
+            var calcRates = await assertTx.run(exchanger.calcRates, []);
+            assertTx.fail(calcRates, "calcRates shall fail when we have MAX_RATE + 1");
         });
 
         it("(2) validOracles > min", async function() {
             let exchanger = await ComplexExchanger.deployed();
 
-            try {
-                await exchanger.calcRates();
-            } catch(e) {
-                throw new Error("Error if calcRate with valid oracles");
-            }
+            var calcRates = await assertTx.run(exchanger.calcRates, []);
+            assertTx.success(calcRates, "Error if calcRate with valid oracles");
 
             let max, min;
             for(let i = 0; i < oracles.length; i++) {
