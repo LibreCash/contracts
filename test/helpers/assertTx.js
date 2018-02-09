@@ -1,6 +1,6 @@
-function Reverter(web3) {
+function AssertTx() {
 
-    this.runTx = (_func, _args) => {
+    this.run = async (_func, _args) => {
         var funcRes;
         try {
             funcRes = await _func(..._args);
@@ -14,13 +14,13 @@ function Reverter(web3) {
         return funcRes;
     };
   
-    this.success = (txReceipt, msg) => {
+    this.success = (tx, msg) => {
         return assert.equal(tx.receipt.status, 1, msg);
     };
 
-    this.fail = (txReceipt, msg) => {
+    this.fail = (tx, msg) => {
         return assert.equal(tx.receipt.status, 0, msg);
     };
   }
   
-  module.exports = Reverter;
+  module.exports = AssertTx;

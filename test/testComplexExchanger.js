@@ -2,7 +2,9 @@ const
     Reverter = require('./helpers/reverter'),
     reverter = new Reverter(web3),
     TimeMachine = require('./helpers/timemachine'),
-    timeMachine = new TimeMachine(web3);
+    timeMachine = new TimeMachine(web3),
+    AssertTx = require('./helpers/assertTx'),
+    assertTx = new AssertTx();
 
 const truffleTestGasPrice = 100000000000,
       tokenMultiplier = Math.pow(10, 18);
@@ -22,28 +24,6 @@ var oracles = [];
 });
 
 const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
-
-async function runTx(_func, _args) {
-    var funcRes;
-    try {
-        funcRes = await _func(..._args);
-    } catch(e) {
-        if (e.toString().indexOf("VM Exception while processing transaction: revert") != -1) {
-            funcRes = { receipt: {status: 0 }};
-        } else {
-            throw new Error(e.toString());
-        }
-    }
-    return funcRes;
-}
-
-function assertSuccessfulTx(tx, msg) {
-    return assert.equal(tx.receipt.status, 1, msg);
-}
-
-function assertUnsuccessfulTx(tx, msg) {
-    return assert.equal(tx.receipt.status, 0, msg);
-}
 
 function getWeiUsedForGas() {
     let
@@ -179,8 +159,8 @@ contract('ComplexExchanger', function(accounts) {
 
             var requestPrice = await exchanger.requestPrice.call();
             assert.equal(+requestPrice, 0, "requestPrice should be 0 again after revert");
-            var rR = await runTx(exchanger.requestRates, [{value: requestPrice}]);
-            assertSuccessfulTx(rR);
+            var rR = await assertTx.run(exchanger.requestRates, [{value: requestPrice}]);
+            assertTx.success(rR);
             for(let i=0; i< oracles.length; i++) {
                 let oracle = await oracles[i].deployed();
                 await oracle.setWaitQuery(true);
@@ -286,8 +266,8 @@ contract('ComplexExchanger', function(accounts) {
             assert.equal(state.toNumber(), StateENUM.REQUEST_RATES, "the initial state must be REQUEST_RATES");
             assert.equal(requestPrice.toNumber(), 0, "the initial oracle queries price must be 0");
     
-            var RR = await runTx(exchanger.requestRates, []);
-            assertSuccessfulTx(RR, "requestRates tx failed");
+            var RR = await assertTx.run(exchanger.requestRates, []);
+            assertTx.success(RR, "requestRates tx failed");
             console.log("[test] successful requestRates()");
             state = await exchanger.getState.call();
             //next line for real oracles
@@ -303,8 +283,8 @@ contract('ComplexExchanger', function(accounts) {
     
             assert.equal(+state, StateENUM.CALC_RATES, "the state after gathering oracle data must be CALC_RATES");
             assert.isAtLeast(readyOracles.toNumber(), 2, "ready oracle count must be at least 2");
-            var CR = await runTx(exchanger.calcRates, []);
-            assertSuccessfulTx(CR, "calcRates tx failed");
+            var CR = await assertTx.run(exchanger.calcRates, []);
+            assertTx.success(CR, "calcRates tx failed");
             state = await exchanger.getState.call();
             assert.equal(+state, StateENUM.PROCESSING_ORDERS, "the state after calcRates must be PROCESSING_ORDERS");
         });
@@ -315,12 +295,12 @@ contract('ComplexExchanger', function(accounts) {
 // EXCH BALANCE ~40
             var sellRate = +(await exchanger.sellRate.call()) / 1000;
             var weiToSendToContract = 40 * tokenMultiplier / sellRate;
-            var sendTx = await runTx(exchanger.refillBalance, [{ from: owner, to: exchanger.address, value: weiToSendToContract }]);
-            assertSuccessfulTx(sendTx, "unsuccessful refill of exchanger balance");
+            var sendTx = await assertTx.run(exchanger.refillBalance, [{ from: owner, to: exchanger.address, value: weiToSendToContract }]);
+            assertTx.success(sendTx, "unsuccessful refill of exchanger balance");
 // MINT 20
             var sumToMint = 20 * tokenMultiplier;
-            var mint = await runTx(token.mint, [owner, sumToMint]);
-            assertSuccessfulTx(mint, "mint tx failed");
+            var mint = await assertTx.run(token.mint, [owner, sumToMint]);
+            assertTx.success(mint, "mint tx failed");
             var tokens = await token.balanceOf.call(owner);
             assert.equal(+tokens, sumToMint, "tokens were not minted");
         });
@@ -329,12 +309,12 @@ contract('ComplexExchanger', function(accounts) {
             var token = await LibreCash.deployed(),
                 exchanger = await ComplexExchanger.deployed();
 // APPROVE 10
-            var approve = await runTx(token.approve, [exchanger.address, 10 * tokenMultiplier]);
-            assertSuccessfulTx(approve, "approve tx failed");
+            var approve = await assertTx.run(token.approve, [exchanger.address, 10 * tokenMultiplier]);
+            assertTx.success(approve, "approve tx failed");
 // SELL 20
-            var sellTx = await runTx(exchanger.sellTokens, [owner, 20 * tokenMultiplier]);
+            var sellTx = await assertTx.run(exchanger.sellTokens, [owner, 20 * tokenMultiplier]);
 // FAIL ?
-            assertUnsuccessfulTx(sellTx, "Selling more tokens than allowed shall fail");            
+            assertTx.fail(sellTx, "Selling more tokens than allowed shall fail");            
         });
 
         it("(2-sell) try to sell more than user has", async function() {
@@ -343,14 +323,14 @@ contract('ComplexExchanger', function(accounts) {
 // USER BALANCE 20
 // APPROVE 20
             var allowanceToSet = 20 * tokenMultiplier;
-            var approve = await runTx(token.approve, [exchanger.address, allowanceToSet, {from: owner} ]);
-            assertSuccessfulTx(approve, "approve tx failed");
+            var approve = await assertTx.run(token.approve, [exchanger.address, allowanceToSet, {from: owner} ]);
+            assertTx.success(approve, "approve tx failed");
             var allowance = await token.allowance.call(owner, exchanger.address);
             assert.equal(allowanceToSet, allowance, "error setting allowance");
 // SELL 40
-            var sellTx = await runTx(exchanger.sellTokens, [owner, 40 * tokenMultiplier]);
+            var sellTx = await assertTx.run(exchanger.sellTokens, [owner, 40 * tokenMultiplier]);
 // FAIL ?
-            assertUnsuccessfulTx(sellTx, "Selling more tokens than user has shall fail");            
+            assertTx.fail(sellTx, "Selling more tokens than user has shall fail");            
         });
 
         it("(3-sell) try to sell tokens equiv. to less than 1 wei", async function() {
@@ -359,9 +339,9 @@ contract('ComplexExchanger', function(accounts) {
 // USER BALANCE 20
 // APPROVE 20
 // SELL 1 / tokenMultiplier
-            var sellTx = await runTx(exchanger.sellTokens, [owner, 1]);
+            var sellTx = await assertTx.run(exchanger.sellTokens, [owner, 1]);
 // FAIL ?
-            assertUnsuccessfulTx(sellTx, "Selling minimal count of tokens shall result in 0 eth and revert");            
+            assertTx.fail(sellTx, "Selling minimal count of tokens shall result in 0 eth and revert");            
         });
 
         it("(4-sell) sell 10 tokens", async function() {
@@ -373,8 +353,8 @@ contract('ComplexExchanger', function(accounts) {
 // SELL 10
             var sumToSell = 10 * tokenMultiplier;
             var tokensBefore = await token.balanceOf.call(owner);
-            var sellTx = await runTx(exchanger.sellTokens, [owner, sumToSell]);
-            assertSuccessfulTx(sellTx, "Basic sell - shall be success");   
+            var sellTx = await assertTx.run(exchanger.sellTokens, [owner, sumToSell]);
+            assertTx.success(sellTx, "Basic sell - shall be success");   
             var tokensAfter = await token.balanceOf.call(owner);
             assert.equal(+tokensBefore - +tokensAfter, sumToSell, "tokens were not subtracted from balance");        
         });
@@ -386,22 +366,22 @@ contract('ComplexExchanger', function(accounts) {
 // MINT 20
             var sumToMint = 20 * tokenMultiplier;
             var tokensBefore = await token.balanceOf.call(owner);
-            var mint = await runTx(token.mint, [owner, sumToMint]);
-            assertSuccessfulTx(mint, "mint tx failed");
+            var mint = await assertTx.run(token.mint, [owner, sumToMint]);
+            assertTx.success(mint, "mint tx failed");
             var tokensAfter = await token.balanceOf.call(owner);
             assert.equal(+tokensAfter - +tokensBefore, sumToMint, "tokens were not minted");
 // USER BALANCE 30
 // APPROVE 40
             var allowanceToSet = 40 * tokenMultiplier;
-            var approve = await runTx(token.approve, [exchanger.address, allowanceToSet, {from: owner} ]);
-            assertSuccessfulTx(approve, "approve tx failed");
+            var approve = await assertTx.run(token.approve, [exchanger.address, allowanceToSet, {from: owner} ]);
+            assertTx.success(approve, "approve tx failed");
             var allowance = await token.allowance.call(owner, exchanger.address);
             assert.equal(allowanceToSet, allowance, "error setting allowance");
 // SELL 40
             var sumToSell = 40 * tokenMultiplier;
             var tokensBefore = await token.balanceOf.call(owner);
-            var sellTx = await runTx(exchanger.sellTokens, [owner, sumToSell]);
-            assertSuccessfulTx(sellTx, "Basic sell - shall be success");   
+            var sellTx = await assertTx.run(exchanger.sellTokens, [owner, sumToSell]);
+            assertTx.success(sellTx, "Basic sell - shall be success");   
             var tokensAfter = await token.balanceOf.call(owner);
             assert.isBelow(+tokensBefore - +tokensAfter, sumToSell, "balance change must be below tokens we tried to sell");        
 // EXCH BALANCE ~0
@@ -424,8 +404,8 @@ contract('ComplexExchanger', function(accounts) {
                 ethToSend = web3.fromWei(weiToSend, 'ether'),
                 balanceBefore = web3.eth.getBalance(owner).toNumber();
             
-            var buyTx = await runTx(exchanger.buyTokens, [owner, { from: owner, value: weiToSend }]);
-            assertSuccessfulTx(buyTx, "buyTokens tx failed");
+            var buyTx = await assertTx.run(exchanger.buyTokens, [owner, { from: owner, value: weiToSend }]);
+            assertTx.success(buyTx, "buyTokens tx failed");
             var weiUsedForGas = truffleTestGasPrice * buyTx.receipt.gasUsed;
             var balanceDelta = balanceBefore - +web3.eth.getBalance(owner);
             var balanceDeltaNet = balanceDelta - weiUsedForGas;
@@ -450,8 +430,8 @@ contract('ComplexExchanger', function(accounts) {
                 buyRate = (await exchanger.buyRate.call()) / 1000;
             var accTokensBefore = (await token.balanceOf.call(owner)) / tokenMultiplier;
             var sumToMint = 1000 * tokenMultiplier;
-            var mint = await runTx(token.mint, [exchanger.address, sumToMint]);
-            assertSuccessfulTx(mint, "mint tx failed");
+            var mint = await assertTx.run(token.mint, [exchanger.address, sumToMint]);
+            assertTx.success(mint, "mint tx failed");
             var tokenBalance = await exchanger.tokenBalance.call();
             assert.equal(+tokenBalance, sumToMint, "the token balance after mint is not valid");  
 
@@ -459,8 +439,8 @@ contract('ComplexExchanger', function(accounts) {
                 weiToSend = tokensToBuy / buyRate + 100000, // 100000 wei to fill possible rounding mistakes
                 ethToSend = web3.fromWei(weiToSend, 'ether'),
                 balanceBefore = +web3.eth.getBalance(owner);
-            var buyTx = await runTx(exchanger.buyTokens, [owner, { from: owner, value: weiToSend }]);
-            assertSuccessfulTx(buyTx, "buyTokens tx failed");
+            var buyTx = await assertTx.run(exchanger.buyTokens, [owner, { from: owner, value: weiToSend }]);
+            assertTx.success(buyTx, "buyTokens tx failed");
 
             var zeroBalance = balanceBefore - +web3.eth.getBalance(owner) - weiToSend -
                 truffleTestGasPrice * buyTx.receipt.gasUsed;
@@ -486,24 +466,24 @@ contract('ComplexExchanger', function(accounts) {
             var ethToSend = 1,
                 weiToSend = web3.toWei(ethToSend, 'ether');  
 
-            var buyTx = await runTx(exchanger.buyTokens, [owner, { from: owner, value: weiToSend }]);
-            assertUnsuccessfulTx(buyTx, "buyTokens tx with zero exchanger balance succeeded - bad");
+            var buyTx = await assertTx.run(exchanger.buyTokens, [owner, { from: owner, value: weiToSend }]);
+            assertTx.fail(buyTx, "buyTokens tx with zero exchanger balance succeeded - bad");
         });
 
         it("(1-buy) buy 0 tokens -> revert", async function() {
             var exchanger = await ComplexExchanger.deployed(),
                 token = await LibreCash.deployed();
             var sumToMint = 1000 * tokenMultiplier;
-            var mint = await runTx(token.mint, [exchanger.address, sumToMint]);
-            assertSuccessfulTx(mint, "mint tx failed");
+            var mint = await assertTx.run(token.mint, [exchanger.address, sumToMint]);
+            assertTx.success(mint, "mint tx failed");
             var tokenBalance = await exchanger.tokenBalance.call();
             assert.equal(+tokenBalance, sumToMint, "the exchanger token balance after mint is not valid");  
 
             var ethToSend = 0,
                 weiToSend = 0;
 
-            var buyTx = await runTx(exchanger.buyTokens, [owner, { from: owner, value: weiToSend }]);
-            assertUnsuccessfulTx(buyTx, "buyTokens tx with zero eth succeeded - bad");
+            var buyTx = await assertTx.run(exchanger.buyTokens, [owner, { from: owner, value: weiToSend }]);
+            assertTx.fail(buyTx, "buyTokens tx with zero eth succeeded - bad");
         });
 
         it("(5) buy tokens for 1 eth", async function() {
@@ -520,8 +500,8 @@ contract('ComplexExchanger', function(accounts) {
             var ethToSend = 1,
                 weiToSend = web3.toWei(ethToSend, 'ether'),
                 balanceBefore = +web3.eth.getBalance(owner);
-            var buyTx = await runTx(exchanger.buyTokens, [owner, { from: owner, value: weiToSend }]);
-            assertSuccessfulTx(buyTx, "buyTokens tx failed");
+            var buyTx = await assertTx.run(exchanger.buyTokens, [owner, { from: owner, value: weiToSend }]);
+            assertTx.success(buyTx, "buyTokens tx failed");
             
             var zeroBalance = balanceBefore - +web3.eth.getBalance(owner) - weiToSend -
                 truffleTestGasPrice * buyTx.receipt.gasUsed;
@@ -544,8 +524,8 @@ contract('ComplexExchanger', function(accounts) {
         before("init", async function() {
             let exchanger = await ComplexExchanger.deployed();
 
-            var requestRates = await runTx(exchanger.requestRates, [{from: acc1, value: web3.toWei(5,'ether')}]);
-            assertSuccessfulTx(requestRates, "requestRates tx falls");
+            var requestRates = await assertTx.run(exchanger.requestRates, [{from: acc1, value: web3.toWei(5,'ether')}]);
+            assertTx.success(requestRates, "requestRates tx falls");
             jump = Math.max(ORACLE_ACTUAL, ORACLE_TIMEOUT);
             await timeMachine.jump(jump + 1);
             
