@@ -26,7 +26,7 @@ contract LBRSMultitransfer is Ownable {
      */
     function LBRSMultitransfer(address LBRS) public {
         lbrsToken = LBRS;
-        token = LibertyToken(token);
+        token = LibertyToken(lbrsToken);
     }
 
     /**
