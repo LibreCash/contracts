@@ -78,6 +78,24 @@ function TimeMachine(web3) {
     //     TODO: negative values are not suported yet
     //     return this.jump(-dTime).then(() => dTime = 0);
     // }
+    this.setTimestamp = (timestamp) => {
+        return new Promise(function (resolve, reject) {
+            send("evm_setTimestamp", [timestamp], function(e, result) {
+                if (e) reject(e);
+                //dTime += seconds;
+
+                // Mine a block so new time is recorded.
+                send("evm_mine", function(err, result) {
+                    if (e) reject(e);
+
+                    web3.eth.getBlock('latest', function(e, block) {
+                        if(e) reject(e);
+                        resolve();
+                    })
+                })
+            })
+        });
+    }
 }
 
 module.exports = TimeMachine;

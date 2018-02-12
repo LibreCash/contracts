@@ -34,6 +34,10 @@ function getWeiUsedForGas() {
     return gasUsed * gasPrice;
 }
 
+function now() {
+    return web3.eth.getBlock(web3.eth.blockNumber).timestamp;
+}
+
  const OracleENUM = {
      name:0,
      oracleType:1,
@@ -76,11 +80,10 @@ contract('ComplexExchanger', function(accounts) {
     var oracleTest = oracles[3];
 
     context("getState", async function() {
+        var jump;
 
-        before("init", async function() {
-            let exchanger = await ComplexExchanger.deployed();
-            oracles.forEach(async oracle => await oracle.deployed());
-        });
+        before("init", reverter.snapshot);
+        afterEach("revert", reverter.revert);
         
         it("get initial states", async function() {
             var exchanger = await ComplexExchanger.deployed(),
@@ -129,22 +132,90 @@ contract('ComplexExchanger', function(accounts) {
                 assert.equal(_rate.toNumber(), 0, "the new oracle's rate should be 0");
             }
         });
+
+        /*
+        it("check LOCKED", async function() {
+            let exchanger = await ComplexExchanger.deployed();
+            let deadline = + await exchanger.deadline.call();
+
+            jump = deadline - now();
+            console.log(now());
+            await timeMachine.jump(jump);
+            console.log(now());
+            let state = + await exchanger.getState.call();
+            //timeMachine.setTimestamp(now() - jump);
+            //await timeMachine.jump(-jump);
+            //await acc1.sendTransaction({from: acc2, value: web3.toWei(5,'ether')});
+            //reverter.revert();
+            console.log(now());
+            assert.equal(state, StateENUM.LOCKED,"Don't correct state!!");
+        });
+        */
+
+        it("(2) check PROCESSING_ORDERS", async function() {
+            let 
+                exchanger = await ComplexExchanger.deployed(),
+                state = + await exchanger.getState.call(),
+                calcTime = + await exchanger.calcTime.call();
+
+            if (now() - calcTime > exConfig.RATE_PERIOD) {
+                assert.notEqual(state, StateENUM.PROCESSING_ORDERS, 
+                    "Don't correct state when calcTime > RATE_PERIOD");
+                await exchanger.requestRates({value: web3.toWei(5,'ether')});
+                await exchanger.calcRates();
+                state = + await exchanger.getState.call();
+            }
+
+            assert.equal(state, StateENUM.PROCESSING_ORDERS,"Don't correct state when calcTime < RATE_PERIOD");
+        });
+
+        it("(3) check WAIT_ORACLES", async function() {
+            let exchanger = await ComplexExchanger.deployed();
+
+            await exchanger.requestRates({value: web3.toWei(5,'ether')});
+            let 
+                state = + await exchanger.getState.call(),
+                waiting = + await exchanger.waitingOracles.call();
+
+            if (waiting == 0) {
+                assert.notEqual(state, StateENUM.WAIT_ORACLES, "Don't correct state when waitingOracles == 0");
+                let oracle = await oracles[0].deployed();
+                await oracle.setWaitQuery(true);
+
+                state = + await exchanger.getState.call();
+            }
+
+            assert.equal(state, StateENUM.WAIT_ORACLES, "Don't correct state when waitingOracles != 0");
+        });
+
+        it("(4),(5) check CALC_RATES and REQUEST_RATES", async function() {
+            let exchanger = await ComplexExchanger.deployed();
+            await exchanger.requestRates({value: web3.toWei(5,'ether')});
+
+            let 
+                state = + await exchanger.getState.call(),
+                ready = + await exchanger.readyOracles.call();
+
+            if (ready >= exConfig.MIN_READY_ORACLES) {
+                assert.equal(state, StateENUM.CALC_RATES, 
+                    "Don't correct state when readyOracles >= MIN_READY_ORACLES");
+                for(let i=0; i < (oracles.length - exConfig.MIN_READY_ORACLES + 1); i++) {
+                    let oracle = await oracles[i].deployed();
+                    oracle.setRate(0);
+                }
+
+                state = + await exchanger.getState.call();
+            }
+
+            assert.equal(state, StateENUM.REQUEST_RATES, 
+                "Don't correct state when readyOracles < MIN_READY_ORACLES");
+        });
     });
 
     context("waitingOracles", function() {
-        before("init", function() {
-            reverter.snapshot((e) => {
-                if (e != undefined)
-                    console.log(e);
-            });
-        });
 
-        afterEach("revert", function() {
-            reverter.revert((e) => {
-                if (e != undefined)
-                    console.log(e);
-            });
-        });
+        before("init", reverter.snapshot);
+        afterEach("revert", reverter.revert);
 
         it("(1),(3) time wait < ORACLE_TIMEOUT", async function() {
             let exchanger = await ComplexExchanger.deployed();
@@ -160,7 +231,7 @@ contract('ComplexExchanger', function(accounts) {
                 waiting = + await exchanger.waitingOracles.call();
                 assert.equal(waiting, i + 1, `WaitingOracles not ${waiting} if ${i+1} waiting!`);
             }
-            console.log(waiting);
+            //console.log(waiting);
         });
 
         it("(2) time wait > ORACLE_TIMEOUT", async function() {
@@ -186,19 +257,8 @@ contract('ComplexExchanger', function(accounts) {
 
     context("readyOracles", function() {
 
-        before("init", function() {
-            reverter.snapshot((e) => {
-                if (e != undefined)
-                    console.log(e);
-            });
-        });
-
-        afterEach("revert", function() {
-            reverter.revert((e) => {
-                if (e != undefined)
-                    console.log(e);
-            });
-        });
+        before("init", reverter.snapshot);
+        afterEach("revert", reverter.revert);
 
         it("(1),(4) rate == 0 or wait == 0", async function() {
             let exchanger = await ComplexExchanger.deployed();
@@ -241,8 +301,6 @@ contract('ComplexExchanger', function(accounts) {
         it("(3) callbackTime > ORACLE_ACTUAL", async function() {
             let exchanger = await ComplexExchanger.deployed();
 
-            console.log(";;;", +await exchanger.getState.call());
-
             var requestRates = await assertTx.run(exchanger.requestRates, [{value: web3.toWei(5,'ether')}]);
             assertTx.success(requestRates, "requestRates failed");
             let ready = + await exchanger.readyOracles.call();
@@ -257,19 +315,9 @@ contract('ComplexExchanger', function(accounts) {
     });
 
     context("buy and sell" , async function() {
-        before("init", function() {
-            reverter.snapshot((e) => {
-                if (e != undefined)
-                    console.log(e);
-            });
-        });
 
-        after("clear", function() {
-            reverter.revert((e) => {
-                if (e != undefined)
-                    console.log(e);
-            });
-        });
+        before("init", reverter.snapshot);
+        after("revert", reverter.revert);
 
         it("(-) before all, init contracts", async function() {
             var token = await LibreCash.deployed(),
@@ -281,7 +329,7 @@ contract('ComplexExchanger', function(accounts) {
                 oracleCount = await exchanger.oracleCount.call();
             assert.equal(state.toNumber(), StateENUM.REQUEST_RATES, "the initial state must be REQUEST_RATES");
             assert.equal(requestPrice.toNumber(), 0, "the initial oracle queries price must be 0");
-    
+
             var requestRates = await assertTx.run(exchanger.requestRates, [{value: web3.toWei(5,'ether')}]);
             assertTx.success(requestRates, "requestRates failed");
             state = await exchanger.getState.call();
@@ -293,7 +341,7 @@ contract('ComplexExchanger', function(accounts) {
                 readyOracles = await exchanger.readyOracles.call();
                 waitingOracles = await exchanger.waitingOracles.call();
                 await delay(1000);
-                console.log("delayed");
+                //console.log("delayed");
             } while ((+readyOracles != +oracleCount) && (Date.now() < crTimeout));
     
             assert.equal(+state, StateENUM.CALC_RATES, "the state after gathering oracle data must be CALC_RATES");
@@ -395,12 +443,14 @@ contract('ComplexExchanger', function(accounts) {
 // SELL 40
             var sumToSell = 40 * tokenMultiplier;
             var tokensBefore = await token.balanceOf.call(owner);
-            var sellTx = await assertTx.run(exchanger.sellTokens, [owner, sumToSell]);
-            assertTx.success(sellTx, "Basic sell - shall be success");   
-            var tokensAfter = await token.balanceOf.call(owner);
-            assert.isBelow(+tokensBefore - +tokensAfter, sumToSell, "balance change must be below tokens we tried to sell");        
-// EXCH BALANCE ~0
             var balanceExchanger = +web3.eth.getBalance(exchanger.address);
+            var sellTx = await assertTx.run(exchanger.sellTokens, [owner, sumToSell]);
+            assertTx.success(sellTx, "Basic sell - shall be success");
+            var tokensAfter = await token.balanceOf.call(owner);
+            var sellPrice = +await exchanger.sellRate.call();
+            assert.equal(+tokensBefore - +tokensAfter, 30 * tokenMultiplier,"balance change must be below tokens we tried to sell");
+// EXCH BALANCE ~0
+            balanceExchanger = +web3.eth.getBalance(exchanger.address);
             assert.equal(balanceExchanger, 0, "exchanger balance must be 0");
         });
 
@@ -428,11 +478,11 @@ contract('ComplexExchanger', function(accounts) {
             assert.isAbove(balanceDelta, 0, "balance delta must be positive - very strange if ever thrown");
             var boughtTokens = await token.balanceOf.call(owner);
 
-            console.log(`we sent ${ethToSend} ether`);
-            console.log(`but balance change is ${balanceDeltaNet / tokenMultiplier}`);
-            console.log(`rate was ${buyRate}`);
-            console.log(`so we got ${+boughtTokens / tokenMultiplier} tokens`);
-            console.log(`shall be ${web3.fromWei(balanceDeltaNet, 'ether')} * ${buyRate} == ${+boughtTokens / tokenMultiplier}`);
+            //console.log(`we sent ${ethToSend} ether`);
+            //console.log(`but balance change is ${balanceDeltaNet / tokenMultiplier}`);
+            //console.log(`rate was ${buyRate}`);
+            //console.log(`so we got ${+boughtTokens / tokenMultiplier} tokens`);
+            //console.log(`shall be ${web3.fromWei(balanceDeltaNet, 'ether')} * ${buyRate} == ${+boughtTokens / tokenMultiplier}`);
             // if the difference is below 10000000, it is insufficient (for example gas price is about 5384400000000000)
             assert.isBelow(Math.abs(balanceDeltaNet * buyRate - +boughtTokens), 10000000, "token count doesn't match sent ether multiplied by rate");
         });
@@ -465,10 +515,10 @@ contract('ComplexExchanger', function(accounts) {
             var accTokensAfter = (await token.balanceOf.call(owner)) / tokenMultiplier,
                 exchTokensAfter = (await exchanger.tokenBalance.call()) / tokenMultiplier;
             assert.equal(exchTokensAfter, 0, "exchanger token balance must be 0 now");
-            console.log(`we sent ${ethToSend} ether`);
-            console.log(`rate was ${buyRate}`);
-            console.log(`we got ${accTokensAfter - accTokensBefore} tokens`);
-            console.log(`shall be ${ethToSend} * ${buyRate} == ${accTokensAfter - accTokensBefore}`);
+            //console.log(`we sent ${ethToSend} ether`);
+            //console.log(`rate was ${buyRate}`);
+            //console.log(`we got ${accTokensAfter - accTokensBefore} tokens`);
+            //console.log(`shall be ${ethToSend} * ${buyRate} == ${accTokensAfter - accTokensBefore}`);
             assert.isBelow(ethToSend * buyRate - (accTokensAfter - accTokensBefore), 0.0000001, "token count doesn't match sent ether multiplied by rate");
         });
 
@@ -525,10 +575,10 @@ contract('ComplexExchanger', function(accounts) {
 
             var accTokensAfter = (await token.balanceOf.call(owner)) / tokenMultiplier;
 
-            console.log(`we sent ${ethToSend} ether`);
-            console.log(`rate was ${buyRate}`);
-            console.log(`we got ${accTokensAfter - accTokensBefore} tokens`);
-            console.log(`shall be ${ethToSend} * ${buyRate} == ${accTokensAfter - accTokensBefore}`);
+            //console.log(`we sent ${ethToSend} ether`);
+            //console.log(`rate was ${buyRate}`);
+            //console.log(`we got ${accTokensAfter - accTokensBefore} tokens`);
+            //console.log(`shall be ${ethToSend} * ${buyRate} == ${accTokensAfter - accTokensBefore}`);
             assert.equal(ethToSend * buyRate, accTokensAfter - accTokensBefore, "token count doesn't match sent ether multiplied by rate");
         });
     });
@@ -553,12 +603,7 @@ contract('ComplexExchanger', function(accounts) {
             });
         });
 
-        afterEach("revert", function() {
-            reverter.revert((e) => {
-                if (e != undefined)
-                    console.log(e);
-            });
-        });
+        afterEach("revert", reverter.revert);
 
         after("time back", async function() {
             await timeMachine.jump(-jump -1);
@@ -625,12 +670,7 @@ contract('ComplexExchanger', function(accounts) {
             });
         });
 
-        afterEach("revert", function() {
-            reverter.revert((e) => {
-                if (e != undefined)
-                    console.log(e);
-            });
-        });
+        afterEach("revert", reverter.revert);
 
         it("(1) validOracles < MIN", async function() {
             let exchanger = await ComplexExchanger.deployed();
