@@ -1,5 +1,3 @@
-
-//import assertRevert from '../helpers/assertRevert';
 const expectThrow = require('../helpers/expectThrow');
 
 var StandardTokenMock = artifacts.require('LibreCash');
