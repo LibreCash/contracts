@@ -16,7 +16,7 @@ contract('OracleI', async function(accounts) {
     var acc1  = accounts[1];
 
     it('setBank', async function() {
-        let oracle = await OracleMockTest.deployed();
+        let oracle = await oracles[0].deployed();
 
         try {
             await oracle.setBank(owner);

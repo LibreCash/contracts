@@ -5,7 +5,7 @@ function AssertTx() {
         try {
             funcRes = await _func(..._args);
         } catch(e) {
-            if (e.toString().indexOf("VM Exception while processing transaction: revert") != -1) {
+            if (~e.toString().indexOf("VM Exception while processing transaction: revert")) {
                 funcRes = { receipt: {status: 0 }};
             } else {
                 throw new Error(e.toString());
