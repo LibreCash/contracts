@@ -24,7 +24,7 @@ var oracles = [];
 
 const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
 
-function getWeiUsedForGas() {
+function gasCost() {
     let
         lastBlock = web3.eth.getBlock("latest"),
         gasUsed = lastBlock.gasUsed,
@@ -603,7 +603,7 @@ contract('ComplexExchanger', function(accounts) {
             assertTx.success(requestRates, "requestRates failed with value: oraclesCost + 10000000");
 
             let after = + web3.eth.getBalance(owner);
-                weiUsed = getWeiUsedForGas();
+                weiUsed = gasCost();
 
             assert.isBelow((before - after) - weiUsed - oraclesCost, 100000, "we didn't get back oversent ether");
         });
