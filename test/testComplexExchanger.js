@@ -73,10 +73,16 @@ const
     
 
 contract('ComplexExchanger', function(accounts) {
-    var owner = accounts[0];
-    var acc1  = accounts[1];
-    var acc2  = accounts[2];
-    var oracleTest = oracles[3];
+    var owner = accounts[0],
+        acc1  = accounts[1],
+        exchanger,
+        token;
+
+    before("init var", async function() {
+        console.log("hello");
+        exchanger = await ComplexExchanger.deployed();
+        token = await LibreCash.deployed();
+    });
 
     context("getState", async function() {
         var jump;
@@ -85,8 +91,7 @@ contract('ComplexExchanger', function(accounts) {
         afterEach("revert", reverter.revert);
         
         it("get initial states", async function() {
-            var exchanger = await ComplexExchanger.deployed(),
-                state = await exchanger.getState.call(),
+            var state = await exchanger.getState.call(),
                 buyFee = await exchanger.buyFee.call(),
                 sellFee = await exchanger.sellFee.call(),
                 deadline = await exchanger.deadline.call(),
@@ -133,9 +138,7 @@ contract('ComplexExchanger', function(accounts) {
         });
 
         it("(2) check PROCESSING_ORDERS", async function() {
-            let 
-                exchanger = await ComplexExchanger.deployed(),
-                state = + await exchanger.getState.call(),
+            let state = + await exchanger.getState.call(),
                 calcTime = + await exchanger.calcTime.call();
 
             if (now() - calcTime > exConfig.RATE_PERIOD) {
@@ -150,11 +153,8 @@ contract('ComplexExchanger', function(accounts) {
         });
 
         it("(3) check WAIT_ORACLES", async function() {
-            let exchanger = await ComplexExchanger.deployed();
-
             await exchanger.requestRates({value: MORE_THAN_COSTS});
-            let 
-                state = + await exchanger.getState.call(),
+            let state = + await exchanger.getState.call(),
                 waiting = + await exchanger.waitingOracles.call();
 
             if (waiting == 0) {
@@ -169,7 +169,6 @@ contract('ComplexExchanger', function(accounts) {
         });
 
         it("(4),(5) check CALC_RATES and REQUEST_RATES", async function() {
-            let exchanger = await ComplexExchanger.deployed();
             await exchanger.requestRates({value: MORE_THAN_COSTS});
 
             let 
@@ -198,8 +197,6 @@ contract('ComplexExchanger', function(accounts) {
         afterEach("revert", reverter.revert);
 
         it("(1),(3) time wait < ORACLE_TIMEOUT", async function() {
-            let exchanger = await ComplexExchanger.deployed();
-
             var requestRates = await assertTx.run(exchanger.requestRates, [{value: MORE_THAN_COSTS}]);
             assertTx.success(requestRates, "requestRates failed");
             let waiting = + await exchanger.waitingOracles.call();
@@ -214,8 +211,6 @@ contract('ComplexExchanger', function(accounts) {
         });
 
         it("(2) time wait > ORACLE_TIMEOUT", async function() {
-            let exchanger = await ComplexExchanger.deployed();
-
             var requestRates = await assertTx.run(exchanger.requestRates, [{value: MORE_THAN_COSTS}]);
             assertTx.success(requestRates, "requestRates failed");
             for(let i=0; i< oracles.length; i++) {
@@ -240,8 +235,6 @@ contract('ComplexExchanger', function(accounts) {
         afterEach("revert", reverter.revert);
 
         it("(1),(4) rate == 0 or wait == 0", async function() {
-            let exchanger = await ComplexExchanger.deployed();
-
             for(let i=0; i < oracles.length; i++) {
                 let oracle = await oracles[i].deployed();
                 var setRate = await assertTx.run(oracle.setRate, [0]);
@@ -264,8 +257,6 @@ contract('ComplexExchanger', function(accounts) {
         });
 
         it("(2) callbackTime < ORACLE_ACTUAL", async function() {
-            let exchanger = await ComplexExchanger.deployed();
-
             var requestRates = await assertTx.run(exchanger.requestRates, [{value: MORE_THAN_COSTS}]);
             assertTx.success(requestRates, "requestRates failed");
             for(let i=0; i < oracles.length; i++) {
@@ -278,8 +269,6 @@ contract('ComplexExchanger', function(accounts) {
         });
 
         it("(3) callbackTime > ORACLE_ACTUAL", async function() {
-            let exchanger = await ComplexExchanger.deployed();
-
             var requestRates = await assertTx.run(exchanger.requestRates, [{value: MORE_THAN_COSTS}]);
             assertTx.success(requestRates, "requestRates failed");
             let ready = + await exchanger.readyOracles.call();
@@ -299,11 +288,7 @@ contract('ComplexExchanger', function(accounts) {
         after("revert", reverter.revert);
 
         it("(-) before all, init contracts", async function() {
-            var token = await LibreCash.deployed(),
-                exchanger = await ComplexExchanger.deployed();
-                
-            var exchanger = await ComplexExchanger.deployed(),
-                state = await exchanger.getState.call(),
+            var state = await exchanger.getState.call(),
                 requestPrice = await exchanger.requestPrice.call(),
                 oracleCount = await exchanger.oracleCount.call();
             assert.equal(state.toNumber(), StateENUM.REQUEST_RATES, "the initial state must be REQUEST_RATES");
@@ -329,8 +314,6 @@ contract('ComplexExchanger', function(accounts) {
         });
 
         it("(-) before sell, init contracts", async function() {
-            var token = await LibreCash.deployed(),
-                exchanger = await ComplexExchanger.deployed();
 // EXCH BALANCE ~40
             var sellRate = +(await exchanger.sellRate.call()) / 1000;
             var weiToSendToContract = 40 * tokenMultiplier / sellRate;
@@ -345,8 +328,6 @@ contract('ComplexExchanger', function(accounts) {
         });
 
         it("(1-sell) try to sell more than allowance", async function() {
-            var token = await LibreCash.deployed(),
-                exchanger = await ComplexExchanger.deployed();
 // APPROVE 10
             var approve = await assertTx.run(token.approve, [exchanger.address, 10 * tokenMultiplier]);
             assertTx.success(approve, "approve tx failed");
@@ -357,8 +338,6 @@ contract('ComplexExchanger', function(accounts) {
         });
 
         it("(2-sell) try to sell more than user has", async function() {
-            var token = await LibreCash.deployed(),
-                exchanger = await ComplexExchanger.deployed();
 // USER BALANCE 20
 // APPROVE 20
             var allowanceToSet = 20 * tokenMultiplier;
@@ -373,8 +352,6 @@ contract('ComplexExchanger', function(accounts) {
         });
 
         it("(3-sell) try to sell tokens equiv. to less than 1 wei", async function() {
-            var token = await LibreCash.deployed(),
-                exchanger = await ComplexExchanger.deployed();
 // USER BALANCE 20
 // APPROVE 20
 // SELL 1 / tokenMultiplier
@@ -384,8 +361,6 @@ contract('ComplexExchanger', function(accounts) {
         });
 
         it("(4-sell) sell 10 tokens", async function() {
-            var token = await LibreCash.deployed(),
-                exchanger = await ComplexExchanger.deployed();
 // EXVHANGER BALANCE ~40
 // USER BALANCE 20
 // APPROVE 20
@@ -399,8 +374,6 @@ contract('ComplexExchanger', function(accounts) {
         });
 
         it("(5-sell) sell 40 tokens - more than exch. has", async function() {
-            var token = await LibreCash.deployed(),
-                exchanger = await ComplexExchanger.deployed();
 // EXCHANGER BALANCE ~30
 // MINT 20
             var sumToMint = 20 * tokenMultiplier;
@@ -431,9 +404,7 @@ contract('ComplexExchanger', function(accounts) {
         });
 
         it("(3-buy) buy more tokens than exch. has", async function() {
-            var exchanger = await ComplexExchanger.deployed(),
-                token = await LibreCash.deployed(),
-                buyFee = await exchanger.buyFee.call(),
+            var buyFee = await exchanger.buyFee.call(),
                 sellFee = await exchanger.sellFee.call(),
                 tokenBalance = await exchanger.tokenBalance.call(),
                 buyRate = (await exchanger.buyRate.call()) / 1000;
@@ -458,9 +429,7 @@ contract('ComplexExchanger', function(accounts) {
         });
 
         it("(4-buy) buy all tokens from exchanger", async function() {
-            var exchanger = await ComplexExchanger.deployed(),
-                token = await LibreCash.deployed(),
-                buyFee = await exchanger.buyFee.call(),
+            var buyFee = await exchanger.buyFee.call(),
                 sellFee = await exchanger.sellFee.call(),
                 buyRate = (await exchanger.buyRate.call()) / 1000;
             var accTokensBefore = (await token.balanceOf.call(owner)) / tokenMultiplier;
@@ -488,9 +457,7 @@ contract('ComplexExchanger', function(accounts) {
         });
 
         it("(2-buy) buy tokens, no token balance -> revert", async function() {
-            var exchanger = await ComplexExchanger.deployed(),
-                token = await LibreCash.deployed(),
-                exchangerTokenBalance = await exchanger.tokenBalance.call();;
+            var exchangerTokenBalance = await exchanger.tokenBalance.call();;
             assert.equal(+exchangerTokenBalance, 0, "exchanger token balance must be 0 now");
 
             var ethToSend = 1,
@@ -501,8 +468,6 @@ contract('ComplexExchanger', function(accounts) {
         });
 
         it("(1-buy) buy 0 tokens -> revert", async function() {
-            var exchanger = await ComplexExchanger.deployed(),
-                token = await LibreCash.deployed();
             var sumToMint = 1000 * tokenMultiplier;
             var mint = await assertTx.run(token.mint, [exchanger.address, sumToMint]);
             assertTx.success(mint, "mint tx failed");
@@ -517,9 +482,7 @@ contract('ComplexExchanger', function(accounts) {
         });
 
         it("(5) buy tokens for 1 eth", async function() {
-            var exchanger = await ComplexExchanger.deployed(),
-                token = await LibreCash.deployed(),
-                buyFee = await exchanger.buyFee.call(),
+            var buyFee = await exchanger.buyFee.call(),
                 sellFee = await exchanger.sellFee.call(),
                 buyRate = (await exchanger.buyRate.call()) / 1000;
             var accTokensBefore = (await token.balanceOf.call(owner)) / tokenMultiplier;
@@ -547,8 +510,6 @@ contract('ComplexExchanger', function(accounts) {
         var jump;
 
         before("init", async function() {
-            let exchanger = await ComplexExchanger.deployed();
-
             var requestRates = await assertTx.run(exchanger.requestRates, [{from: acc1, value: MORE_THAN_COSTS}]);
             assertTx.success(requestRates, "requestRates tx falls");
             jump = Math.max(exConfig.ORACLE_ACTUAL, exConfig.ORACLE_TIMEOUT);
@@ -570,7 +531,6 @@ contract('ComplexExchanger', function(accounts) {
         })
 
         it("(1) payAmount < oraclesCost", async function() {
-            let exchanger = await ComplexExchanger.deployed();
             let oraclesCost = + await exchanger.requestPrice.call();
             try {
                 await exchanger.requestRates();
@@ -587,7 +547,6 @@ contract('ComplexExchanger', function(accounts) {
         });
 
         it("(2) payAmount == oraclesCost", async function() {
-            let exchanger = await ComplexExchanger.deployed();
             let oraclesCost = + await exchanger.requestPrice.call();
 
             var requestRates = await assertTx.run(exchanger.requestRates, [{value: oraclesCost}]);
@@ -595,7 +554,6 @@ contract('ComplexExchanger', function(accounts) {
         });
 
         it("(3) payAmount > oraclesCost", async function() {
-            let exchanger = await ComplexExchanger.deployed();
             let oraclesCost = + await exchanger.requestPrice.call();
             let before = + web3.eth.getBalance(owner);
 
@@ -613,7 +571,6 @@ contract('ComplexExchanger', function(accounts) {
         var oraclesDeployed = [];
 
         before("check state", async function() {
-            let exchanger = await ComplexExchanger.deployed();
             let state = + await exchanger.getState.call();
 
             if (state != StateENUM.CALC_RATES) {
@@ -633,7 +590,6 @@ contract('ComplexExchanger', function(accounts) {
         afterEach("revert", reverter.revert);
 
         it("(1) validOracles < MIN", async function() {
-            let exchanger = await ComplexExchanger.deployed();
             for (let i = 0; i < exConfig.MIN_READY_ORACLES; i++) {
                 let oracle = await oracles[i].deployed();
                 var setRate = await assertTx.run(oracle.setRate, [exConfig.MIN_RATE - 1]);
@@ -654,8 +610,6 @@ contract('ComplexExchanger', function(accounts) {
         });
 
         it("(2) validOracles > min", async function() {
-            let exchanger = await ComplexExchanger.deployed();
-
             var calcRates = await assertTx.run(exchanger.calcRates, []);
             assertTx.success(calcRates, "Error if calcRate with valid oracles");
 
@@ -688,7 +642,6 @@ contract('ComplexExchanger', function(accounts) {
         var jump;
 
         before("check state", async function() {
-            let exchanger = await ComplexExchanger.deployed();
             let deadline = + await exchanger.deadline.call();
 
             jump = deadline - web3.eth.getBlock(web3.eth.blockNumber).timestamp;
@@ -703,8 +656,6 @@ contract('ComplexExchanger', function(accounts) {
         });
 
         it("(1) Don't withdraw if not wallet", async function() {
-            let exchanger = await ComplexExchanger.deployed();
-
             try {
                 await exchanger.withdrawReserve({from: acc1});
             } catch(e) {
@@ -715,8 +666,6 @@ contract('ComplexExchanger', function(accounts) {
         });
 
         it("(2) withdraw if call wallet", async function() {
-            let exchanger = await ComplexExchanger.deployed();
-
             let eBalanceBefore = web3.eth.getBalance(exchanger.address);
             if (eBalanceBefore == 0) {
                 await exchanger.refillBalance({value: MORE_THAN_COSTS});
