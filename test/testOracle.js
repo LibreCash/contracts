@@ -1,5 +1,3 @@
-var ComplexExchanger = artifacts.require("ComplexExchanger");
-
 var oracles = [];
 [
     "OracleMockLiza",
@@ -11,13 +9,17 @@ var oracles = [];
     oracles.push(artifacts.require(filename));
 });
  
-contract('OracleI', async function(accounts) {
-    var owner = accounts[0];
-    var acc1  = accounts[1];
+contract('OracleI', function(accounts) {
+    var 
+        owner = accounts[0],
+        acc1  = accounts[1],
+        oracle;
+
+    before("init", async function() {
+        oracle = await oracles[0].deployed();
+    });
 
     it('setBank', async function() {
-        let oracle = await oracles[0].deployed();
-
         try {
             await oracle.setBank(owner);
         } catch(e) {
@@ -33,8 +35,6 @@ contract('OracleI', async function(accounts) {
     });
 
     it('updateRate', async function() {
-        let oracle = await oracles[0].deployed();
-
         await oracle.setBank(owner);
         try {
             await oracle.updateRate();
@@ -51,11 +51,9 @@ contract('OracleI', async function(accounts) {
     });
 
     it("get rate", async function() {
-        let oracle = await oracles[0].deployed();
-
         await oracle.setBank(owner);
         await oracle.updateRate();
-        
+
         let rate = + await oracle.rate.call();
         assert.equal(rate, 320000, "don't get rate");
     });
