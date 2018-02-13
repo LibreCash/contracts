@@ -1,3 +1,4 @@
+const assertTx = new (require('./helpers/assertTx'))();
 var oracles = [];
 [
     "OracleMockLiza",
@@ -20,34 +21,14 @@ contract('OracleI', function(accounts) {
     });
 
     it('setBank', async function() {
-        try {
-            await oracle.setBank(owner);
-        } catch(e) {
-            throw new Error("Owner dont set Bank!!");
-        }
-
-        try {
-            await oracle.setBank(owner, {from:acc1});
-        } catch(e) {
-            return true;
-        }
-        throw new Error("Not Owner set Bank!!");
+        await assertTx.success(oracle.setBank(owner),"Owner dont set Bank!!");
+        await assertTx.fail(oracle.setBank(owner, {from:acc1}),"Not Owner set Bank!!");
     });
 
     it('updateRate', async function() {
         await oracle.setBank(owner);
-        try {
-            await oracle.updateRate();
-        } catch(e) {
-            throw new Error("Owner dont update rate!!");
-        }
-
-        try {
-            await oracle.updateRate({from:acc1});
-        } catch(e) {
-            return true;
-        }
-        throw new Error("Not Bank update Rate!!");
+        await assertTx.success(oracle.updateRate(),"Owner dont update rate!!");
+        await assertTx.fail(oracle.updateRate({from:acc1}), "Not Bank update Rate!!");
     });
 
     it("get rate", async function() {

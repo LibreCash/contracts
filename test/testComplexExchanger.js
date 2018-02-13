@@ -1,12 +1,10 @@
 const
     reverter = new (require('./helpers/reverter'))(web3),
     timeMachine = new (require('./helpers/timemachine'))(web3),
-    AssertTx = require('./helpers/assertTx'),
-    assertTx = new AssertTx();
-
-const truffleTestGasPrice = 100000000000,
-      tokenMultiplier = Math.pow(10, 18),
-      MORE_THAN_COSTS = web3.toWei(5,'ether');
+    assertTx = new (require('./helpers/assertTx'))(),
+    utils = new (require('./helpers/utils'))(),
+    tokenMultiplier = Math.pow(10, 18),
+    MORE_THAN_COSTS = web3.toWei(5,'ether');
 
 var ComplexExchanger = artifacts.require("ComplexExchanger");
 var LibreCash = artifacts.require("LibreCash");
@@ -24,18 +22,7 @@ var oracles = [];
 
 const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
 
-function gasCost() {
-    let
-        lastBlock = web3.eth.getBlock("latest"),
-        gasUsed = lastBlock.gasUsed,
-        gasPrice = + web3.eth.getTransaction(lastBlock.transactions[0]).gasPrice;
 
-    return gasUsed * gasPrice;
-}
-
-function now() {
-    return web3.eth.getBlock(web3.eth.blockNumber).timestamp;
-}
 
  const OracleENUM = {
      name:0,
@@ -79,7 +66,6 @@ contract('ComplexExchanger', function(accounts) {
         token;
 
     before("init var", async function() {
-        console.log("hello");
         exchanger = await ComplexExchanger.deployed();
         token = await LibreCash.deployed();
     });
@@ -141,7 +127,7 @@ contract('ComplexExchanger', function(accounts) {
             let state = + await exchanger.getState.call(),
                 calcTime = + await exchanger.calcTime.call();
 
-            if (now() - calcTime > exConfig.RATE_PERIOD) {
+            if (utils.now() - calcTime > exConfig.RATE_PERIOD) {
                 assert.notEqual(state, StateENUM.PROCESSING_ORDERS, 
                     "Don't correct state when calcTime > RATE_PERIOD");
                 await exchanger.requestRates({value: MORE_THAN_COSTS});
@@ -180,7 +166,7 @@ contract('ComplexExchanger', function(accounts) {
                     "Don't correct state when readyOracles >= MIN_READY_ORACLES");
                 for(let i=0; i < (oracles.length - exConfig.MIN_READY_ORACLES + 1); i++) {
                     let oracle = await oracles[i].deployed();
-                    oracle.setRate(0);
+                    await oracle.setRate(0);
                 }
 
                 state = + await exchanger.getState.call();
@@ -197,26 +183,24 @@ contract('ComplexExchanger', function(accounts) {
         afterEach("revert", reverter.revert);
 
         it("(1),(3) time wait < ORACLE_TIMEOUT", async function() {
-            var requestRates = await assertTx.run(exchanger.requestRates, [{value: MORE_THAN_COSTS}]);
-            assertTx.success(requestRates, "requestRates failed");
+            await assertTx.success(exchanger.requestRates({value: MORE_THAN_COSTS}), 
+                "requestRates failed");
             let waiting = + await exchanger.waitingOracles.call();
             assert.equal(waiting, 0, "WaitingOracles not 0 if 0 waiting!");
             for(let i=0; i < oracles.length; i++) {
                 let oracle = await oracles[i].deployed();
-                var setWaitQuery = await assertTx.run(oracle.setWaitQuery, [true]);
-                assertTx.success(setWaitQuery);
+                assertTx.success(oracle.setWaitQuery(true));
                 waiting = + await exchanger.waitingOracles.call();
                 assert.equal(waiting, i + 1, `WaitingOracles not ${waiting} if ${i+1} waiting!`);
             }
         });
 
         it("(2) time wait > ORACLE_TIMEOUT", async function() {
-            var requestRates = await assertTx.run(exchanger.requestRates, [{value: MORE_THAN_COSTS}]);
-            assertTx.success(requestRates, "requestRates failed");
+            await assertTx.success(exchanger.requestRates({value: MORE_THAN_COSTS}), 
+                "requestRates failed");
             for(let i=0; i< oracles.length; i++) {
                 let oracle = await oracles[i].deployed();
-                var setWaitQuery = await assertTx.run(oracle.setWaitQuery, [true]);
-                assertTx.success(setWaitQuery);
+                await assertTx.success(oracle.setWaitQuery(true));
             }
             let waiting = + await exchanger.waitingOracles.call();
             assert.equal( waiting, oracles.length, "Don't equal waiting oracles!");
@@ -237,8 +221,7 @@ contract('ComplexExchanger', function(accounts) {
         it("(1),(4) rate == 0 or wait == 0", async function() {
             for(let i=0; i < oracles.length; i++) {
                 let oracle = await oracles[i].deployed();
-                var setRate = await assertTx.run(oracle.setRate, [0]);
-                assertTx.success(setRate);
+                await assertTx.success(oracle.setRate(0));
             }
 
             let ready = + await exchanger.readyOracles.call();
@@ -246,10 +229,8 @@ contract('ComplexExchanger', function(accounts) {
 
             for(let i=0; i < oracles.length; i++) {
                 let oracle = await oracles[i].deployed();
-                var setRate = await assertTx.run(oracle.setRate, [10]);
-                assertTx.success(setRate);
-                var setWaitQuery = await assertTx.run(oracle.setWaitQuery, [true]);
-                assertTx.success(setWaitQuery);
+                await assertTx.success(oracle.setRate(10));
+                await assertTx.success(oracle.setWaitQuery(true));
             }
 
             ready = + await exchanger.readyOracles.call();
@@ -257,20 +238,19 @@ contract('ComplexExchanger', function(accounts) {
         });
 
         it("(2) callbackTime < ORACLE_ACTUAL", async function() {
-            var requestRates = await assertTx.run(exchanger.requestRates, [{value: MORE_THAN_COSTS}]);
-            assertTx.success(requestRates, "requestRates failed");
+            await assertTx.success(exchanger.requestRates({value: MORE_THAN_COSTS}), 
+                "requestRates failed");
             for(let i=0; i < oracles.length; i++) {
                 let oracle = await oracles[i].deployed();
-                var setWaitQuery = await assertTx.run(oracle.setWaitQuery, [true]);
-                assertTx.success(setWaitQuery);
+                await assertTx.success(oracle.setWaitQuery(true));
                 let ready = + await exchanger.readyOracles.call();
                 assert.equal(ready, oracles.length - i -1, "");
             }
         });
 
         it("(3) callbackTime > ORACLE_ACTUAL", async function() {
-            var requestRates = await assertTx.run(exchanger.requestRates, [{value: MORE_THAN_COSTS}]);
-            assertTx.success(requestRates, "requestRates failed");
+            await assertTx.success(exchanger.requestRates({value: MORE_THAN_COSTS}), 
+                "requestRates failed");
             let ready = + await exchanger.readyOracles.call();
             assert.equal(ready, oracles.length, "ready oracle don't equal count oracles");
 
@@ -294,8 +274,8 @@ contract('ComplexExchanger', function(accounts) {
             assert.equal(state.toNumber(), StateENUM.REQUEST_RATES, "the initial state must be REQUEST_RATES");
             assert.equal(requestPrice.toNumber(), 0, "the initial oracle queries price must be 0");
 
-            var requestRates = await assertTx.run(exchanger.requestRates, [{value: MORE_THAN_COSTS}]);
-            assertTx.success(requestRates, "requestRates failed");
+            await assertTx.success(exchanger.requestRates({value: MORE_THAN_COSTS}), 
+                "requestRates failed");
             state = await exchanger.getState.call();
 
             var crTimeout = Date.now() + 1000 * 60 * 10; // 10 mins
@@ -307,8 +287,7 @@ contract('ComplexExchanger', function(accounts) {
 
             assert.equal(+state, StateENUM.CALC_RATES, "the state after gathering oracle data must be CALC_RATES");
             assert.isAtLeast(readyOracles.toNumber(), 2, "ready oracle count must be at least 2");
-            var CR = await assertTx.run(exchanger.calcRates, []);
-            assertTx.success(CR, "calcRates tx failed");
+            await assertTx.success(exchanger.calcRates(), "calcRates tx failed");
             state = await exchanger.getState.call();
             assert.equal(+state, StateENUM.PROCESSING_ORDERS, "the state after calcRates must be PROCESSING_ORDERS");
         });
@@ -317,47 +296,39 @@ contract('ComplexExchanger', function(accounts) {
 // EXCH BALANCE ~40
             var sellRate = +(await exchanger.sellRate.call()) / 1000;
             var weiToSendToContract = 40 * tokenMultiplier / sellRate;
-            var sendTx = await assertTx.run(exchanger.refillBalance, [{ from: owner, to: exchanger.address, value: weiToSendToContract }]);
-            assertTx.success(sendTx, "unsuccessful refill of exchanger balance");
+            await assertTx.success(exchanger.refillBalance({ from: owner, to: exchanger.address, value: weiToSendToContract }), 
+                "unsuccessful refill of exchanger balance");
 // MINT 20
             var sumToMint = 20 * tokenMultiplier;
-            var mint = await assertTx.run(token.mint, [owner, sumToMint]);
-            assertTx.success(mint, "mint tx failed");
+            await assertTx.success(token.mint(owner, sumToMint), "mint tx failed");
             var tokens = await token.balanceOf.call(owner);
             assert.equal(+tokens, sumToMint, "tokens were not minted");
         });
 
         it("(1-sell) try to sell more than allowance", async function() {
-// APPROVE 10
-            var approve = await assertTx.run(token.approve, [exchanger.address, 10 * tokenMultiplier]);
-            assertTx.success(approve, "approve tx failed");
-// SELL 20
-            var sellTx = await assertTx.run(exchanger.sellTokens, [owner, 20 * tokenMultiplier]);
-// FAIL ?
-            assertTx.fail(sellTx, "Selling more tokens than allowed shall fail");            
+            await assertTx.success(token.approve(exchanger.address, 10 * tokenMultiplier), 
+                "approve tx failed");
+            await assertTx.fail(exchanger.sellTokens(owner, 20 * tokenMultiplier), 
+                "Selling more tokens than allowed shall fail");            
         });
 
         it("(2-sell) try to sell more than user has", async function() {
 // USER BALANCE 20
 // APPROVE 20
             var allowanceToSet = 20 * tokenMultiplier;
-            var approve = await assertTx.run(token.approve, [exchanger.address, allowanceToSet, {from: owner} ]);
-            assertTx.success(approve, "approve tx failed");
+            await assertTx.success(token.approve(exchanger.address, allowanceToSet, {from: owner}), 
+                "approve tx failed");
             var allowance = await token.allowance.call(owner, exchanger.address);
             assert.equal(allowanceToSet, allowance, "error setting allowance");
 // SELL 40
-            var sellTx = await assertTx.run(exchanger.sellTokens, [owner, 40 * tokenMultiplier]);
 // FAIL ?
-            assertTx.fail(sellTx, "Selling more tokens than user has shall fail");            
+            await assertTx.fail(exchanger.sellTokens(owner, 40 * tokenMultiplier), 
+                "Selling more tokens than user has shall fail");            
         });
 
         it("(3-sell) try to sell tokens equiv. to less than 1 wei", async function() {
-// USER BALANCE 20
-// APPROVE 20
-// SELL 1 / tokenMultiplier
-            var sellTx = await assertTx.run(exchanger.sellTokens, [owner, 1]);
-// FAIL ?
-            assertTx.fail(sellTx, "Selling minimal count of tokens shall result in 0 eth and revert");            
+            await assertTx.fail(exchanger.sellTokens(owner, 1), 
+                "Selling minimal count of tokens shall result in 0 eth and revert");
         });
 
         it("(4-sell) sell 10 tokens", async function() {
@@ -367,8 +338,8 @@ contract('ComplexExchanger', function(accounts) {
 // SELL 10
             var sumToSell = 10 * tokenMultiplier;
             var tokensBefore = await token.balanceOf.call(owner);
-            var sellTx = await assertTx.run(exchanger.sellTokens, [owner, sumToSell]);
-            assertTx.success(sellTx, "Basic sell - shall be success");   
+            await assertTx.success(exchanger.sellTokens(owner, sumToSell), 
+                "Basic sell - shall be success");
             var tokensAfter = await token.balanceOf.call(owner);
             assert.equal(+tokensBefore - +tokensAfter, sumToSell, "tokens were not subtracted from balance");        
         });
@@ -378,23 +349,22 @@ contract('ComplexExchanger', function(accounts) {
 // MINT 20
             var sumToMint = 20 * tokenMultiplier;
             var tokensBefore = await token.balanceOf.call(owner);
-            var mint = await assertTx.run(token.mint, [owner, sumToMint]);
-            assertTx.success(mint, "mint tx failed");
+            await assertTx.success(token.mint(owner, sumToMint), "mint tx failed");
             var tokensAfter = await token.balanceOf.call(owner);
             assert.equal(+tokensAfter - +tokensBefore, sumToMint, "tokens were not minted");
 // USER BALANCE 30
 // APPROVE 40
             var allowanceToSet = 40 * tokenMultiplier;
-            var approve = await assertTx.run(token.approve, [exchanger.address, allowanceToSet, {from: owner} ]);
-            assertTx.success(approve, "approve tx failed");
+            await assertTx.success(token.approve(exchanger.address, allowanceToSet, {from: owner}), 
+                "approve tx failed");
             var allowance = await token.allowance.call(owner, exchanger.address);
             assert.equal(allowanceToSet, allowance, "error setting allowance");
 // SELL 40
             var sumToSell = 40 * tokenMultiplier;
             var tokensBefore = await token.balanceOf.call(owner);
             var balanceExchanger = +web3.eth.getBalance(exchanger.address);
-            var sellTx = await assertTx.run(exchanger.sellTokens, [owner, sumToSell]);
-            assertTx.success(sellTx, "Basic sell - shall be success");
+            await assertTx.success(exchanger.sellTokens(owner, sumToSell), 
+                "Basic sell - shall be success");
             var tokensAfter = await token.balanceOf.call(owner);
             var sellPrice = +await exchanger.sellRate.call();
             assert.equal(+tokensBefore - +tokensAfter, 30 * tokenMultiplier,"balance change must be below tokens we tried to sell");
@@ -415,10 +385,10 @@ contract('ComplexExchanger', function(accounts) {
             var weiToSend = tokensToBuy / buyRate,
                 ethToSend = web3.fromWei(weiToSend, 'ether'),
                 balanceBefore = web3.eth.getBalance(owner).toNumber();
-            
-            var buyTx = await assertTx.run(exchanger.buyTokens, [owner, { from: owner, value: weiToSend }]);
-            assertTx.success(buyTx, "buyTokens tx failed");
-            var weiUsedForGas = truffleTestGasPrice * buyTx.receipt.gasUsed;
+
+            await assertTx.success(exchanger.buyTokens(owner, { from: owner, value: weiToSend }), 
+                "buyTokens tx failed");
+            var weiUsedForGas = utils.gasCost();
             var balanceDelta = balanceBefore - +web3.eth.getBalance(owner);
             var balanceDeltaNet = balanceDelta - weiUsedForGas;
 
@@ -434,8 +404,7 @@ contract('ComplexExchanger', function(accounts) {
                 buyRate = (await exchanger.buyRate.call()) / 1000;
             var accTokensBefore = (await token.balanceOf.call(owner)) / tokenMultiplier;
             var sumToMint = 1000 * tokenMultiplier;
-            var mint = await assertTx.run(token.mint, [exchanger.address, sumToMint]);
-            assertTx.success(mint, "mint tx failed");
+            await assertTx.success(token.mint(exchanger.address, sumToMint), "mint tx failed");
             var tokenBalance = await exchanger.tokenBalance.call();
             assert.equal(+tokenBalance, sumToMint, "the token balance after mint is not valid");  
 
@@ -443,11 +412,10 @@ contract('ComplexExchanger', function(accounts) {
                 weiToSend = tokensToBuy / buyRate + 100000, // 100000 wei to fill possible rounding mistakes
                 ethToSend = web3.fromWei(weiToSend, 'ether'),
                 balanceBefore = +web3.eth.getBalance(owner);
-            var buyTx = await assertTx.run(exchanger.buyTokens, [owner, { from: owner, value: weiToSend }]);
-            assertTx.success(buyTx, "buyTokens tx failed");
+            await assertTx.success(exchanger.buyTokens(owner, { from: owner, value: weiToSend }), 
+                "buyTokens tx failed");
 
-            var zeroBalance = balanceBefore - +web3.eth.getBalance(owner) - weiToSend -
-                truffleTestGasPrice * buyTx.receipt.gasUsed;
+            var zeroBalance = balanceBefore - +web3.eth.getBalance(owner) - weiToSend - utils.gasCost();
             assert.isBelow(Math.abs(zeroBalance), 1000000, "ether sent doesn't fit the balance changed");
 
             var accTokensAfter = (await token.balanceOf.call(owner)) / tokenMultiplier,
@@ -461,24 +429,23 @@ contract('ComplexExchanger', function(accounts) {
             assert.equal(+exchangerTokenBalance, 0, "exchanger token balance must be 0 now");
 
             var ethToSend = 1,
-                weiToSend = web3.toWei(ethToSend, 'ether');  
+                weiToSend = web3.toWei(ethToSend, 'ether');
 
-            var buyTx = await assertTx.run(exchanger.buyTokens, [owner, { from: owner, value: weiToSend }]);
-            assertTx.fail(buyTx, "buyTokens tx with zero exchanger balance succeeded - bad");
+            await assertTx.fail(exchanger.buyTokens(owner, { from: owner, value: weiToSend }), 
+                "buyTokens tx with zero exchanger balance succeeded - bad");
         });
 
         it("(1-buy) buy 0 tokens -> revert", async function() {
             var sumToMint = 1000 * tokenMultiplier;
-            var mint = await assertTx.run(token.mint, [exchanger.address, sumToMint]);
-            assertTx.success(mint, "mint tx failed");
+            await assertTx.success(token.mint(exchanger.address, sumToMint), "mint tx failed");
             var tokenBalance = await exchanger.tokenBalance.call();
             assert.equal(+tokenBalance, sumToMint, "the exchanger token balance after mint is not valid");  
 
             var ethToSend = 0,
                 weiToSend = 0;
 
-            var buyTx = await assertTx.run(exchanger.buyTokens, [owner, { from: owner, value: weiToSend }]);
-            assertTx.fail(buyTx, "buyTokens tx with zero eth succeeded - bad");
+            await assertTx.fail(exchanger.buyTokens(owner, { from: owner, value: weiToSend }), 
+                "buyTokens tx with zero eth succeeded - bad");
         });
 
         it("(5) buy tokens for 1 eth", async function() {
@@ -488,16 +455,15 @@ contract('ComplexExchanger', function(accounts) {
             var accTokensBefore = (await token.balanceOf.call(owner)) / tokenMultiplier;
 
             var tokenBalance = await exchanger.tokenBalance.call();
-            assert.isAbove(+tokenBalance, 0, "the exchanger token balance must be above 0 now");  
+            assert.isAbove(+tokenBalance, 0, "the exchanger token balance must be above 0 now");
 
             var ethToSend = 1,
                 weiToSend = web3.toWei(ethToSend, 'ether'),
                 balanceBefore = +web3.eth.getBalance(owner);
-            var buyTx = await assertTx.run(exchanger.buyTokens, [owner, { from: owner, value: weiToSend }]);
-            assertTx.success(buyTx, "buyTokens tx failed");
+            await assertTx.success(exchanger.buyTokens(owner, { from: owner, value: weiToSend }), 
+                "buyTokens tx failed");
             
-            var zeroBalance = balanceBefore - +web3.eth.getBalance(owner) - weiToSend -
-                truffleTestGasPrice * buyTx.receipt.gasUsed;
+            var zeroBalance = balanceBefore - +web3.eth.getBalance(owner) - weiToSend - utils.gasCost();
             assert.isBelow(Math.abs(zeroBalance), 100000, "ether sent doesn't fit the balance changed");
 
             var accTokensAfter = (await token.balanceOf.call(owner)) / tokenMultiplier;
@@ -510,8 +476,8 @@ contract('ComplexExchanger', function(accounts) {
         var jump;
 
         before("init", async function() {
-            var requestRates = await assertTx.run(exchanger.requestRates, [{from: acc1, value: MORE_THAN_COSTS}]);
-            assertTx.success(requestRates, "requestRates tx falls");
+            await assertTx.success(exchanger.requestRates({from: acc1, value: MORE_THAN_COSTS}), 
+                "requestRates tx falls");
             jump = Math.max(exConfig.ORACLE_ACTUAL, exConfig.ORACLE_TIMEOUT);
             await timeMachine.jump(jump + 1);
             
@@ -532,36 +498,28 @@ contract('ComplexExchanger', function(accounts) {
 
         it("(1) payAmount < oraclesCost", async function() {
             let oraclesCost = + await exchanger.requestPrice.call();
-            try {
-                await exchanger.requestRates();
-            } catch(e) {
-                try {
-                    await exchanger.requestRates({value: oraclesCost/2});
-                } catch(e) {
-                    return true;
-                }
-            }
 
-            if (oraclesCost > 0)
-                throw new Error("Don't throw if send < oraclesCost");
+            await assertTx.fail(exchanger.requestRates(),"Don't throw if send == 0");
+            await assertTx.fail(exchanger.requestRates({value: oraclesCost/2}),
+                "Don't throw if send < oraclesCost");
         });
 
         it("(2) payAmount == oraclesCost", async function() {
             let oraclesCost = + await exchanger.requestPrice.call();
 
-            var requestRates = await assertTx.run(exchanger.requestRates, [{value: oraclesCost}]);
-            assertTx.success(requestRates, "requestRates failed");
+            await assertTx.success(exchanger.requestRates({value: oraclesCost}), 
+                "requestRates failed");
         });
 
         it("(3) payAmount > oraclesCost", async function() {
             let oraclesCost = + await exchanger.requestPrice.call();
             let before = + web3.eth.getBalance(owner);
 
-            var requestRates = await assertTx.run(exchanger.requestRates, [{value: oraclesCost + 10000000}]);
-            assertTx.success(requestRates, "requestRates failed with value: oraclesCost + 10000000");
+            await assertTx.success(exchanger.requestRates({value: oraclesCost + 10000000}), 
+                "requestRates failed with value: oraclesCost + 10000000");
 
             let after = + web3.eth.getBalance(owner);
-                weiUsed = gasCost();
+                weiUsed = utils.gasCost();
 
             assert.isBelow((before - after) - weiUsed - oraclesCost, 100000, "we didn't get back oversent ether");
         });
@@ -574,8 +532,8 @@ contract('ComplexExchanger', function(accounts) {
             let state = + await exchanger.getState.call();
 
             if (state != StateENUM.CALC_RATES) {
-                var requestRates = await assertTx.run(exchanger.requestRates, [{value: MORE_THAN_COSTS}]);
-                assertTx.success(requestRates, "requestRates failed");
+                await assertTx.success(exchanger.requestRates({value: MORE_THAN_COSTS}), 
+                    "requestRates failed");
                 state = + await exchanger.getState.call();
             }
 
@@ -592,26 +550,25 @@ contract('ComplexExchanger', function(accounts) {
         it("(1) validOracles < MIN", async function() {
             for (let i = 0; i < exConfig.MIN_READY_ORACLES; i++) {
                 let oracle = await oracles[i].deployed();
-                var setRate = await assertTx.run(oracle.setRate, [exConfig.MIN_RATE - 1]);
-                assertTx.success(setRate, "oracle.setRate(MIN_RATE - 1) failed");
+                await assertTx.success(oracle.setRate(exConfig.MIN_RATE - 1), 
+                    "oracle.setRate(MIN_RATE - 1) failed");
             }
 
-            var calcRates = await assertTx.run(exchanger.calcRates, []);
-            assertTx.fail(calcRates, "calcRates shall fail when we have MIN_RATE - 1");
+            await assertTx.fail(exchanger.calcRates(), 
+                "calcRates shall fail when we have MIN_RATE - 1");
             
             for (let i = 0; i < exConfig.MIN_READY_ORACLES; i++) {
                 let oracle = await oracles[i].deployed();
-                var setRate = await assertTx.run(oracle.setRate, [exConfig.MAX_RATE + 1]);
-                assertTx.success(setRate, "oracle.setRate(MIN_RATE - 1) failed");
+                await assertTx.success(oracle.setRate(exConfig.MAX_RATE + 1), 
+                    "oracle.setRate(MIN_RATE - 1) failed");
             }
 
-            var calcRates = await assertTx.run(exchanger.calcRates, []);
-            assertTx.fail(calcRates, "calcRates shall fail when we have MAX_RATE + 1");
+            await assertTx.fail(exchanger.calcRates(), 
+                "calcRates shall fail when we have MAX_RATE + 1");
         });
 
         it("(2) validOracles > min", async function() {
-            var calcRates = await assertTx.run(exchanger.calcRates, []);
-            assertTx.success(calcRates, "Error if calcRate with valid oracles");
+            await assertTx.success(exchanger.calcRates(),"Error if calcRate with valid oracles");
 
             let max, min;
             for(let i = 0; i < oracles.length; i++) {
@@ -644,25 +601,16 @@ contract('ComplexExchanger', function(accounts) {
         before("check state", async function() {
             let deadline = + await exchanger.deadline.call();
 
-            jump = deadline - web3.eth.getBlock(web3.eth.blockNumber).timestamp;
+            jump = deadline - utils.now();
             await timeMachine.jump(jump);
 
             let state = + await exchanger.getState.call();
             assert.equal(state, StateENUM.LOCKED,"Don't correct state!!");
         });
 
-        after("clear", async function() {
-            await timeMachine.jump(-jump);
-        });
-
         it("(1) Don't withdraw if not wallet", async function() {
-            try {
-                await exchanger.withdrawReserve({from: acc1});
-            } catch(e) {
-                return true;
-            }
-
-            throw new Error("Not wallet withdraw reserve!!");
+            await assertTx.fail(exchanger.withdrawReserve({from: acc1}),
+                "Not wallet withdraw reserve!!");
         });
 
         it("(2) withdraw if call wallet", async function() {
@@ -673,11 +621,7 @@ contract('ComplexExchanger', function(accounts) {
             }
 
             let wBalanceBefore = web3.eth.getBalance(owner);
-            try {
-                await exchanger.withdrawReserve();
-            } catch(e) {
-                throw new Error("Wallet don't withdraw reserve!!");
-            }
+            await assertTx.success(exchanger.withdrawReserve(),"Wallet don't withdraw reserve!!");
 
             let eBalanceAfter = web3.eth.getBalance(exchanger.address);
             let wBalanceAfter = web3.eth.getBalance(owner);
