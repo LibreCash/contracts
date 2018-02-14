@@ -2,6 +2,12 @@ pragma solidity ^0.4.18;
 
 import "./OracleBase.sol";
 
+/**
+ * @title Coinmarketcap oracle.
+ *
+ * @dev URL: https://coinmarketcap.com/
+ * @dev API Docs: https://coinmarketcap.com/api/
+ */
 contract OracleCoinmarketcap is OracleBase {
     bytes32 constant ORACLE_NAME = "CoinMarketCap Oraclize";
     bytes16 constant ORACLE_TYPE = "ETHUSD";

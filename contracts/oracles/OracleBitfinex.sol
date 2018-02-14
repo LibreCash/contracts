@@ -5,10 +5,10 @@ import "./OracleBase.sol";
 /**
  * @title Bitfinex oracle.
  *
- * @dev https://www.bitfinex.com.
+ * @dev URL: https://www.bitfinex.com
+ * @dev API Docs: https://bitfinex.readme.io/v1/reference#rest-public-ticker
  */
 contract OracleBitfinex is OracleBase {
-    // https://bitfinex.readme.io/v1/reference#rest-public-ticker
     bytes32 constant ORACLE_NAME = "Bitfinex Oraclize Async";
     bytes16 constant ORACLE_TYPE = "ETHUSD";
     string constant ORACLE_DATASOURCE = "URL";
