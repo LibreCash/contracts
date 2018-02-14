@@ -76,12 +76,12 @@ module.exports = function(deployer, network) {
 
     writeContractData(cash);
     writeContractData(exchanger);
-    oracles.forEach(async (oracle) => {
+    oracles.forEach((oracle) => {
         writeContractData(oracle);
     });
 };
 
-async function writeContractData(artifact) {
+function writeContractData(artifact) {
     let directory = `${__dirname}/../build/data/`,
         data = {
             contractName: artifact.contractName,
@@ -90,8 +90,7 @@ async function writeContractData(artifact) {
         };
 
     createDir(directory);
-    fs.createWriteStream(`${directory}${data.contractName}.js`, {flags: 'w'})
-    .write(JSON.stringify(data));
+    fs.writeFileSync(`${directory}${data.contractName}.js`,JSON.stringify(data));
 }
 
 function createDir(dirname) {
