@@ -39,15 +39,20 @@ module.exports = async function(deployer, network) {
   };
 
   deployer.deploy(cash)
-    .then( () => {return Promise.all(oracles.map( (oracle) => {return deployer.deploy(oracle);}))})
-    .then( () => {
-        oraclePromise = oracles.map( (oracle) => {return oracle.deployed();});
+    .then(() => Promise.all(oracles.map((oracle) => deployer.deploy(oracle))))
+    .then(() => {
+        oraclePromise = oracles.map((oracle) => oracle.deployed());
         oraclePromise.push(cash.deployed());
-        return Promise.all(oraclePromise)
+        return Promise.all(oraclePromise);
     })
-    .then( (contracts) => {
-        cashContract = contracts.pop();
-        let oraclesAddress = contracts.map((oracle) => {return oracle.address});
+    .then((contracts) => {
+        let 
+          cashContract = contracts.pop(),
+          oraclesAddress = contracts.map((oracle) => oracle.address);
+        
+          console.log("Contract configuration");
+          console.log(config);
+
         return deployer.deploy(
           exchanger,
           /*Constructor params*/
@@ -59,15 +64,16 @@ module.exports = async function(deployer, network) {
           config.withdrawWallet // withdraw wallet
         );
     })
-    .then( () => {
-        oraclePromise = oracles.map( (oracle) => {return oracle.deployed();});
+    .then(() => {
+        oraclePromise = oracles.map((oracle) => oracle.deployed());
         oraclePromise.push(exchanger.deployed());
         return Promise.all(oraclePromise);
     })
-    .then( (contracts) => {
+    .then((contracts) => {
         exch = contracts.pop();
-        return Promise.all(contracts.map( (oracle) => {return oracle.setBank(exch.address);}));})
-    .then( () => console.log("END DEPLOY"));
+        return Promise.all(contracts.map((oracle) => oracle.setBank(exch.address)));
+    })
+    .then(() => console.log("END DEPLOY"));
 };
 
 function getTimestamp (diffDays) {
