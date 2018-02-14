@@ -1,4 +1,4 @@
-pragma solidity ^0.4.17;
+pragma solidity ^0.4.18;
 
 import "./OracleBase.sol";
 
@@ -9,7 +9,7 @@ contract OracleCoinmarketcap is OracleBase {
     // https://coinmarketcap.com/api/
     string constant ORACLE_ARGUMENTS = "json(https://api.coinmarketcap.com/v1/ticker/ethereum/?convert=USD).[0].price_usd";
     
-    function OracleCoinmarketcap(address _bankAddress) OracleBase(_bankAddress) public {
+    function OracleCoinmarketcap() public {
         oracleName = ORACLE_NAME;
         oracleType = ORACLE_TYPE;
         oracleConfig = OracleConfig({datasource: ORACLE_DATASOURCE, arguments: ORACLE_ARGUMENTS});

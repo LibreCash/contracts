@@ -1,4 +1,4 @@
-pragma solidity ^0.4.17;
+pragma solidity ^0.4.18;
 
 import "./zeppelin/math/SafeMath.sol";
 import "./zeppelin/math/Math.sol";
@@ -47,7 +47,11 @@ contract ComplexExchanger is ExchangerI {
         CALC_RATES,
         REQUEST_RATES
     }
-    
+
+    function() payable {
+        buyTokens(msg.sender);
+    }
+
     function ComplexExchanger(
         address _token,
         uint256 _buyFee,
