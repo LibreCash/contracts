@@ -34,7 +34,7 @@ module.exports = async function(deployer, network) {
   config = {
       buyFee:250,
       sellFee:250,
-      deadline:getTimestamp(2018,02,07),
+      deadline:getTimestamp(+1),
       withdrawWallet:web3.eth.coinbase,
   };
 
@@ -70,6 +70,7 @@ module.exports = async function(deployer, network) {
     .then( () => console.log("END DEPLOY"));
 };
 
-var getTimestamp = function(year,month,day) {
-  return Math.round(new Date(year,month,day) / 1000);
+function getTimestamp (diffDays) {
+  const msInDay = 86400000;
+  return Math.round( (Date.now() + diffDays * msInDay) / 1000);
 }
