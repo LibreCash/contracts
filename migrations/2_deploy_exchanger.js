@@ -2,10 +2,9 @@ const
   fs = require('fs'),
   path = require('path');
 
-module.exports = async function(deployer, network) {
+module.exports = function(deployer, network) {
   let
     сontractsList = {
-      base: ['token/LibreCash'],
       mainnet:[
         'oracles/OracleBitfinex',
         'oracles/OracleBitstamp',
@@ -68,8 +67,33 @@ module.exports = async function(deployer, network) {
         exch = contracts.pop();
         return Promise.all(contracts.map( (oracle) => {return oracle.setBank(exch.address);}));})
     .then( () => console.log("END DEPLOY"));
+
+    writeContractData(cash);
+    writeContractData(exchanger);
+    oracles.forEach(async (oracle) => {
+        writeContractData(oracle);
+    });
 };
 
 var getTimestamp = function(year,month,day) {
   return Math.round(new Date(year,month,day) / 1000);
+}
+
+async function writeContractData(artifact) {
+    let directory = `${__dirname}/../build/data/`,
+        data = {
+            contractName: artifact.contractName,
+            contractABI: artifact._json.abi,
+            contractAddress: artifact.address
+        };
+
+    createDir(directory);
+    fs.createWriteStream(`${directory}${data.contractName}.js`, {flags: 'w'})
+    .write(JSON.stringify(data));
+}
+
+function createDir(dirname) {
+    if (!fs.existsSync(dirname)) {
+       fs.mkdirSync(dirname);
+    }
 }
