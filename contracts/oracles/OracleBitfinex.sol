@@ -17,7 +17,7 @@ contract OracleBitfinex is OracleBase {
     /**
      * @dev Constructor.
      */
-    function OracleBitfinex(address _bankAddress) OracleBase(_bankAddress) public {
+    function OracleBitfinex() public {
         oracleName = ORACLE_NAME;
         oracleType = ORACLE_TYPE;
         oracleConfig = OracleConfig({datasource: ORACLE_DATASOURCE, arguments: ORACLE_ARGUMENTS});
