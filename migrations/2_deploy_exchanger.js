@@ -70,14 +70,16 @@ module.exports = function(deployer, network) {
 
 function writeContractData(artifact) {
     let directory = `${__dirname}/../build/data/`,
-        data = {
-            contractName: artifact.contractName,
-            contractABI: artifact._json.abi,
-            contractAddress: artifact.address
-        };
+        mew_abi = {};
+
+    artifact._json.abi.forEach((item) => mew_abi[item.name] = item);
+    let data =  `name: "${artifact.contractName}",\n` +
+                `address: "${artifact.address}",\n` +
+                `abi: '${JSON.stringify(artifact._json.abi)}',\n` +
+                `abiRefactored: '${JSON.stringify(mew_abi)}'`;
 
     createDir(directory);
-    fs.writeFileSync(`${directory}${data.contractName}.js`,JSON.stringify(data));
+    fs.writeFileSync(`${directory}${artifact.contractName}.js`,data);
 }
 
 function createDir(dirname) {
