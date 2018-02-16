@@ -33,29 +33,22 @@ module.exports = function(deployer, network) {
   config = {
       buyFee:250,
       sellFee:250,
-      deadline:getTimestamp(+1),
+      deadline:getTimestamp(+5),
       withdrawWallet:web3.eth.coinbase,
   };
 
   deployer.deploy(cash)
     .then(() => Promise.all(oracles.map((oracle) => deployer.deploy(oracle))))
     .then(() => {
-        oraclePromise = oracles.map((oracle) => oracle.deployed());
-        oraclePromise.push(cash.deployed());
-        return Promise.all(oraclePromise);
-    })
-    .then((contracts) => {
-        let 
-          cashContract = contracts.pop(),
-          oraclesAddress = contracts.map((oracle) => oracle.address);
+        let oraclesAddress = oracles.map((oracle) => oracle.address);
         
-          console.log("Contract configuration");
-          console.log(config);
+        console.log("Contract configuration");
+        console.log(config);
 
         return deployer.deploy(
           exchanger,
           /*Constructor params*/
-          cashContract.address, // Token address
+          cash.address, // Token address
           config.buyFee, // Buy Fee
           config.sellFee, // Sell Fee,
           oraclesAddress,// oracles (array of address)
@@ -63,22 +56,16 @@ module.exports = function(deployer, network) {
           config.withdrawWallet // withdraw wallet
         );
     })
+    .then(() => Promise.all(oracles.map((oracle) => oracle.deployed())))
+    .then((contracts) => Promise.all(contracts.map((oracle) => oracle.setBank(exchanger.address))))
     .then(() => {
-        oraclePromise = oracles.map((oracle) => oracle.deployed());
-        oraclePromise.push(exchanger.deployed());
-        return Promise.all(oraclePromise);
-    })
-    .then((contracts) => {
-        exch = contracts.pop();
-        return Promise.all(contracts.map((oracle) => oracle.setBank(exch.address)));
+        writeContractData(cash);
+        writeContractData(exchanger);
+        oracles.forEach((oracle) => {
+            writeContractData(oracle);
+        });
     })
     .then(() => console.log("END DEPLOY"));
-
-    writeContractData(cash);
-    writeContractData(exchanger);
-    oracles.forEach((oracle) => {
-        writeContractData(oracle);
-    });
 };
 
 function writeContractData(artifact) {
