@@ -184,8 +184,7 @@ contract ComplexExchanger is ExchangerI {
     function requestPrice() public view returns(uint256) {
         uint256 requestCost = 0;
         for (uint256 i = 0; i < oracles.length; i++) {
-            if (!OracleI(oracles[i]).waitQuery())
-                requestCost += OracleI(oracles[i]).getPrice();
+            requestCost = requestCost.add(OracleI(oracles[i]).getPrice());
         }
         return requestCost;
     }
