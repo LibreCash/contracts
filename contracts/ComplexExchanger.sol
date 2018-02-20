@@ -217,7 +217,6 @@ contract ComplexExchanger is ExchangerI {
         if (validOracles < MIN_READY_ORACLES)
             revert();
 
-        //TODO: Shorten this expressions
         buyRate = minRate.mul(REVERSE_PERCENT * RATE_MULTIPLIER - buyFee * RATE_MULTIPLIER / REVERSE_PERCENT) / REVERSE_PERCENT / RATE_MULTIPLIER;
         sellRate = maxRate.mul(REVERSE_PERCENT * RATE_MULTIPLIER + sellFee * RATE_MULTIPLIER / REVERSE_PERCENT) / REVERSE_PERCENT / RATE_MULTIPLIER;
 
@@ -264,7 +263,6 @@ contract ComplexExchanger is ExchangerI {
      * @dev Returns ready (which have data to be used) oracles count.
      */
     function readyOracles() public view returns (uint256) {
-        // TODO: Refactor it to use in processing waintin oracles 
         uint256 count = 0;
         for (uint256 i = 0; i < oracles.length; i++) {
             OracleI oracle = OracleI(oracles[i]);
