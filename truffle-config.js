@@ -1,7 +1,7 @@
 module.exports = {
   networks: {
-	  // Local node (eg.testrpc)
-	  // Deploy mocked oracles
+    // Local node (eg.testrpc)
+    // Deploy mocked oracles
     development: {
       host: "localhost",
       port: 8545,
@@ -9,9 +9,9 @@ module.exports = {
       gasPrice: 100000000000,
       gas: 6000000
     },
-	  // ETH Main Network
-	  // Deploy Oraclize oracles
-	  // Also gas price is lower (decrease deploy cost)
+    // ETH Main Network
+    // Deploy Oraclize oracles
+    // Also gas price is lower (decrease deploy cost)
     mainnet: {
       network_id: "*", // rinkeby, ropsten, main network, etc.
       gasPrice: 20000000000, //  20 Gwei 
