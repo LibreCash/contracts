@@ -1,14 +1,14 @@
-pragma solidity ^0.4.17;
+pragma solidity ^0.4.18;
 
 import "./OracleBase.sol";
 
 /**
  * @title Bitfinex oracle.
  *
- * @dev https://www.bitfinex.com.
+ * @dev URL: https://www.bitfinex.com
+ * @dev API Docs: https://bitfinex.readme.io/v1/reference#rest-public-ticker
  */
 contract OracleBitfinex is OracleBase {
-    // https://bitfinex.readme.io/v1/reference#rest-public-ticker
     bytes32 constant ORACLE_NAME = "Bitfinex Oraclize Async";
     bytes16 constant ORACLE_TYPE = "ETHUSD";
     string constant ORACLE_DATASOURCE = "URL";
@@ -17,7 +17,7 @@ contract OracleBitfinex is OracleBase {
     /**
      * @dev Constructor.
      */
-    function OracleBitfinex(address _bankAddress) OracleBase(_bankAddress) public {
+    function OracleBitfinex() public {
         oracleName = ORACLE_NAME;
         oracleType = ORACLE_TYPE;
         oracleConfig = OracleConfig({datasource: ORACLE_DATASOURCE, arguments: ORACLE_ARGUMENTS});

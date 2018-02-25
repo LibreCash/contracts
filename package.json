@@ -7,17 +7,24 @@
     "test": "test"
   },
   "scripts": {
-	"deploy" : "truffle migrate",
+    "deploy": "truffle migrate",
     "test": "truffle test"
   },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/LibreCash/contracts.git"
   },
-  "author": "decodedbrain, scientisctic, evercodex",
+  "author": "decodedbrain, scientistnik, evercodex",
   "license": "AGPL-3.0",
   "bugs": {
     "url": "https://github.com/LibreCash/contracts/issues"
   },
-  "homepage": "https://github.com/LibreCash/contracts#readme"
+  "homepage": "https://librecash.github.io/contracts/docs/ComplexExchanger",
+  "dependencies": {
+    "ganache-cli": "^6.1.0-beta.0",
+    "truffle": "^4.0.5"
+  },
+  "devDependencies": {
+    "@digix/doxity": "^0.5.2"
+  }
 }

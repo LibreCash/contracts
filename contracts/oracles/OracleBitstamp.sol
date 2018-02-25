@@ -1,14 +1,14 @@
-pragma solidity ^0.4.17;
+pragma solidity ^0.4.18;
 
 import "./OracleBase.sol";
 
 /**
  * @title Bitstamp oracle.
  *
- * @dev https://www.bitstamp.net/.
+ * @dev URL: https://www.bitstamp.net/
+ * @dev API Docs: https://www.bitstamp.net/api/
  */
 contract OracleBitstamp is OracleBase {
-    // the comment is reserved for API documentation :)
     bytes32 constant ORACLE_NAME = "Bitstamp Oraclize Async";
     bytes16 constant ORACLE_TYPE = "ETHUSD";
     string constant ORACLE_DATASOURCE = "URL";
@@ -17,7 +17,7 @@ contract OracleBitstamp is OracleBase {
     /**
      * @dev Constructor.
      */
-    function OracleBitstamp(address _bankAddress) OracleBase(_bankAddress) public {
+    function OracleBitstamp() public {
         oracleName = ORACLE_NAME;
         oracleType = ORACLE_TYPE;
         oracleConfig = OracleConfig({datasource: ORACLE_DATASOURCE, arguments: ORACLE_ARGUMENTS});

@@ -13,5 +13,4 @@ contract OracleI {
     function setGasPrice(uint256 _price) public;
     function setGasLimit(uint256 _limit) public;
     function updateRate() external returns (bool);
-    function clearState() public;
 }
