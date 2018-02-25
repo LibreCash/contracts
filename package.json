@@ -23,5 +23,8 @@
   "dependencies": {
     "ganache-cli": "^6.1.0-beta.0",
     "truffle": "^4.0.5"
+  },
+  "devDependencies": {
+    "@digix/doxity": "^0.5.2"
   }
 }

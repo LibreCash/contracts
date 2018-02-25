@@ -21,7 +21,7 @@ module.exports = function(deployer, network) {
      ]
     },
 
-    appendContract = (network == "mainnet") ?  сontractsList.mainnet : сontractsList.local;
+    appendContract = (network == "mainnet" || network == "testnet") ?  сontractsList.mainnet : сontractsList.local;
     oracles = appendContract.map( (oracle) => {
         name = path.posix.basename(oracle);
         return artifacts.require(`./${name}.sol`);
