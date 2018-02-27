@@ -20,6 +20,7 @@ module.exports = function(deployer, network) {
         'oracles/OracleMockTest'
      ]
     },
+    deployBank = true;
 
     appendContract = (network == "mainnet" || network == "testnet") ?  сontractsList.mainnet : сontractsList.local;
     oracles = appendContract.map( (oracle) => {
@@ -28,7 +29,7 @@ module.exports = function(deployer, network) {
     });
 
   cash = artifacts.require('./LibreCash.sol');
-  exchanger = artifacts.require(`./ComplexExchanger.sol`);
+  exchanger = artifacts.require(`./Complex${deployBank ? 'Bank' : 'Exchanger'}.sol`);
   
   config = {
       buyFee:250,
@@ -45,16 +46,19 @@ module.exports = function(deployer, network) {
         console.log("Contract configuration");
         console.log(config);
 
-        return deployer.deploy(
-          exchanger,
-          /*Constructor params*/
-          cash.address, // Token address
-          config.buyFee, // Buy Fee
-          config.sellFee, // Sell Fee,
-          oraclesAddress,// oracles (array of address)
-          config.deadline, // deadline,
-          config.withdrawWallet // withdraw wallet
-        );
+        let args = [
+            exchanger,
+            /*Constructor params*/
+            cash.address, // Token address
+            config.buyFee, // Buy Fee
+            config.sellFee, // Sell Fee,
+            oraclesAddress,// oracles (array of address)
+        ];
+
+        if (!deployBank)
+            args = args.concat([config.deadline, config.withdrawWallet]);
+
+        return deployer.deploy(...args);
     })
     .then(() => Promise.all(oracles.map((oracle) => oracle.deployed())))
     .then((contracts) => Promise.all(contracts.map((oracle) => oracle.setBank(exchanger.address))))

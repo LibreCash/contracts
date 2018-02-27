@@ -29,54 +29,20 @@ contract ComplexBank is Pausable, BankI {
     uint256 public relevancePeriod = 23 hours;
     uint256 public queuePeriod = 60 minutes;
     uint256 public timeUpdateRequest = 0; // the time of requestRates()
+    uint256 public timeCalcRates = 0; // the time of calcRates()
     uint256 public oracleTimeout = 10 minutes; // Timeout to wait oracle data
 
     enum State {
-        REQUEST_UPDATE_RATES,
-        CALC_RATE,
+        REQUEST_RATES,
+        WAIT_ORACLES,
+        CALC_RATES,
         PROCESS_ORDERS,
         ORDER_CREATION
     }
 
-    State public state;
-
-    modifier canStartEmission() {
-        require((now >= timeUpdateRequest + relevancePeriod) || 
-                (state == State.REQUEST_UPDATE_RATES));
+    modifier state(State needState) {
+        require(getState() == needState);
         _;
-        state = State.CALC_RATE;
-        timeUpdateRequest = now;
-    }
-
-    modifier calcRatesAllowed() {
-        require(state == State.CALC_RATE);
-
-        requestTimeout(); // revert transaction if has oracles waiting less then 10 min.
-        if (readyOracles() < MIN_READY_ORACLES) {
-            state = State.REQUEST_UPDATE_RATES;
-            OracleError("Not enough ready oracles. Please, request update rates again");
-            return;
-        }
-        
-        _;
-        bool ordersProcessed = (sellNextOrder == 0) && (buyNextOrder == 0);
-        state = ordersProcessed ? State.ORDER_CREATION : State.PROCESS_ORDERS;
-    }
-
-    modifier queueProcessingAllowed() {
-        require((state == State.PROCESS_ORDERS) && 
-                (now <= timeUpdateRequest + queuePeriod));
-        _;
-        bool ordersProcessed = (sellNextOrder == 0) && (buyNextOrder == 0);
-        if (ordersProcessed)
-            state = State.ORDER_CREATION;
-    }
-
-    modifier orderCreationAllowed() {
-        require((state == State.ORDER_CREATION) || 
-                (now > timeUpdateRequest + queuePeriod));
-        _;
-        state = State.ORDER_CREATION;
     }
 
     struct Limit {
@@ -87,6 +53,46 @@ contract ComplexBank is Pausable, BankI {
     Limit public buyLimit = Limit(1 wei, 99999 * 1 ether);
     Limit public sellLimit = Limit(1 wei, 99999 * 1 ether);
 
+    function ComplexBank(address _token, uint256 _buyFee, uint256 _sellFee, address[] _oracles) 
+        public
+    {
+        tokenAddress = _token;
+        token = LibreCash(tokenAddress);
+        buyFee = _buyFee;
+        sellFee = _sellFee;
+
+        uint i = 0;
+        for(;i < _oracles.length; i++)
+            addOracle(_oracles[i]);
+
+    }
+
+    /**
+     * @dev get contract state.
+     */
+    function getState() public view returns (State) {
+        if (now >= timeUpdateRequest + relevancePeriod)
+            return State.REQUEST_RATES;
+
+        if (now > timeUpdateRequest + queuePeriod)
+            return State.ORDER_CREATION;
+
+        if (waitingOracles() > 0)
+            return State.WAIT_ORACLES;
+
+        if (now < timeCalcRates + queuePeriod) {
+            if ((sellNextOrder == 0) && (buyNextOrder == 0))
+                return State.ORDER_CREATION;
+
+            return State.PROCESS_ORDERS;
+        }
+
+        if (readyOracles() >= MIN_READY_ORACLES)
+            return State.CALC_RATES;
+
+        return State.REQUEST_RATES;
+    }
+
     // 01-emission start
 
     /**
@@ -94,7 +100,12 @@ contract ComplexBank is Pausable, BankI {
      * @param _recipient Recipient.
      * @param _rateLimit Max affordable buying rate, 0 to allow all.
      */
-    function buyTokens(address _recipient, uint256 _rateLimit) payable public whenNotPaused orderCreationAllowed {
+    function buyTokens(address _recipient, uint256 _rateLimit)
+        payable
+        public
+        whenNotPaused
+        state(State.ORDER_CREATION)
+    {
         require((_recipient != 0x0) && (msg.value >= buyLimit.min) && (msg.value <= buyLimit.max));
 
         if (buyNextOrder == buyOrders.length) {
@@ -115,7 +126,11 @@ contract ComplexBank is Pausable, BankI {
      * @param _tokensCount Amount of tokens to sell.
      * @param _rateLimit Min affordable selling rate, 0 to allow all.
      */
-    function sellTokens(address _recipient, uint256 _tokensCount, uint256 _rateLimit) public whenNotPaused orderCreationAllowed {
+    function sellTokens(address _recipient, uint256 _tokensCount, uint256 _rateLimit) 
+        public 
+        whenNotPaused 
+        state(State.ORDER_CREATION)
+    {
         require((_recipient != 0x0) && (_tokensCount >= sellLimit.min) && (_tokensCount <= sellLimit.max));
         address tokenOwner = msg.sender;
         require(_tokensCount <= token.allowance(tokenOwner,this));
@@ -137,7 +152,7 @@ contract ComplexBank is Pausable, BankI {
     /**
      * @dev Fallback function.
      */
-    function() external whenNotPaused orderCreationAllowed payable {
+    function() external payable {
         buyTokens(msg.sender, 0); // 0 - without price limits
     }
 
@@ -198,7 +213,7 @@ contract ComplexBank is Pausable, BankI {
 
         overallRefundValue = overallRefundValue.sub(sendBalance);
         balanceEther[msg.sender] -= sendBalance;
-        
+
         if ( !msg.sender.send(sendBalance)) {
             overallRefundValue = overallRefundValue.add(sendBalance);
             balanceEther[msg.sender] += sendBalance;
@@ -285,7 +300,7 @@ contract ComplexBank is Pausable, BankI {
      * @dev Fill buy orders queue.
      * @param _limit Order limit.
      */
-    function processBuyQueue(uint256 _limit) public whenNotPaused queueProcessingAllowed {
+    function processBuyQueue(uint256 _limit) public whenNotPaused state(State.PROCESS_ORDERS) {
         bool processAll = ((_limit == 0) || ((BuyIndex + _limit) > buyNextOrder));
         uint256 lastOrder = processAll ? buyNextOrder : BuyIndex + _limit;
 
@@ -329,7 +344,7 @@ contract ComplexBank is Pausable, BankI {
      * @dev Fill sell orders queue.
      * @param _limit Order limit.
      */
-    function processSellQueue(uint256 _limit) public whenNotPaused queueProcessingAllowed {
+    function processSellQueue(uint256 _limit) public whenNotPaused state(State.PROCESS_ORDERS) {
         bool processAll = ((_limit == 0) || ((SellIndex + _limit) > sellNextOrder));
         uint256 lastOrder = processAll ? sellNextOrder : SellIndex + _limit;
                 
@@ -524,9 +539,27 @@ contract ComplexBank is Pausable, BankI {
             if (!oracles[current].enabled) 
                 continue;
             OracleI currentOracle = OracleI(current);
-            if ((currentOracle.rate() != 0) && (!currentOracle.waitQuery())) 
+            if ((currentOracle.rate() != 0) &&
+                !currentOracle.waitQuery() &&
+                (now - currentOracle.callbackTime()) < queuePeriod) // maybe not need
                 count++;
         }
+        return count;
+    }
+
+    /**
+     * @dev Returns waiting oracles count.
+     */
+    function waitingOracles() public view returns (uint256) {
+        uint256 count = 0;
+        for (address current = firstOracle; current != 0x0; current = oracles[current].next) {
+            if (!oracles[current].enabled) 
+                continue;
+            if (OracleI(current).waitQuery() && (now - timeUpdateRequest) < oracleTimeout) {
+                count++;
+            }
+        }
+
         return count;
     }
 
@@ -719,7 +752,7 @@ contract ComplexBank is Pausable, BankI {
     /**
      * @dev Requests every enabled oracle to get the actual rate.
      */
-    function requestRates() payable public canStartEmission {
+    function requestRates() payable public state(State.REQUEST_RATES) {
         require(numEnabledOracles >= MIN_ORACLES_ENABLED);
         uint256 sendValue = msg.value;
 
@@ -737,6 +770,7 @@ contract ComplexBank is Pausable, BankI {
                 }
             }
         } // foreach oracles
+        timeUpdateRequest = now;
     }
 
     /**
@@ -761,7 +795,7 @@ contract ComplexBank is Pausable, BankI {
     /**
      * @dev Processes data from ready oracles to get rates.
      */
-    function calcRates() public calcRatesAllowed {
+    function calcRates() public state(State.CALC_RATES) {
         uint256 minimalRate = 2**256 - 1; // Max for UINT256
         uint256 maximalRate = 0;
 
@@ -776,6 +810,7 @@ contract ComplexBank is Pausable, BankI {
         } // foreach oracles
         cryptoFiatRateBuy = minimalRate.mul(REVERSE_PERCENT * RATE_MULTIPLIER - buyFee * RATE_MULTIPLIER / REVERSE_PERCENT) / REVERSE_PERCENT / RATE_MULTIPLIER;
         cryptoFiatRateSell = maximalRate.mul(REVERSE_PERCENT * RATE_MULTIPLIER + sellFee * RATE_MULTIPLIER / REVERSE_PERCENT) / REVERSE_PERCENT / RATE_MULTIPLIER;
+        timeCalcRates = now;
     }
     // 04-spread calc end
 
