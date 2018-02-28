@@ -33,10 +33,8 @@ contract Association is Ownable {
         CLEAN,
         UNIVERSAL,
         TRANSFER_OWNERSHIP,
-        MIN_BUY_LIMIT,
-        MAX_BUY_LIMIT,
-        MIN_SELL_LIMIT,
-        MAX_SELL_LIMIT,
+        SET_BUY_LIMITS,
+        SET_SELL_LIMITS,
         CANCEL_BUY_ORDER,
         CANCEL_SELL_ORDER,
         ATTACH_TOKEN,
@@ -156,7 +154,7 @@ contract Association is Ownable {
         sharesTokenAddress = ERC20(sharesAddress);
         bank = ComplexBank(_bank);
         cash = LibreCash(_cash);
-        if (minimumSharesToPassAVote == 0 ) 
+        if (minimumSharesToPassAVote == 0) 
             minimumSharesToPassAVote = 1;
         minimumQuorum = minimumSharesToPassAVote;
         minDebatingPeriodInMinutes = minMinutesForDebate;
@@ -226,7 +224,7 @@ contract Association is Ownable {
         p.votes[voteID] = Vote({inSupport: supportsProposal, voter: msg.sender});
         p.voted[msg.sender] = true;
         p.numberOfVotes = voteID + 1;
-        Voted(proposalID,  supportsProposal, msg.sender);
+        Voted(proposalID, supportsProposal, msg.sender);
         return voteID;
     }
 
@@ -251,26 +249,22 @@ contract Association is Ownable {
         uint yea;
         uint nay;
         
-        (yea,nay) = calcVotes(proposalID);
+        (yea, nay) = calcVotes(proposalID);
         quorum = yea + nay;
 
 
         require(quorum >= minimumQuorum); // Check if a minimum quorum has been reached
 
-        if (yea > nay ) {
+        if (yea > nay) {
             if (p.tp == TypeProposal.UNIVERSAL)
                 require(p.recipient.call.value(p.amount)(p.transactionBytecode));
             else if (p.tp == TypeProposal.TRANSFER_OWNERSHIP) {
                 bank.transferOwnership(p.recipient);
                 cash.transferOwnership(p.recipient);
-            } else if (p.tp == TypeProposal.MIN_BUY_LIMIT) {
-                bank.setMinBuyLimit(p.amount);
-            } else if (p.tp == TypeProposal.MAX_BUY_LIMIT) {
-                bank.setMaxBuyLimit(p.amount);
-            } else if (p.tp == TypeProposal.MIN_SELL_LIMIT) {
-                bank.setMinSellLimit(p.amount);
-            } else if (p.tp == TypeProposal.MAX_SELL_LIMIT) {
-                bank.setMaxSellLimit(p.amount);
+            } else if (p.tp == TypeProposal.SET_BUY_LIMITS) {
+                bank.setBuyLimits(p.amount, p.buffer);
+            } else if (p.tp == TypeProposal.SET_SELL_LIMITS) {
+                bank.setSellLimits(p.amount, p.buffer);
             } else if (p.tp == TypeProposal.CANCEL_BUY_ORDER) {
                 bank.cancelBuyOrderOwner(p.amount);
             } else if (p.tp == TypeProposal.CANCEL_SELL_ORDER) {
@@ -295,10 +289,7 @@ contract Association is Ownable {
                 bank.setScheduler(p.recipient);
             } else if (p.tp == TypeProposal.WITHDRAW_BALANCE) {
                 bank.withdrawBalance();
-            } else if (p.tp == TypeProposal.SET_BANK_ADDRESS) {
-                cash.setBankAddress(p.recipient);
-            }
-                
+            }                
         }
 
         proposals[proposalID].tp = TypeProposal.CLEAN;
@@ -307,8 +298,8 @@ contract Association is Ownable {
         ProposalTallied(proposalID, int(yea - nay), quorum);
     }
 
-    function getBalanceEther(address _address) public view onlyShareholders returns (uint256) {
-        return bank.getBalanceEther(_address);
+    function getBalance(address _address) public view onlyShareholders returns (uint256) {
+        return bank.getBalance(_address);
     }
 
     function getBuyOrder(uint256 _orderID) public onlyShareholders view 
@@ -352,31 +343,17 @@ contract Association is Ownable {
                             jobDescription, debatingPeriodInMinutes, "0");
     }
 
-    function proposalMinBuyLimit(uint _minBuyInWei, string jobDescription, uint debatingPeriodInMinutes) 
+    function proposalSetBuyLimits(uint _minBuyInWei, uint _maxBuyInWei, string jobDescription, uint debatingPeriodInMinutes) 
         public onlyShareholders returns (uint proposalID) 
     {
-        return newProposal(TypeProposal.MIN_BUY_LIMIT, address(0), _minBuyInWei, 0, 
+        return newProposal(TypeProposal.SET_BUY_LIMITS, address(0), _minBuyInWei, _maxBuyInWei, 
                             jobDescription, debatingPeriodInMinutes, "0");
     }
 
-    function proposalMaxBuyLimit(uint _maxBuyInWei, string jobDescription, uint debatingPeriodInMinutes) 
+    function proposalSetSellLimits(uint _minSellLimit, uint _maxSellLimit, string jobDescription, uint debatingPeriodInMinutes) 
         public onlyShareholders returns (uint proposalID) 
     {
-        return newProposal(TypeProposal.MAX_BUY_LIMIT, address(0), _maxBuyInWei, 0, 
-                            jobDescription, debatingPeriodInMinutes, "0");
-    }
-
-    function proposalMinSellLimit(uint _minSellLimit, string jobDescription, uint debatingPeriodInMinutes) 
-        public onlyShareholders returns (uint proposalID) 
-    {
-        return newProposal(TypeProposal.MIN_SELL_LIMIT, address(0), _minSellLimit, 0, 
-                            jobDescription, debatingPeriodInMinutes, "0");
-    }
-
-    function proposalMaxSellLimit(uint _maxSellLimit, string jobDescription, uint debatingPeriodInMinutes) 
-        public onlyShareholders returns (uint proposalID) 
-    {
-        return newProposal(TypeProposal.MAX_SELL_LIMIT, address(0), _maxSellLimit, 0, 
+        return newProposal(TypeProposal.SET_SELL_LIMITS, address(0), _minSellLimit, _maxSellLimit, 
                             jobDescription, debatingPeriodInMinutes, "0");
     }
 
