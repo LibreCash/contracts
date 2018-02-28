@@ -7,7 +7,7 @@ module.exports = {
       port: 8545,
       network_id: "*",
       gasPrice: 100000000000,
-      gas: 6000000
+      gas: 8000000
     },
     // ETH Main Network
     // Deploy Oraclize oracles
@@ -17,7 +17,7 @@ module.exports = {
       gasPrice: 20000000000, //  20 Gwei 
       host: "localhost",
       port: 8545,
-      gas: 6000000
+      gas: 8000000
     },
 	  // ETH Test Network (eg Ropsten or Rinkeby)
 	  // Deploy Oraclize oracles
@@ -26,7 +26,7 @@ module.exports = {
         gasPrice: 50000000000, //  50 Gwei 
         host: "localhost",
         port: 8545,
-        gas: 6000000
+        gas: 8000000
       }
   },
    
