@@ -31,7 +31,7 @@ module.exports = function(deployer, network) {
 
         cash = artifacts.require('./LibreCash.sol'),
         liberty = artifacts.require('./LibertyToken.sol'),
-        association = artifacts.require('./LibertyToken.sol'),
+        association = artifacts.require('./Association.sol'),
         exchanger = artifacts.require(`./Complex${deployBank ? 'Bank' : 'Exchanger'}.sol`),
   
         config = {
@@ -43,7 +43,7 @@ module.exports = function(deployer, network) {
     // end let block
 
 
-deployer.deploy(cash)
+    deployer.deploy(cash)
     .then(() => {
         if (deployBank && deployDAO) return deployer.deploy(liberty);
     })
@@ -71,11 +71,11 @@ deployer.deploy(cash)
     .then(() => Promise.all(oracles.map((oracle) => oracle.deployed())))
     .then((contracts) => Promise.all(contracts.map((oracle) => oracle.setBank(exchanger.address))))
     .then(() => {
-        deployer.deploy(
+        return deployer.deploy(
             association,
             /* Constructor params */
             liberty.address,
-            bank.address,
+            exchanger.address,
             cash.address,
             /* minimumSharesToPassAVote: */ 1,
             /* minMinutesForDebate: */ 1
@@ -93,7 +93,7 @@ deployer.deploy(cash)
         });
     })
     .then(() => console.log("END DEPLOY"));
-};
+}; // end module.exports
 
 function writeContractData(artifact) {
     let directory = `${__dirname}/../build/data/`,
