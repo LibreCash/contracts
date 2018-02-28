@@ -1,4 +1,4 @@
-pragma solidity ^0.4.17;
+pragma solidity ^0.4.18;
 
 import "./zeppelin/math/SafeMath.sol";
 import "./zeppelin/math/Math.sol";
@@ -10,16 +10,16 @@ import "./token/LibreCash.sol";
 contract ComplexBank is Pausable, BankI {
     using SafeMath for uint256;
     address public tokenAddress;
-    LibreCash libreToken;
+    LibreCash token;
     
-    event BuyOrder(address sender, address recipient, uint256 tokenAmount, uint256 price);
-    event SellOrder(address sender, address recipient, uint256 cryptoAmount, uint256 price);
+    event Buy(address sender, address recipient, uint256 tokenAmount, uint256 price);
+    event Sell(address sender, address recipient, uint256 cryptoAmount, uint256 price);
     event SellQueueProcessed();
     event BuyQueueProcessed();
     event NotEnoughMoney(address recipient);
     event ErrorSendingEther(address recipient);
-    event BuyOrderCancelled(uint256 orderId, address sender, uint256 cryptoAmount, uint256 parameter);
-    event SellOrderCancelled(uint256 orderId, address sender, uint256 tokenAmount, uint256 parameter);
+    event BuyCancelled(uint256 orderId, address sender, uint256 cryptoAmount, uint256 parameter);
+    event SellCancelled(uint256 orderId, address sender, uint256 tokenAmount, uint256 parameter);
     
     uint256 constant MIN_READY_ORACLES = 2;
     uint256 constant MIN_ORACLES_ENABLED = 2;
@@ -28,55 +28,55 @@ contract ComplexBank is Pausable, BankI {
 
     uint256 public relevancePeriod = 23 hours;
     uint256 public queuePeriod = 60 minutes;
-    uint256 public timeUpdateRequest = 0; // the time of requestUpdateRates()
+    uint256 public timeUpdateRequest = 0; // the time of requestRates()
     uint256 public oracleTimeout = 10 minutes; // Timeout to wait oracle data
 
-    enum ProcessState {
+    enum State {
         REQUEST_UPDATE_RATES,
         CALC_RATE,
         PROCESS_ORDERS,
         ORDER_CREATION
     }
 
-    ProcessState public contractState;
+    State public state;
 
     modifier canStartEmission() {
         require((now >= timeUpdateRequest + relevancePeriod) || 
-                (contractState == ProcessState.REQUEST_UPDATE_RATES));
+                (state == State.REQUEST_UPDATE_RATES));
         _;
-        contractState = ProcessState.CALC_RATE;
+        state = State.CALC_RATE;
         timeUpdateRequest = now;
     }
 
     modifier calcRatesAllowed() {
-        require(contractState == ProcessState.CALC_RATE);
+        require(state == State.CALC_RATE);
 
-        processWaitingOracles(); // revert transaction if has oracles waiting less then 10 min.
-        if (numReadyOracles() < MIN_READY_ORACLES) {
-            contractState = ProcessState.REQUEST_UPDATE_RATES;
+        requestTimeout(); // revert transaction if has oracles waiting less then 10 min.
+        if (readyOracles() < MIN_READY_ORACLES) {
+            state = State.REQUEST_UPDATE_RATES;
             OracleError("Not enough ready oracles. Please, request update rates again");
             return;
         }
         
         _;
         bool ordersProcessed = (sellNextOrder == 0) && (buyNextOrder == 0);
-        contractState = ordersProcessed ? ProcessState.ORDER_CREATION : ProcessState.PROCESS_ORDERS;
+        state = ordersProcessed ? State.ORDER_CREATION : State.PROCESS_ORDERS;
     }
 
     modifier queueProcessingAllowed() {
-        require((contractState == ProcessState.PROCESS_ORDERS) && 
+        require((state == State.PROCESS_ORDERS) && 
                 (now <= timeUpdateRequest + queuePeriod));
         _;
         bool ordersProcessed = (sellNextOrder == 0) && (buyNextOrder == 0);
         if (ordersProcessed)
-            contractState = ProcessState.ORDER_CREATION;
+            state = State.ORDER_CREATION;
     }
 
     modifier orderCreationAllowed() {
-        require((contractState == ProcessState.ORDER_CREATION) || 
+        require((state == State.ORDER_CREATION) || 
                 (now > timeUpdateRequest + queuePeriod));
         _;
-        contractState = ProcessState.ORDER_CREATION;
+        state = State.ORDER_CREATION;
     }
 
     struct Limit {
@@ -94,7 +94,7 @@ contract ComplexBank is Pausable, BankI {
      * @param _recipient Recipient.
      * @param _rateLimit Max affordable buying rate, 0 to allow all.
      */
-    function createBuyOrder(address _recipient, uint256 _rateLimit) payable public whenNotPaused orderCreationAllowed {
+    function buyTokens(address _recipient, uint256 _rateLimit) payable public whenNotPaused orderCreationAllowed {
         require((_recipient != 0x0) && (msg.value >= buyLimit.min) && (msg.value <= buyLimit.max));
 
         if (buyNextOrder == buyOrders.length) {
@@ -115,12 +115,12 @@ contract ComplexBank is Pausable, BankI {
      * @param _tokensCount Amount of tokens to sell.
      * @param _rateLimit Min affordable selling rate, 0 to allow all.
      */
-    function createSellOrder(address _recipient, uint256 _tokensCount, uint256 _rateLimit) public whenNotPaused orderCreationAllowed {
+    function sellTokens(address _recipient, uint256 _tokensCount, uint256 _rateLimit) public whenNotPaused orderCreationAllowed {
         require((_recipient != 0x0) && (_tokensCount >= sellLimit.min) && (_tokensCount <= sellLimit.max));
         address tokenOwner = msg.sender;
-        require(_tokensCount <= libreToken.allowance(tokenOwner,this));
-        libreToken.transferFrom(tokenOwner, this, _tokensCount);
-        libreToken.burn(_tokensCount);
+        require(_tokensCount <= token.allowance(tokenOwner,this));
+        token.transferFrom(tokenOwner, this, _tokensCount);
+        token.burn(_tokensCount);
 
         if (sellNextOrder == sellOrders.length) {
             sellOrders.length++;
@@ -138,7 +138,7 @@ contract ComplexBank is Pausable, BankI {
      * @dev Fallback function.
      */
     function() external whenNotPaused orderCreationAllowed payable {
-        createBuyOrder(msg.sender, 0); // 0 - without price limits
+        buyTokens(msg.sender, 0); // 0 - without price limits
     }
 
     /**
@@ -175,8 +175,8 @@ contract ComplexBank is Pausable, BankI {
 
     OrderData[] private buyOrders; // buy orders queue
     OrderData[] private sellOrders; // sell orders queue
-    uint256 buyOrderIndex = 0; // store number of first order
-    uint256 sellOrderIndex = 0;
+    uint256 BuyIndex = 0; // store number of first order
+    uint256 SellIndex = 0;
 
     uint256 private buyNextOrder = 0; // store number order after last
     uint256 private sellNextOrder = 0;
@@ -234,7 +234,7 @@ contract ComplexBank is Pausable, BankI {
 
         balanceEther[sender] = balanceEther[sender].add(amount);
         buyOrders[_orderID].recipient = 0x0; // Mark order as completed or cancelled
-        BuyOrderCancelled(_orderID, sender, amount, _parameter);
+        BuyCancelled(_orderID, sender, amount, _parameter);
         overallRefundValue = overallRefundValue.add(amount);
 
         return true;
@@ -253,8 +253,8 @@ contract ComplexBank is Pausable, BankI {
         uint256 tokensAmount = sellOrders[_orderID].amount;
         
         sellOrders[_orderID].recipient = 0x0; // Mark order as completed or cancelled
-        SellOrderCancelled(_orderID, sender, tokensAmount, _parameter);
-        libreToken.mint(sender, tokensAmount);
+        SellCancelled(_orderID, sender, tokensAmount, _parameter);
+        token.mint(sender, tokensAmount);
         return true;
     }
 
@@ -262,7 +262,7 @@ contract ComplexBank is Pausable, BankI {
      * @dev Fills buy order from queue.
      * @param _orderID The order ID.
      */
-    function processBuyOrder(uint256 _orderID) internal {
+    function processBuy(uint256 _orderID) internal {
         if (buyOrders[_orderID].recipient == 0x0)
             return;
 
@@ -276,8 +276,8 @@ contract ComplexBank is Pausable, BankI {
             cancelBuyOrder(_orderID, maxRate);
         } else {
             buyOrders[_orderID].recipient = 0x0; // Mark order as completed or cancelled
-            libreToken.mint(recipient, tokensAmount);
-            BuyOrder(sender, recipient, tokensAmount, cryptoFiatRateBuy);
+            token.mint(recipient, tokensAmount);
+            Buy(sender, recipient, tokensAmount, cryptoFiatRateBuy);
         }
     }
 
@@ -286,19 +286,19 @@ contract ComplexBank is Pausable, BankI {
      * @param _limit Order limit.
      */
     function processBuyQueue(uint256 _limit) public whenNotPaused queueProcessingAllowed {
-        bool processAll = ((_limit == 0) || ((buyOrderIndex + _limit) > buyNextOrder));
-        uint256 lastOrder = processAll ? buyNextOrder : buyOrderIndex + _limit;
+        bool processAll = ((_limit == 0) || ((BuyIndex + _limit) > buyNextOrder));
+        uint256 lastOrder = processAll ? buyNextOrder : BuyIndex + _limit;
 
-        for (uint i = buyOrderIndex; i < lastOrder; i++) {
-            processBuyOrder(i);
+        for (uint i = BuyIndex; i < lastOrder; i++) {
+            processBuy(i);
         }
 
         if (lastOrder == buyNextOrder) {
-            buyOrderIndex = 0;
+            BuyIndex = 0;
             buyNextOrder = 0;
             BuyQueueProcessed();
         } else {
-            buyOrderIndex = lastOrder;
+            BuyIndex = lastOrder;
         }
     }
 
@@ -306,7 +306,7 @@ contract ComplexBank is Pausable, BankI {
      * @dev Fills sell order from queue.
      * @param _orderID The order ID.
      */
-    function processSellOrder(uint256 _orderID) internal {
+    function processSell(uint256 _orderID) internal {
         if (sellOrders[_orderID].recipient == 0x0)
             return;
         
@@ -321,7 +321,7 @@ contract ComplexBank is Pausable, BankI {
         } else {
             balanceEther[recipient] = balanceEther[recipient].add(cryptoAmount);
             overallRefundValue = overallRefundValue.add(cryptoAmount);
-            SellOrder(sender, recipient, cryptoAmount, cryptoFiatRateSell);
+            Sell(sender, recipient, cryptoAmount, cryptoFiatRateSell);
         }      
     }
 
@@ -330,18 +330,18 @@ contract ComplexBank is Pausable, BankI {
      * @param _limit Order limit.
      */
     function processSellQueue(uint256 _limit) public whenNotPaused queueProcessingAllowed {
-        bool processAll = ((_limit == 0) || ((sellOrderIndex + _limit) > sellNextOrder));
-        uint256 lastOrder = processAll ? sellNextOrder : sellOrderIndex + _limit;
+        bool processAll = ((_limit == 0) || ((SellIndex + _limit) > sellNextOrder));
+        uint256 lastOrder = processAll ? sellNextOrder : SellIndex + _limit;
                 
-        for (uint i = sellOrderIndex; i < lastOrder; i++) {
-            processSellOrder(i);
+        for (uint i = SellIndex; i < lastOrder; i++) {
+            processSell(i);
         }
 
         if (lastOrder == sellNextOrder) {
-            sellOrderIndex = 0;
+            SellIndex = 0;
             sellNextOrder = 0;
         } else {
-            sellOrderIndex = lastOrder;
+            SellIndex = lastOrder;
             SellQueueProcessed();
         }
     }
@@ -353,7 +353,7 @@ contract ComplexBank is Pausable, BankI {
      * @dev Cancels buy order (by the owner).
      * @param _orderID The order ID.
      */
-    function cancelBuyOrderOwner(uint256 _orderID) public onlyOwner {
+    function cancelBuyOwner(uint256 _orderID) public onlyOwner {
         if (!cancelBuyOrder(_orderID, 0))
             revert();
     }
@@ -362,7 +362,7 @@ contract ComplexBank is Pausable, BankI {
      * @dev Cancels sell order (by the owner).
      * @param _orderID The order ID.
      */
-    function cancelSellOrderOwner(uint256 _orderID) public onlyOwner {
+    function cancelSellOwner(uint256 _orderID) public onlyOwner {
         if (!cancelSellOrder(_orderID, 0))
             revert();
     }
@@ -373,7 +373,7 @@ contract ComplexBank is Pausable, BankI {
      */
     function getBuyOrder(uint256 _orderID) public view returns (address, address, uint256, uint256, uint256) {
         require(msg.sender == owner || msg.sender == buyOrders[_orderID].sender);
-        require((buyNextOrder > 0) && (buyNextOrder >= _orderID) && (buyOrderIndex <= _orderID));
+        require((buyNextOrder > 0) && (buyNextOrder >= _orderID) && (BuyIndex <= _orderID));
         return (
             buyOrders[_orderID].sender, 
             buyOrders[_orderID].recipient,
@@ -389,7 +389,7 @@ contract ComplexBank is Pausable, BankI {
      */
     function getSellOrder(uint256 _orderID) public view returns (address, address, uint256, uint256, uint256) {
         require(msg.sender == owner || msg.sender == sellOrders[_orderID].sender);
-        require((sellNextOrder > 0) && (sellNextOrder >= _orderID) && (sellOrderIndex <= _orderID));
+        require((sellNextOrder > 0) && (sellNextOrder >= _orderID) && (SellIndex <= _orderID));
         return (sellOrders[_orderID].sender, sellOrders[_orderID].recipient,
                 sellOrders[_orderID].amount, sellOrders[_orderID].timestamp,
                 sellOrders[_orderID].rateLimit);
@@ -400,27 +400,27 @@ contract ComplexBank is Pausable, BankI {
      */
     function getMyOrders() public view returns(uint[], uint[]) {
         uint count = 0;
-        for (uint256 i = buyOrderIndex; i < buyNextOrder; i++) {
+        for (uint256 i = BuyIndex; i < buyNextOrder; i++) {
             if (buyOrders[i].recipient != 0x0 && buyOrders[i].sender == msg.sender)
                 count++;
         }
 
         uint[] memory myBuy = new uint[](count);
         count = 0;
-        for (i = buyOrderIndex; i < buyNextOrder; i++) {
+        for (i = BuyIndex; i < buyNextOrder; i++) {
             if (buyOrders[i].recipient != 0x0 && buyOrders[i].sender == msg.sender)
                 myBuy[count++] = i;
         }
 
         count = 0;
-        for (i = sellOrderIndex; i < sellNextOrder; i++) {
+        for (i = SellIndex; i < sellNextOrder; i++) {
             if (sellOrders[i].recipient != 0x0 && sellOrders[i].sender == msg.sender) 
                 count++;
         }
 
         uint[] memory mySell = new uint[](count);
         count = 0;
-        for (i = sellOrderIndex; i < sellNextOrder; i++) {
+        for (i = SellIndex; i < sellNextOrder; i++) {
             if (sellOrders[i].recipient != 0x0 && sellOrders[i].sender == msg.sender) 
                 mySell[count++] = i;
         }
@@ -432,7 +432,7 @@ contract ComplexBank is Pausable, BankI {
      */
     function getSellOrdersCount() public view returns(uint256) {
         uint256 count = 0;
-        for (uint256 i = sellOrderIndex; i < sellNextOrder; i++) {
+        for (uint256 i = SellIndex; i < sellNextOrder; i++) {
             if (sellOrders[i].recipient != 0x0) 
                 count++;
         }
@@ -444,7 +444,7 @@ contract ComplexBank is Pausable, BankI {
      */
     function getBuyOrdersCount() public view returns(uint256) {
         uint256 count = 0;
-        for (uint256 i = buyOrderIndex; i < buyNextOrder; i++) {
+        for (uint256 i = BuyIndex; i < buyNextOrder; i++) {
             if (buyOrders[i].recipient != 0x0) 
                 count++;
         }
@@ -458,7 +458,7 @@ contract ComplexBank is Pausable, BankI {
     function attachToken(address _tokenAddress) public onlyOwner {
         require(_tokenAddress != 0x0);
         tokenAddress = _tokenAddress;
-        libreToken = LibreCash(tokenAddress);
+        token = LibreCash(tokenAddress);
     }
 
     // admin end
@@ -518,16 +518,16 @@ contract ComplexBank is Pausable, BankI {
     /**
      * @dev Returns ready (which have data to be used) oracles count.
      */
-    function numReadyOracles() public view returns (uint256) {
-        uint256 numOracles = 0;
+    function readyOracles() public view returns (uint256) {
+        uint256 count = 0;
         for (address current = firstOracle; current != 0x0; current = oracles[current].next) {
             if (!oracles[current].enabled) 
                 continue;
             OracleI currentOracle = OracleI(current);
             if ((currentOracle.rate() != 0) && (!currentOracle.waitQuery())) 
-                numOracles++;
+                count++;
         }
-        return numOracles;
+        return count;
     }
 
     /**
@@ -658,7 +658,7 @@ contract ComplexBank is Pausable, BankI {
     }
 
     /**
-     * @dev Sends money to oracles and start requestUpdateRates.
+     * @dev Sends money to oracles and start requestRates.
      * @param fund Desired balance of every oracle.
      */
     function schedulerUpdateRate(uint256 fund) public {
@@ -667,7 +667,7 @@ contract ComplexBank is Pausable, BankI {
             if (oracles[cur].enabled)
                 cur.transfer((fund == 0) ? (OracleI(cur).getPrice()) : (fund));
         }
-        requestUpdateRates();
+        requestRates();
     }
 
     /**
@@ -682,18 +682,18 @@ contract ComplexBank is Pausable, BankI {
     /**
      * @dev Get need money for oracles.
      */
-    function getOracleDeficit() public view returns (uint256) {
-        uint256 deficit = 0;
+    function requestPrice() public view returns (uint256) {
+        uint256 requestCost = 0;
         for (address curr = firstOracle; curr != 0x0; curr = oracles[curr].next) {
-            if (oracles[curr].enabled) {
-                OracleI oracle = OracleI(curr);
+            OracleI oracle = OracleI(curr);
+            if (oracles[curr].enabled && !oracle.waitQuery()) {
                 uint callPrice = oracle.getPrice();
                 if (curr.balance < callPrice) {
-                    deficit += callPrice - curr.balance;
+                    requestCost += callPrice - curr.balance;
                 }
             }   
         }
-        return deficit;
+        return requestCost;
     }
 
     /**
@@ -704,13 +704,13 @@ contract ComplexBank is Pausable, BankI {
         uint256 curBalance = this.balance;
         if ((curBalance != 0) && (cryptoFiatRateSell != 0)) {
             uint256 reserveBalance = curBalance;
-            for (uint i = buyOrderIndex; i < buyNextOrder; i++) {
+            for (uint i = BuyIndex; i < buyNextOrder; i++) {
                 if (buyOrders[i].recipient != 0x0) {
                     reserveBalance = reserveBalance.sub(buyOrders[i].amount);
                 }
             }
             reserveBalance = reserveBalance.sub(overallRefundValue);
-            uint256 canGetCryptoBySellingTokens = (libreToken.totalSupply() * RATE_MULTIPLIER) / cryptoFiatRateSell;
+            uint256 canGetCryptoBySellingTokens = (token.totalSupply() * RATE_MULTIPLIER) / cryptoFiatRateSell;
             reserve = (reserveBalance * REVERSE_PERCENT * 100) / canGetCryptoBySellingTokens;
         }
         return reserve;
@@ -719,7 +719,7 @@ contract ComplexBank is Pausable, BankI {
     /**
      * @dev Requests every enabled oracle to get the actual rate.
      */
-    function requestUpdateRates() payable public canStartEmission {
+    function requestRates() payable public canStartEmission {
         require(numEnabledOracles >= MIN_ORACLES_ENABLED);
         uint256 sendValue = msg.value;
 
@@ -740,22 +740,16 @@ contract ComplexBank is Pausable, BankI {
     }
 
     /**
-     * @dev Clears too-long-waiting oracles.
+     * @dev Clears slow oracles status; internal.
      */
-    function processWaitingOracles() internal {
+    function requestTimeout() internal {
         for (address cur = firstOracle; cur != 0x0; cur = oracles[cur].next) {
             if (!oracles[cur].enabled) 
                 continue;
 
             OracleI currentOracle = OracleI(cur);
-            if (currentOracle.waitQuery()) {
-                // If oracle wait more then 10 mins
-                if (currentOracle.updateTime() < now - 10 minutes) {
-                    currentOracle.clearState(); // Reset Oracle State
-                } else {
-                // If have oracles waited less than TIMEOUT - revert transaction
-                    revert();
-                }
+            if (currentOracle.waitQuery() && currentOracle.updateTime() > now - 10 minutes) {
+                revert();
             }
         } // foreach oracles
     }
@@ -790,16 +784,23 @@ contract ComplexBank is Pausable, BankI {
     /**
      * @dev Returns current token's total count.
      */
-    function totalTokenCount() public view returns (uint256) {
-        return libreToken.totalSupply();
+    function totalTokens() public view returns (uint256) {
+        return token.totalSupply();
     }
 
     /**
      * @dev set new owner.
-     * @param newOwner The new owner for libreToken.
+     * @param newOwner The new owner for token.
      */
     function transferTokenOwner(address newOwner) public onlyOwner {
-        libreToken.transferOwnership(newOwner);
+        token.transferOwnership(newOwner);
+    }
+
+    /**
+     * @dev Claims token ownership.
+     */
+    function claimOwnership() public onlyOwner {
+        token.claimOwnership();
     }
 
     // TODO: Delete after tests. Used to withdraw balance in test network

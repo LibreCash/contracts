@@ -1,4 +1,4 @@
-pragma solidity ^0.4.17;
+pragma solidity ^0.4.18;
 
 import "../zeppelin/ownership/Ownable.sol";
 
@@ -31,18 +31,7 @@ contract OwnOracle is Ownable {
     /**
      * @dev Constructor.
      */
-    function OwnOracle(address bank) {
-        bankAddress = bank;
-        BankSet(bankAddress);
-    }
-
-    /**
-     * @dev Clears queryId, updateTime and rate. Needs then response doesn't got properly.
-     */
-    function clearState() public onlyBank {
-        waitQuery = false;
-        rate = 0;
-        updateTime = 0;
+    function OwnOracle() {
     }
 
     /**

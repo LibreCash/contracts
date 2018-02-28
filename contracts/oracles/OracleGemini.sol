@@ -1,11 +1,12 @@
-pragma solidity ^0.4.17;
+pragma solidity ^0.4.18;
 
 import "./OracleBase.sol";
 
 /**
  * @title Gemini oracle.
  *
- * @dev https://gemini.com/.
+ * @dev URL: https://gemini.com/
+ * @dev API Docs: https://docs.gemini.com/rest-api/
  */
 contract OracleGemini is OracleBase {
     // the comment is reserved for API documentation :)
@@ -17,7 +18,7 @@ contract OracleGemini is OracleBase {
     /**
      * @dev Constructor.
      */
-    function OracleGemini(address _bankAddress) OracleBase(_bankAddress) public {
+    function OracleGemini() public {
         oracleName = ORACLE_NAME;
         oracleType = ORACLE_TYPE;
         oracleConfig = OracleConfig({datasource: ORACLE_DATASOURCE, arguments: ORACLE_ARGUMENTS});
