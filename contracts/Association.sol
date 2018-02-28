@@ -266,9 +266,9 @@ contract Association is Ownable {
             } else if (p.tp == TypeProposal.SET_SELL_LIMITS) {
                 bank.setSellLimits(p.amount, p.buffer);
             } else if (p.tp == TypeProposal.CANCEL_BUY_ORDER) {
-                bank.cancelBuyOrderOwner(p.amount);
+                bank.cancelBuyOwner(p.amount);
             } else if (p.tp == TypeProposal.CANCEL_SELL_ORDER) {
-                bank.cancelSellOrderOwner(p.amount);
+                bank.cancelSellOwner(p.amount);
             } else if (p.tp == TypeProposal.ATTACH_TOKEN) {
                 bank.attachToken(p.recipient);
             } else if (p.tp == TypeProposal.RELEVANCE_PERIOD) {
@@ -314,8 +314,8 @@ contract Association is Ownable {
         return bank.getSellOrder(_orderID);
     }
 
-    function numReadyOracles() public onlyShareholders view returns (uint256) {
-        return bank.numReadyOracles();
+    function readyOracles() public onlyShareholders view returns (uint256) {
+        return bank.readyOracles();
     }
 
     function proposalUniversal(address beneficiary, uint weiAmount, 
