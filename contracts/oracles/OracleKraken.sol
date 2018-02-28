@@ -1,11 +1,12 @@
-pragma solidity ^0.4.17;
+pragma solidity ^0.4.18;
 
 import "./OracleBase.sol";
 
 /**
  * @title Kraken oracle.
  *
- * @dev https://www.kraken.com/.
+ * @dev URL: https://www.kraken.com/
+ * @dev API Docs: https://www.kraken.com/help/api
  */
 contract OracleKraken is OracleBase {
     // the comment is reserved for API documentation :)

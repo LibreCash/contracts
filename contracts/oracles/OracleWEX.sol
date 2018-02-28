@@ -1,14 +1,14 @@
-pragma solidity ^0.4.17;
+pragma solidity ^0.4.18;
 
 import "./OracleBase.sol";
 
 /**
  * @title WEX.NZ oracle.
  *
- * @dev https://wex.nz/.
+ * @dev URL: https://wex.nz/
+ * @dev API Docs: https://wex.nz/api/3/docs
  */
 contract OracleWEX is OracleBase {
-    // the comment is reserved for API documentation :)
     bytes32 constant ORACLE_NAME = "WEX Oraclize Async";
     bytes16 constant ORACLE_TYPE = "ETHUSD";
     string constant ORACLE_DATASOURCE = "URL";

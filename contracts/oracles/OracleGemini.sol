@@ -1,11 +1,12 @@
-pragma solidity ^0.4.17;
+pragma solidity ^0.4.18;
 
 import "./OracleBase.sol";
 
 /**
  * @title Gemini oracle.
  *
- * @dev https://gemini.com/.
+ * @dev URL: https://gemini.com/
+ * @dev API Docs: https://docs.gemini.com/rest-api/
  */
 contract OracleGemini is OracleBase {
     // the comment is reserved for API documentation :)

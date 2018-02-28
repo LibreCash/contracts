@@ -1,4 +1,4 @@
-pragma solidity ^0.4.17;
+pragma solidity ^0.4.18;
 
 import "./OraclizeAPI.sol";
 import "../zeppelin/ownership/Ownable.sol";
@@ -80,16 +80,6 @@ contract OracleBase is Ownable, usingOraclize, OracleI {
     function setGasLimit(uint256 _gasLimit) public onlyOwner {
         require((_gasLimit >= MIN_GAS_LIMIT) && (_gasLimit <= MAX_GAS_LIMIT));
         gasLimit = _gasLimit;
-    }
-
-    /**
-     * Clears queryId, updateTime and rate.
-     */
-    function clearState() public onlyBank {
-        waitQuery = false;
-        rate = 0;
-        updateTime = 0;
-        callbackTime = 0;
     }
 
     /**

@@ -1,14 +1,14 @@
-pragma solidity ^0.4.17;
+pragma solidity ^0.4.18;
 
 import "./OracleBase.sol";
 
 /**
  * @title GDAX oracle.
  *
- * @dev https://www.gdax.com/.
+ * @dev URL: https://www.gdax.com/
+ * @dev API Docs: https://docs.gdax.com
  */
 contract OracleGDAX is OracleBase {
-    // the comment is reserved for API documentation :)
     bytes32 constant ORACLE_NAME = "GDAX Oraclize Async";
     bytes16 constant ORACLE_TYPE = "ETHUSD";
     string constant ORACLE_DATASOURCE = "URL";

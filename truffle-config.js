@@ -1,18 +1,33 @@
 module.exports = {
   networks: {
+    // Local node (eg.testrpc)
+    // Deploy mocked oracles
     development: {
       host: "localhost",
       port: 8545,
-      network_id: "dev", // local
-      gas: 6000000 // чтобы деплоилось - править когда gas limit ему не нравится (дефолт вроде как 4712388, и с ним ошибка)
-      // https://github.com/trufflesuite/truffle/issues/271
+      network_id: "*",
+      gasPrice: 100000000000,
+      gas: 6000000
     },
+    // ETH Main Network
+    // Deploy Oraclize oracles
+    // Also gas price is lower (decrease deploy cost)
     mainnet: {
-      network_id: "mainnet", // rinkeby, ropsten, main network, etc.
+      network_id: "*", // rinkeby, ropsten, main network, etc.
+      gasPrice: 20000000000, //  20 Gwei 
       host: "localhost",
       port: 8545,
-      gas: 6000000 // чтобы деплоилось - править когда gas limit ему не нравится (дефолт вроде как 4712388, и с ним ошибка)
-    }
+      gas: 6000000
+    },
+	  // ETH Test Network (eg Ropsten or Rinkeby)
+	  // Deploy Oraclize oracles
+    testnet: {
+        network_id: "*", // rinkeby, ropsten, main network, etc.
+        gasPrice: 50000000000, //  50 Gwei 
+        host: "localhost",
+        port: 8545,
+        gas: 6000000
+      }
   },
    
   // add a section for mocha defaults
