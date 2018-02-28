@@ -5,7 +5,7 @@ const
 module.exports = async function(deployer, network) {
   let
     сontractsList = {
-      base: ['token/LibreCash', 'ComplexBank','ComplexExchanger'],
+      base: ['token/LibreCash', 'token/LibertyToken', 'ComplexBank','ComplexExchanger', 'Association'],
       mainnet:[
         'oracles/OracleBitfinex',
         'oracles/OracleBitstamp',
@@ -76,7 +76,7 @@ async function applyDeps(contracts) {
         await addOracle(exchanger,oracle);
     }
 
-    if (search(name, "token") || search(name, "cash")) {
+    if (search(name, "token/LibreCash")) {
         token = await contracts[name].deployed(),
         await attachToken(bank,token);
         await attachToken(exchanger,token);
