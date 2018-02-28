@@ -28,6 +28,7 @@ contract ComplexBank is Pausable, BankI {
 
     uint256 public relevancePeriod = 23 hours;
     uint256 public queuePeriod = 60 minutes;
+    bool public finishQueue = false;
     uint256 public timeUpdateRequest = 0; // the time of requestRates()
     uint256 public timeCalcRates = 0; // the time of calcRates()
     uint256 public oracleTimeout = 10 minutes; // Timeout to wait oracle data
@@ -74,7 +75,7 @@ contract ComplexBank is Pausable, BankI {
         if (now >= timeUpdateRequest + relevancePeriod)
             return State.REQUEST_RATES;
 
-        if (now > timeUpdateRequest + queuePeriod)
+        if (finishQueue || now > timeUpdateRequest + queuePeriod)
             return State.ORDER_CREATION;
 
         if (waitingOracles() > 0)
@@ -118,6 +119,8 @@ contract ComplexBank is Pausable, BankI {
             timestamp: now,
             rateLimit: _rateLimit
         });
+        if (!finishQueue)
+            finishQueue = true;
     }
 
     /**
@@ -147,6 +150,8 @@ contract ComplexBank is Pausable, BankI {
             timestamp: now,
             rateLimit: _rateLimit
         });
+        if (!finishQueue)
+            finishQueue = true;
     }
 
     /**
@@ -771,6 +776,7 @@ contract ComplexBank is Pausable, BankI {
             }
         } // foreach oracles
         timeUpdateRequest = now;
+        finishQueue = false;
     }
 
     /**

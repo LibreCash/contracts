@@ -81,7 +81,14 @@ contract('ComplexBank', function(accounts) {
             await bank.requestRates({value: MORE_THAN_COSTS});
             state = +await bank.getState.call();
             assert.notEqual(state, StateENUM.REQUEST_RATES, "Don't right state after requestRates!");
-            // more
+
+            for (let i=0; i < (oracles.length - bankConfig.MIN_READY_ORACLES + 1); i++) {
+                let oracle = await oracles[i].deployed();
+                await oracle.setRate(0);
+            }
+            state = +await bank.getState.call();
+            assert.equal(state, StateENUM.REQUEST_RATES, 
+                "Don't right state if not enough ready oracles!");
         });
 
         it('ORDER_CREATION', async function() {
@@ -89,10 +96,17 @@ contract('ComplexBank', function(accounts) {
             let state = +await bank.getState.call();
             assert.notEqual(state, StateENUM.ORDER_CREATION, "Don't right state after deploy!");
 
-            timeMachine.jump(1+await bank.queuePeriod.call());
+            let queuePeriod = +await bank.queuePeriod.call();
+            timeMachine.jump(1 + queuePeriod);
             state = +await bank.getState.call();
             assert.equal(state, StateENUM.ORDER_CREATION, "Don't right state after queue period!");
-            //more
+            
+            let relevancePeriod = +await bank.relevancePeriod.call();
+            timeMachine.jump(relevancePeriod - queuePeriod);
+            await bank.requestRates({value: MORE_THAN_COSTS});
+            await bank.calcRates();
+            state = +await bank.getState.call();
+            assert.equal(state, StateENUM.ORDER_CREATION, "Don't right state if not orders!");
         });
 
         it('WAIT_ORACLES',async function() {
@@ -120,7 +134,7 @@ contract('ComplexBank', function(accounts) {
                 "Don't right state! Ready oracle < MIN_READY_ORACLES");
         });
 
-        it.only('PROCESS_ORDERS',async function() {
+        it('PROCESS_ORDERS',async function() {
             await bank.requestRates({value: MORE_THAN_COSTS});
             await bank.calcRates();
             let state = +await bank.getState.call();
@@ -128,11 +142,10 @@ contract('ComplexBank', function(accounts) {
                 "Don't have orders! But state PROCESS_ORDERS");
 
             await bank.sendTransaction({value: 10000});
-            //timeMachine.jump(1 + await bank.relevancePeriod.call());
+            let relevancePeriod = +await bank.relevancePeriod.call();
+            timeMachine.jump(1 + relevancePeriod);
 
-            console.log("state",+await bank.getState.call());
             await bank.requestRates({value: MORE_THAN_COSTS});
-            console.log("state",+await bank.getState.call());
             await bank.calcRates();
             state = +await bank.getState.call();
             assert.equal(state, StateENUM.PROCESS_ORDERS, "Don't right state if have orders!");
