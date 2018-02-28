@@ -430,7 +430,7 @@ contract ComplexBank is Pausable, BankI {
     /**
      * @dev Gets sell order count.
      */
-    function getSellsCount() public view returns(uint256) {
+    function getSellOrdersCount() public view returns(uint256) {
         uint256 count = 0;
         for (uint256 i = SellIndex; i < sellNextOrder; i++) {
             if (sellOrders[i].recipient != 0x0) 
@@ -442,7 +442,7 @@ contract ComplexBank is Pausable, BankI {
     /**
      * @dev Gets buy order count.
      */
-    function getBuysCount() public view returns(uint256) {
+    function getBuyOrdersCount() public view returns(uint256) {
         uint256 count = 0;
         for (uint256 i = BuyIndex; i < buyNextOrder; i++) {
             if (buyOrders[i].recipient != 0x0) 
