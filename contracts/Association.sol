@@ -23,7 +23,7 @@ contract Association is Ownable {
 
     uint constant MINIMAL_VOTE_BALANCE = 0;
 
-    event ProposalAdded(uint proposalID, address recipient, uint amount, string description, uint deadLine);
+    event ProposalAdded(uint proposalID, address recipient, uint amount, uint buffer, string description, uint deadLine);
     event Voted(uint proposalID, bool position, address voter);
     event ProposalTallied(uint proposalID, int result, uint quorum);
     event ProposalBlocking(uint proposalID, address recipient, uint amount, string description);
@@ -196,7 +196,7 @@ contract Association is Ownable {
                                 debatingPeriodInMinutes : minDebatingPeriodInMinutes) * 1 minutes;
         p.numberOfVotes = 0;
         numProposals = numProposals.add(1);
-        ProposalAdded(proposalID, beneficiary, weiAmount, jobDescription, p.votingDeadline);
+        ProposalAdded(proposalID, beneficiary, weiAmount, _buffer, jobDescription, p.votingDeadline);
 
         return proposalID;
     }
