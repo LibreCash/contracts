@@ -20,8 +20,8 @@ module.exports = function(deployer, network) {
             'oracles/OracleMockTest'
         ]
         },
-        deployBank = false,
-        deployDAO = false, // is actual when deployBank only
+        deployBank = true,
+        deployDAO = true, // is actual when deployBank only
 
         appendContract = (network == "mainnet" || network == "testnet") ? сontractsList.mainnet : сontractsList.local,
         oracles = appendContract.map((oracle) => {
@@ -81,6 +81,16 @@ module.exports = function(deployer, network) {
                 /* minimumSharesToPassAVote: */ 1,
                 /* minMinutesForDebate: */ 1
             );
+        }
+    })
+    .then(() => {
+        if (deployBank && deployDAO) {
+            return Promise.all([exchanger.deployed(), association.deployed()])
+        }
+    })
+    .then(() => {
+        if (deployBank && deployDAO) {
+            return exchanger.transferOwnership(association.address)
         }
     })
     .then(() => {
