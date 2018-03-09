@@ -724,7 +724,7 @@ contract ComplexBank is Pausable, BankI {
         uint256 requestCost = 0;
         for (address curr = firstOracle; curr != 0x0; curr = oracles[curr].next) {
             OracleI oracle = OracleI(curr);
-            if (oracles[curr].enabled && !oracle.waitQuery()) {
+            if (oracles[curr].enabled) {
                 uint callPrice = oracle.getPrice();
                 if (curr.balance < callPrice) {
                     requestCost += callPrice - curr.balance;
@@ -769,10 +769,8 @@ contract ComplexBank is Pausable, BankI {
                     sendValue = sendValue.sub(callPrice);
                     cur.transfer(callPrice);
                 }
-                if (!oracle.waitQuery()) {
-                    if (oracle.updateRate())
-                        OracleRequest(cur, oracles[cur].name);
-                }
+                if (oracle.updateRate())
+                    OracleRequest(cur, oracles[cur].name);
             }
         } // foreach oracles
         timeUpdateRequest = now;
