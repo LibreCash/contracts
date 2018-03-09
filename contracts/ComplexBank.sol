@@ -507,7 +507,7 @@ contract ComplexBank is Pausable, BankI {
     uint256 public cryptoFiatRateSell = 1000;
     uint256 public buyFee = 0;
     uint256 public sellFee = 0;
-    uint256 constant MAX_FEE = 7000; // 70%
+    uint256 constant MAX_FEE = 70 * REVERSE_PERCENT; // 70%
 
     address public scheduler;
 
@@ -724,7 +724,7 @@ contract ComplexBank is Pausable, BankI {
         uint256 requestCost = 0;
         for (address curr = firstOracle; curr != 0x0; curr = oracles[curr].next) {
             OracleI oracle = OracleI(curr);
-            if (oracles[curr].enabled && !oracle.waitQuery()) {
+            if (oracles[curr].enabled) {
                 uint callPrice = oracle.getPrice();
                 if (curr.balance < callPrice) {
                     requestCost += callPrice - curr.balance;
@@ -769,10 +769,8 @@ contract ComplexBank is Pausable, BankI {
                     sendValue = sendValue.sub(callPrice);
                     cur.transfer(callPrice);
                 }
-                if (!oracle.waitQuery()) {
-                    if (oracle.updateRate())
-                        OracleRequest(cur, oracles[cur].name);
-                }
+                if (oracle.updateRate())
+                    OracleRequest(cur, oracles[cur].name);
             }
         } // foreach oracles
         timeUpdateRequest = now;
@@ -814,8 +812,8 @@ contract ComplexBank is Pausable, BankI {
                 maximalRate = Math.max256(_rate, maximalRate);
             }
         } // foreach oracles
-        cryptoFiatRateBuy = minimalRate.mul(REVERSE_PERCENT * RATE_MULTIPLIER - buyFee * RATE_MULTIPLIER / REVERSE_PERCENT) / REVERSE_PERCENT / RATE_MULTIPLIER;
-        cryptoFiatRateSell = maximalRate.mul(REVERSE_PERCENT * RATE_MULTIPLIER + sellFee * RATE_MULTIPLIER / REVERSE_PERCENT) / REVERSE_PERCENT / RATE_MULTIPLIER;
+        cryptoFiatRateBuy = minimalRate.mul(REVERSE_PERCENT * RATE_MULTIPLIER - buyFee * RATE_MULTIPLIER / 100) / REVERSE_PERCENT / RATE_MULTIPLIER;
+        cryptoFiatRateSell = maximalRate.mul(REVERSE_PERCENT * RATE_MULTIPLIER + sellFee * RATE_MULTIPLIER / 100) / REVERSE_PERCENT / RATE_MULTIPLIER;
         timeCalcRates = now;
     }
     // 04-spread calc end
