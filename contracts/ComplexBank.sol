@@ -507,7 +507,7 @@ contract ComplexBank is Pausable, BankI {
     uint256 public cryptoFiatRateSell = 1000;
     uint256 public buyFee = 0;
     uint256 public sellFee = 0;
-    uint256 constant MAX_FEE = 7000; // 70%
+    uint256 constant MAX_FEE = 70 * REVERSE_PERCENT; // 70%
 
     address public scheduler;
 
@@ -812,8 +812,8 @@ contract ComplexBank is Pausable, BankI {
                 maximalRate = Math.max256(_rate, maximalRate);
             }
         } // foreach oracles
-        cryptoFiatRateBuy = minimalRate.mul(REVERSE_PERCENT * RATE_MULTIPLIER - buyFee * RATE_MULTIPLIER / REVERSE_PERCENT) / REVERSE_PERCENT / RATE_MULTIPLIER;
-        cryptoFiatRateSell = maximalRate.mul(REVERSE_PERCENT * RATE_MULTIPLIER + sellFee * RATE_MULTIPLIER / REVERSE_PERCENT) / REVERSE_PERCENT / RATE_MULTIPLIER;
+        cryptoFiatRateBuy = minimalRate.mul(REVERSE_PERCENT * RATE_MULTIPLIER - buyFee * RATE_MULTIPLIER / 100) / REVERSE_PERCENT / RATE_MULTIPLIER;
+        cryptoFiatRateSell = maximalRate.mul(REVERSE_PERCENT * RATE_MULTIPLIER + sellFee * RATE_MULTIPLIER / 100) / REVERSE_PERCENT / RATE_MULTIPLIER;
         timeCalcRates = now;
     }
     // 04-spread calc end
