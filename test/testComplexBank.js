@@ -225,7 +225,7 @@ contract('ComplexBank', function(accounts) {
         });
         afterEach("revert", reverter.revert);
 
-        it.only("buy value", async function() {
+        it("buy value", async function() {
             await assertTx.fail(bank.buyTokens(owner, {value: 1}),
               "Tx need to fail if send 0 Tokens");
             await assertTx.success(bank.buyTokens(owner, {value: 1000}),
@@ -235,6 +235,87 @@ contract('ComplexBank', function(accounts) {
                 balance = +await token.balanceOf(owner);
 
             assert.equal(buyRate, balance, "Buy and get tokens not equal!");
+        });
+
+        it("when paused", async function() {
+            await bank.pause();
+            await assertTx.fail(bank.buyTokens(owner, {value: web3.toWei(1,'ether')}),
+              'Not fail in buyTokens if bank paused!');
+            await bank.unpause();
+        });
+
+        it("another recipient", async function() {
+            await bank.buyTokens(0, {value: 1000});
+
+            let buyRate = +await bank.buyRate.call(),
+                balance = +await token.balanceOf(owner);
+
+            assert.equal(buyRate, balance, "Buy and get tokens not equal if recipient = 0!");
+
+            await bank.buyTokens(acc1, {value: 1000});
+            balance = +await token.balanceOf(acc1);
+
+            assert.equal(buyRate, balance, "Buy and get tokens not equal for acc1!");
+        });
+    });
+
+    context("sell tokens", function() {
+        before("init", reverter.snapshot);
+        beforeEach("calcRates",async function() {
+            await bank.requestRates({value: MORE_THAN_COSTS});
+            await bank.calcRates();
+            let state = +await bank.getState.call();
+            assert.equal(state,StateENUM.PROCESSING_ORDERS,"Wrong state!");
+
+            await bank.buyTokens(owner,{value: web3.toWei(1,'ether')});
+        });
+        afterEach("revert", reverter.revert);
+
+        it("when paused", async function() {
+            await bank.pause();
+            await assertTx.fail(bank.buyTokens(owner, {value: 1000}),
+              'Not fail in buyTokens if bank paused!');
+            await bank.unpause();
+        });
+
+        it("count tokens", async function() {
+            let balance = +await token.balanceOf(owner);
+            await assertTx.fail(bank.sellTokens(owner,1),
+              "Not allowance, tx don't fail!");
+            await token.approve(bank.address, balance);
+            await assertTx.success(bank.sellTokens(owner,balance/2));
+
+            balance = +await token.balanceOf(owner);
+            await token.burn(balance)
+
+            await assertTx.fail(bank.sellTokens(owner,balance),
+              "Tx not fail, if balance == 0!")
+        });
+
+        it.only("balance < need", async function() {
+            timeMachine.jump(exConfig.RATE_PERIOD + 1);
+            await bank.requestRates({value: MORE_THAN_COSTS});
+
+            for (let i = 0; i < oracles.length; i++) {
+              let oracle = await oracles[i].deployed(),
+                  rate = +await oracle.rate.call();
+              await oracle.setRate(rate / 1000);
+            }
+
+            await bank.calcRates();
+
+            let balanceBefore = await token.balanceOf(owner),
+                ethBefore = web3.eth.getBalance(owner);
+
+            await token.approve(bank.address, balanceBefore)
+            await bank.sellTokens(owner,balanceBefore);
+
+            let balanceAfter = await token.balanceOf(owner),
+                ethAfter = web3.eth.getBalance(owner);
+
+            assert.isTrue(balanceBefore > balanceAfter);
+            assert.isTrue(ethBefore < ethAfter);
+            assert.equal(web3.eth.getBalance(bank.address),0);
         });
     });
 

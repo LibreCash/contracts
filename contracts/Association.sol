@@ -1,4 +1,4 @@
-pragma solidity ^0.4.16;
+pragma solidity ^0.4.18;
 
 import "./zeppelin/ownership/Ownable.sol";
 import "./zeppelin/token/ERC20.sol";
@@ -7,7 +7,7 @@ import "./token/LibreCash.sol";
 import "./ComplexBank.sol";
 
 /**
- * The shareholder association contract itself
+ * The shareholder association contract itsel
  */
 contract Association is Ownable {
     using SafeMath for uint256;
@@ -33,21 +33,20 @@ contract Association is Ownable {
         CLEAN,
         UNIVERSAL,
         TRANSFER_OWNERSHIP,
-        SET_BUY_LIMITS,
-        SET_SELL_LIMITS,
-        CANCEL_BUY_ORDER,
-        CANCEL_SELL_ORDER,
         ATTACH_TOKEN,
         SET_BANK_ADDRESS,
-        RELEVANCE_PERIOD,
-        QUEUE_PERIOD,
         SET_FEES,
         ADD_ORACLE,
         DISABLE_ORACLE,
         ENABLE_ORACLE,
         DELETE_ORACLE,
         SET_SCHEDULER,
-        WITHDRAW_BALANCE
+        WITHDRAW_BALANCE,
+        SET_ORACLE_TIMEOUT,
+        SET_ORACLE_ACTUAL,
+        SET_RATE_PERIOD,
+        SET_LOCK,
+        CLAIM_OWNERSHIP
     }
 
     struct Proposal {
@@ -261,20 +260,8 @@ contract Association is Ownable {
             else if (p.tp == TypeProposal.TRANSFER_OWNERSHIP) {
                 bank.transferOwnership(p.recipient);
                 cash.transferOwnership(p.recipient);
-            } else if (p.tp == TypeProposal.SET_BUY_LIMITS) {
-                bank.setBuyLimits(p.amount, p.buffer);
-            } else if (p.tp == TypeProposal.SET_SELL_LIMITS) {
-                bank.setSellLimits(p.amount, p.buffer);
-            } else if (p.tp == TypeProposal.CANCEL_BUY_ORDER) {
-                bank.cancelBuyOwner(p.amount);
-            } else if (p.tp == TypeProposal.CANCEL_SELL_ORDER) {
-                bank.cancelSellOwner(p.amount);
             } else if (p.tp == TypeProposal.ATTACH_TOKEN) {
                 bank.attachToken(p.recipient);
-            } else if (p.tp == TypeProposal.RELEVANCE_PERIOD) {
-                bank.setRelevancePeriod(p.amount);
-            } else if (p.tp == TypeProposal.QUEUE_PERIOD) {
-                bank.setQueuePeriod(p.amount);
             } else if (p.tp == TypeProposal.SET_FEES) {
                 bank.setFees(p.amount, p.buffer);
             } else if (p.tp == TypeProposal.ADD_ORACLE) {
@@ -289,29 +276,13 @@ contract Association is Ownable {
                 bank.setScheduler(p.recipient);
             } else if (p.tp == TypeProposal.WITHDRAW_BALANCE) {
                 bank.withdrawBalance();
-            }                
+            }
         }
 
         proposals[proposalID].tp = TypeProposal.CLEAN;
         numProposals = numProposals.sub(1);
         // Fire Events
         ProposalTallied(proposalID, int(yea - nay), quorum);
-    }
-
-    function getBalance(address _address) public view onlyShareholders returns (uint256) {
-        return bank.getBalance(_address);
-    }
-
-    function getBuyOrder(uint256 _orderID) public onlyShareholders view 
-        returns (address, address, uint256, uint256, uint256) 
-    {
-        return bank.getBuyOrder(_orderID);
-    }
-
-    function getSellOrder(uint256 _orderID) public onlyShareholders view 
-        returns (address, address, uint256, uint256, uint256) 
-    {
-        return bank.getSellOrder(_orderID);
     }
 
     function readyOracles() public onlyShareholders view returns (uint256) {
@@ -343,53 +314,11 @@ contract Association is Ownable {
                             jobDescription, debatingPeriodInMinutes, "0");
     }
 
-    function proposalSetBuyLimits(uint _minBuyInWei, uint _maxBuyInWei, string jobDescription, uint debatingPeriodInMinutes) 
-        public onlyShareholders returns (uint proposalID) 
-    {
-        return newProposal(TypeProposal.SET_BUY_LIMITS, address(0), _minBuyInWei, _maxBuyInWei, 
-                            jobDescription, debatingPeriodInMinutes, "0");
-    }
-
-    function proposalSetSellLimits(uint _minSellLimit, uint _maxSellLimit, string jobDescription, uint debatingPeriodInMinutes) 
-        public onlyShareholders returns (uint proposalID) 
-    {
-        return newProposal(TypeProposal.SET_SELL_LIMITS, address(0), _minSellLimit, _maxSellLimit, 
-                            jobDescription, debatingPeriodInMinutes, "0");
-    }
-
-    function proposalCancelBuyOrder(uint256 _orderID, string jobDescription, uint debatingPeriodInMinutes) 
-        public onlyShareholders returns (uint proposalID) 
-    {
-        return newProposal(TypeProposal.CANCEL_BUY_ORDER, address(0), _orderID, 0, 
-                            jobDescription, debatingPeriodInMinutes, "0");
-    }
-
-    function proposalCancelSellOrder(uint256 _orderID, string jobDescription, uint debatingPeriodInMinutes) 
-        public onlyShareholders returns (uint proposalID)  
-    {
-        return newProposal(TypeProposal.CANCEL_SELL_ORDER, address(0), _orderID, 0, 
-                            jobDescription, debatingPeriodInMinutes, "0");
-    }
-
     function proposalAttachToken(address _tokenAddress, string jobDescription, uint debatingPeriodInMinutes) 
         public onlyShareholders returns (uint proposalID) 
     {
         require(_tokenAddress != address(0x0));
         return newProposal(TypeProposal.ATTACH_TOKEN, _tokenAddress, 0, 0, 
-                            jobDescription, debatingPeriodInMinutes, "0");
-    }
-
-    function proposalRelevancePeriod(uint256 _period, string jobDescription, uint debatingPeriodInMinutes) 
-        public onlyShareholders returns (uint proposalID) 
-    {
-        return newProposal(TypeProposal.RELEVANCE_PERIOD, address(0), _period, 0, 
-                            jobDescription, debatingPeriodInMinutes, "0");
-    }
-
-    function proposalQueuePeriod(uint256 _period, string jobDescription, uint debatingPeriodInMinutes) 
-        public onlyShareholders returns (uint proposalID) 
-    {
-        return newProposal(TypeProposal.QUEUE_PERIOD, address(0), _period, 0, 
                             jobDescription, debatingPeriodInMinutes, "0");
     }
 
