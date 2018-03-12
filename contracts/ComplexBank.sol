@@ -11,20 +11,14 @@ contract ComplexBank is Pausable, BankI {
     using SafeMath for uint256;
     address public tokenAddress;
     LibreCash token;
-    
+
     event Buy(address sender, address recipient, uint256 tokenAmount, uint256 price);
     event Sell(address sender, address recipient, uint256 cryptoAmount, uint256 price);
-    event SellQueueProcessed();
-    event BuyQueueProcessed();
-    event NotEnoughMoney(address recipient);
-    event ErrorSendingEther(address recipient);
-    event BuyCancelled(uint256 orderId, address sender, uint256 cryptoAmount, uint256 parameter);
-    event SellCancelled(uint256 orderId, address sender, uint256 tokenAmount, uint256 parameter);
-    
-    uint256 constant MIN_READY_ORACLES = 2;
-    uint256 constant MIN_ORACLES_ENABLED = 2;
-    uint256 constant REVERSE_PERCENT = 100;
-    uint256 constant RATE_MULTIPLIER = 1000; // doubling in oracleBase __callback as parseIntRound(..., 3) as 3
+
+    uint256 constant public MIN_READY_ORACLES = 2;
+    uint256 constant public MIN_ORACLES_ENABLED = 2;
+    uint256 constant public REVERSE_PERCENT = 100;
+    uint256 constant public RATE_MULTIPLIER = 1000; // doubling in oracleBase __callback as parseIntRound(..., 3) as 3
 
     uint256 public timeUpdateRequest = 0; // the time of requestRates()
     uint256 public calcTime = 0; // the time of calcRates()
@@ -104,12 +98,11 @@ contract ComplexBank is Pausable, BankI {
         uint256 tokensAmount = msg.value.mul(buyRate) / RATE_MULTIPLIER;
         require(tokensAmount != 0);
 
-        uint256 refundAmount = 0;
         // if recipient set as 0x0 - recipient is sender
         address recipient = _recipient == 0x0 ? msg.sender : _recipient;
 
         token.mint(recipient, tokensAmount);
-        reserveTokens += tokensAmount;
+        reserveTokens = reserveTokens.add(tokensAmount);
         Buy(msg.sender, recipient, tokensAmount, buyRate);
     }
 
@@ -136,7 +129,7 @@ contract ComplexBank is Pausable, BankI {
 
         token.transferFrom(msg.sender, this, tokensCount);
         token.burn(tokensCount);
-        reserveTokens -= tokensCount;
+        reserveTokens = reserveTokens.sub(tokensCount);
         address recipient = _recipient == 0x0 ? msg.sender : _recipient;
 
         Sell(msg.sender, recipient, cryptoAmount, sellRate);
@@ -224,7 +217,7 @@ contract ComplexBank is Pausable, BankI {
             OracleI currentOracle = OracleI(current);
             if ((currentOracle.rate() != 0) &&
                 !currentOracle.waitQuery() &&
-                (now - currentOracle.callbackTime()) < oracleActual) // maybe not need
+                (now - currentOracle.callbackTime()) < oracleActual)
                 count++;
         }
         return count;
@@ -255,6 +248,30 @@ contract ComplexBank is Pausable, BankI {
     }
 
     /**
+     * @dev Lets owner to set  Oracle actual period.
+     * @param _period Oracle data actual timeout.
+     */
+    function setOracleActual(uint256 _period) public onlyOwner {
+        oracleActual = _period;
+    }
+
+    /**
+     * @dev Lets owner to set  rate period.
+     * @param _period rate period.
+     */
+    function setRatePeriod(uint256 _period) public onlyOwner {
+        ratePeriod = _period;
+    }
+
+    /**
+     * @dev Lets owner to set  locked contract.
+     * @param lock Set locked value.
+     */
+    function setLock(bool lock) public onlyOwner {
+        locked = lock;
+    }
+
+    /**
      * @dev Returns whether the oracle exists in the bank.
      * @param _oracle The oracle's address.
      */
@@ -272,14 +289,14 @@ contract ComplexBank is Pausable, BankI {
         require(_sellFee <= MAX_FEE);
 
         if (sellFee != _sellFee) {
-            uint256 maximalOracleRate = sellRate.mul(RATE_MULTIPLIER).mul(REVERSE_PERCENT) / (RATE_MULTIPLIER * REVERSE_PERCENT + sellFee * RATE_MULTIPLIER / REVERSE_PERCENT);
+            uint256 maximalOracleRate = sellRate.mul(RATE_MULTIPLIER).mul(REVERSE_PERCENT) / (RATE_MULTIPLIER * REVERSE_PERCENT + sellFee * RATE_MULTIPLIER / 100);
             sellFee = _sellFee;
-            sellRate = maximalOracleRate.mul(RATE_MULTIPLIER * REVERSE_PERCENT + sellFee * RATE_MULTIPLIER / REVERSE_PERCENT) / (RATE_MULTIPLIER * REVERSE_PERCENT);
+            sellRate = maximalOracleRate.mul(RATE_MULTIPLIER * REVERSE_PERCENT + sellFee * RATE_MULTIPLIER / 100) / (RATE_MULTIPLIER * REVERSE_PERCENT);
         }
         if (buyFee != _buyFee) {
-            uint256 minimalOracleRate = buyRate.mul(RATE_MULTIPLIER * REVERSE_PERCENT) / (RATE_MULTIPLIER * REVERSE_PERCENT - buyFee * RATE_MULTIPLIER / REVERSE_PERCENT);
+            uint256 minimalOracleRate = buyRate.mul(RATE_MULTIPLIER * REVERSE_PERCENT) / (RATE_MULTIPLIER * REVERSE_PERCENT - buyFee * RATE_MULTIPLIER / 100);
             buyFee = _buyFee;
-            buyRate = minimalOracleRate.mul(RATE_MULTIPLIER * REVERSE_PERCENT - buyFee * RATE_MULTIPLIER / REVERSE_PERCENT) / (RATE_MULTIPLIER * REVERSE_PERCENT);
+            buyRate = minimalOracleRate.mul(RATE_MULTIPLIER * REVERSE_PERCENT - buyFee * RATE_MULTIPLIER / 100) / (RATE_MULTIPLIER * REVERSE_PERCENT);
         }
     }
     
@@ -429,21 +446,6 @@ contract ComplexBank is Pausable, BankI {
         timeUpdateRequest = now;
     }
 
-    /**
-     * @dev Clears slow oracles status; internal.
-     */
-    function requestTimeout() internal {
-        for (address cur = firstOracle; cur != 0x0; cur = oracles[cur].next) {
-            if (!oracles[cur].enabled) 
-                continue;
-
-            OracleI currentOracle = OracleI(cur);
-            if (currentOracle.waitQuery() && currentOracle.updateTime() > now - 10 minutes) {
-                revert();
-            }
-        } // foreach oracles
-    }
-
      // 03-oracles methods end
 
 
@@ -471,13 +473,6 @@ contract ComplexBank is Pausable, BankI {
     // 04-spread calc end
 
     // system methods start
-
-    /**
-     * @dev Returns current token's total count.
-     */
-    function totalTokens() public view returns (uint256) {
-        return token.totalSupply();
-    }
 
     /**
      * @dev set new owner.
