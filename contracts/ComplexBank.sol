@@ -20,7 +20,7 @@ contract ComplexBank is Pausable, BankI {
     uint256 constant public REVERSE_PERCENT = 100;
     uint256 constant public RATE_MULTIPLIER = 1000; // doubling in oracleBase __callback as parseIntRound(..., 3) as 3
 
-    uint256 public timeUpdateRequest = 0; // the time of requestRates()
+    uint256 public requestTime = 0; // the time of requestRates()
     uint256 public calcTime = 0; // the time of calcRates()
     uint256 public oracleTimeout = 10 minutes; // Timeout to wait oracle data
     uint256 public oracleActual = 10 minutes;
@@ -231,7 +231,7 @@ contract ComplexBank is Pausable, BankI {
         for (address current = firstOracle; current != 0x0; current = oracles[current].next) {
             if (!oracles[current].enabled) 
                 continue;
-            if (OracleI(current).waitQuery() && (now - timeUpdateRequest) < oracleTimeout) {
+            if (OracleI(current).waitQuery() && (now - requestTime) < oracleTimeout) {
                 count++;
             }
         }
@@ -443,7 +443,10 @@ contract ComplexBank is Pausable, BankI {
                     OracleRequest(cur, oracles[cur].name);
             }
         } // foreach oracles
-        timeUpdateRequest = now;
+        requestTime = now;
+        
+        if (sendValue > 0)
+            msg.sender.transfer(sendValue);
     }
 
      // 03-oracles methods end
