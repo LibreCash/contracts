@@ -24,7 +24,7 @@ contract ComplexExchanger is ExchangerI {
     uint256 public buyFee;
     uint256 public sellFee;
 
-    uint256 constant ORACLE_ACTUAL = 10 minutes;
+    uint256 constant ORACLE_ACTUAL = 15 minutes;
     uint256 constant ORACLE_TIMEOUT = 10 minutes;
     uint256 constant RATE_PERIOD = 10 minutes;
     uint256 constant MIN_READY_ORACLES = 2;
