@@ -42,14 +42,6 @@ contract ComplexBank is Pausable, BankI {
         _;
     }
 
-    struct Limit {
-        uint256 min;
-        uint256 max;
-    }
-
-    Limit public buyLimit = Limit(1 wei, 99999 * 1 ether);
-    Limit public sellLimit = Limit(1 wei, 99999 * 1 ether);
-
     function ComplexBank(address _token, uint256 _buyFee, uint256 _sellFee, address[] _oracles) 
         public
     {
