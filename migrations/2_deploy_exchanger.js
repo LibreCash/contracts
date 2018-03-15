@@ -70,6 +70,16 @@ module.exports = function(deployer, network) {
     })
     .then(() => Promise.all(oracles.map((oracle) => oracle.deployed())))
     .then((contracts) => Promise.all(contracts.map((oracle) => oracle.setBank(exchanger.address))))
+    .then(() => cash.deployed())
+    .then((cashInstance) => {
+        if (deployBank)
+            return cashInstance.transferOwnership(exchanger.address)
+    })
+    .then(() => exchanger.deployed())
+    .then((exchangerInstance) => {
+        if (deployBank)
+            return exchangerInstance.claimOwnership()
+    })
     .then(() => {
         if (deployBank && deployDAO) {
             return deployer.deploy(

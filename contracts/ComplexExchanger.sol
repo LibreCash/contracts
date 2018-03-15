@@ -28,7 +28,7 @@ contract ComplexExchanger is ExchangerI {
     uint256 constant ORACLE_TIMEOUT = 10 minutes;
     uint256 constant RATE_PERIOD = 10 minutes;
     uint256 constant MIN_READY_ORACLES = 2;
-    uint256 constant REVERSE_PERCENT = 100;
+    uint256 constant FEE_MULTIPLIER = 100;
     uint256 constant RATE_MULTIPLIER = 1000;
     uint256 constant MAX_RATE = 5000 * RATE_MULTIPLIER;
     uint256 constant MIN_RATE = 100 * RATE_MULTIPLIER;
@@ -217,8 +217,8 @@ contract ComplexExchanger is ExchangerI {
         if (validOracles < MIN_READY_ORACLES)
             revert();
 
-        buyRate = minRate.mul(REVERSE_PERCENT * RATE_MULTIPLIER - buyFee * RATE_MULTIPLIER / REVERSE_PERCENT) / REVERSE_PERCENT / RATE_MULTIPLIER;
-        sellRate = maxRate.mul(REVERSE_PERCENT * RATE_MULTIPLIER + sellFee * RATE_MULTIPLIER / REVERSE_PERCENT) / REVERSE_PERCENT / RATE_MULTIPLIER;
+        buyRate = minRate.mul(FEE_MULTIPLIER * RATE_MULTIPLIER - buyFee * RATE_MULTIPLIER / 100) / FEE_MULTIPLIER / RATE_MULTIPLIER;
+        sellRate = maxRate.mul(FEE_MULTIPLIER * RATE_MULTIPLIER + sellFee * RATE_MULTIPLIER / 100) / FEE_MULTIPLIER / RATE_MULTIPLIER;
 
         calcTime = now;
     }
