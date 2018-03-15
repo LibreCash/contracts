@@ -20,7 +20,6 @@ module.exports = function(deployer, network) {
             'oracles/OracleMockTest'
         ]
         },
-        deployBank = true,
         deployBank = false,
         deployDAO = false, // is actual when deployBank only
 

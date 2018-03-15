@@ -276,6 +276,16 @@ contract Association is Ownable {
                 bank.setScheduler(p.recipient);
             } else if (p.tp == TypeProposal.WITHDRAW_BALANCE) {
                 bank.withdrawBalance();
+            } else if (p.tp == TypeProposal.SET_ORACLE_TIMEOUT) {
+                bank.setOracleTimeout(p.amount);
+            } else if (p.tp == TypeProposal.SET_ORACLE_ACTUAL) {
+                bank.setOracleActual(p.amount);
+            } else if (p.tp == TypeProposal.SET_RATE_PERIOD) {
+                bank.setRatePeriod(p.amount);
+            } else if (p.tp == TypeProposal.SET_LOCK) {
+                bank.setLock(p.amount > 0);
+            } else if (p.tp == TypeProposal.CLAIM_OWNERSHIP) {
+                bank.claimOwnership();
             }
         }
 
@@ -384,7 +394,42 @@ contract Association is Ownable {
                             jobDescription, debatingPeriodInMinutes, "0");
     }
 
+    function proposalOracleTimeout(uint256 _period, string jobDescription, uint debatingPeriodInMinutes) 
+        public onlyShareholders returns (uint proposalID) 
+    {
+        return newProposal(TypeProposal.SET_ORACLE_TIMEOUT, address(0), _period, 0, 
+                            jobDescription, debatingPeriodInMinutes, "0");
+    }
+
+    function proposalOracleActual(uint256 _period, string jobDescription, uint debatingPeriodInMinutes) 
+        public onlyShareholders returns (uint proposalID) 
+    {
+        return newProposal(TypeProposal.SET_ORACLE_ACTUAL, address(0), _period, 0, 
+                            jobDescription, debatingPeriodInMinutes, "0");
+    }
+
+    function proposalRatePeriod(uint256 _period, string jobDescription, uint debatingPeriodInMinutes) 
+        public onlyShareholders returns (uint proposalID) 
+    {
+        return newProposal(TypeProposal.SET_RATE_PERIOD, address(0), _period, 0, 
+                            jobDescription, debatingPeriodInMinutes, "0");
+    }
+
+    function proposalLock(uint256 lock, string jobDescription, uint debatingPeriodInMinutes) 
+        public onlyShareholders returns (uint proposalID) 
+    {
+        return newProposal(TypeProposal.SET_LOCK, address(0), lock, 0, 
+                            jobDescription, debatingPeriodInMinutes, "0");
+    }
+
+    function proposalClaimOwnership(address ownership, string jobDescription, uint debatingPeriodInMinutes) 
+        public onlyShareholders returns (uint proposalID) 
+    {
+        return newProposal(TypeProposal.CLAIM_OWNERSHIP, address(0), 0, 0, 
+                            jobDescription, debatingPeriodInMinutes, "0");
+    }
+
     // Delete after testing. Need to Withdraw method (Bank withdraw to owner = Association)
-    function() payable {}       
+    function() payable {}
 }
 
