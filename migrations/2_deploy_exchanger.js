@@ -21,6 +21,7 @@ module.exports = function(deployer, network) {
         ]
         },
         deployBank = true,
+        deployBank = false,
         deployDAO = false, // is actual when deployBank only
 
         appendContract = (network == "mainnet" || network == "testnet") ? сontractsList.mainnet : сontractsList.local,
@@ -98,9 +99,17 @@ module.exports = function(deployer, network) {
             return Promise.all([exchanger.deployed(), association.deployed()])
         }
     })
-    .then(() => {
+    .then((_contracts) => {
         if (deployBank && deployDAO) {
-            return exchanger.transferOwnership(association.address)
+            return _contracts[0].transferOwnership(association.address)
+        }
+    })
+    .then(() => {
+        return cash.deployed()
+    })
+    .then((_cash) =>{
+        if (!deployBank) {
+            return _cash.mint.sendTransaction(exchanger.address, 100 * 10 ** 18)
         }
     })
     .then(() => {
