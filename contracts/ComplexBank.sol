@@ -252,6 +252,7 @@ contract ComplexBank is Pausable, BankI {
      * @param _period Oracle data actual timeout.
      */
     function setOracleActual(uint256 _period) public onlyOwner {
+        require (_period > oracleTimeout);
         oracleActual = _period;
     }
 
@@ -418,8 +419,8 @@ contract ComplexBank is Pausable, BankI {
         uint256 reserve = 0;
         uint256 curBalance = this.balance;
         if ((curBalance != 0) && (sellRate != 0)) {
-            uint256 canGetCryptoBySellingTokens = (reserveTokens * RATE_MULTIPLIER) / sellRate;
-            reserve = (curBalance * FEE_MULTIPLIER * 100) / canGetCryptoBySellingTokens;
+            uint256 needCrypto = (reserveTokens * RATE_MULTIPLIER) / sellRate;
+            reserve = (curBalance * FEE_MULTIPLIER * 100) / needCrypto;
         }
         return reserve;
     }

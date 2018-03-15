@@ -7,7 +7,7 @@ import "./token/LibreCash.sol";
 import "./ComplexBank.sol";
 
 /**
- * The shareholder association contract itsel
+ * The shareholder association contract itself
  */
 contract Association is Ownable {
     using SafeMath for uint256;
@@ -292,10 +292,6 @@ contract Association is Ownable {
         numProposals = numProposals.sub(1);
         // Fire Events
         ProposalTallied(proposalID, int(yea - nay), quorum);
-    }
-
-    function readyOracles() public onlyShareholders view returns (uint256) {
-        return bank.readyOracles();
     }
 
     function proposalUniversal(address beneficiary, uint weiAmount, 
