@@ -68,6 +68,8 @@ contract('ComplexBank', function(accounts) {
     before("init var", async function() {
         bank = await ComplexBank.deployed();
         token = await LibreCash.deployed();
+
+        exConfig.ORACLE_ACTUAL = +await bank.oracleActual.call();
     });
 
     context("getState", async function() {
@@ -292,16 +294,14 @@ contract('ComplexBank', function(accounts) {
               "Tx not fail, if balance == 0!")
         });
 
-        it.only("balance < need", async function() {
+        it("balance < need", async function() {
             timeMachine.jump(exConfig.RATE_PERIOD + 1);
-            await bank.requestRates({value: MORE_THAN_COSTS});
 
             for (let i = 0; i < oracles.length; i++) {
               let oracle = await oracles[i].deployed(),
                   rate = +await oracle.rate.call();
               await oracle.setRate(rate / 1000);
             }
-
             await bank.calcRates();
 
             let balanceBefore = await token.balanceOf(owner),
