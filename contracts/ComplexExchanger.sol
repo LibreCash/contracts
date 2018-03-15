@@ -268,7 +268,7 @@ contract ComplexExchanger is ExchangerI {
             OracleI oracle = OracleI(oracles[i]);
             if ((oracle.rate() != 0) && 
                 !oracle.waitQuery() &&
-                (now - oracle.callbackTime()) < ORACLE_ACTUAL)
+                (now - oracle.updateTime()) < ORACLE_ACTUAL)
                 count++;
         }
 
