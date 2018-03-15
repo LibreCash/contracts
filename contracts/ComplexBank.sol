@@ -17,7 +17,7 @@ contract ComplexBank is Pausable, BankI {
 
     uint256 constant public MIN_READY_ORACLES = 2;
     uint256 constant public MIN_ORACLES_ENABLED = 2;
-    uint256 constant public REVERSE_PERCENT = 100;
+    uint256 constant public FEE_MULTIPLIER = 100;
     uint256 constant public RATE_MULTIPLIER = 1000; // doubling in oracleBase __callback as parseIntRound(..., 3) as 3
 
     uint256 public requestTime = 0; // the time of requestRates()
@@ -178,7 +178,7 @@ contract ComplexBank is Pausable, BankI {
     uint256 public sellRate = 1000;
     uint256 public buyFee = 0;
     uint256 public sellFee = 0;
-    uint256 constant MAX_FEE = 70 * REVERSE_PERCENT; // 70%
+    uint256 constant MAX_FEE = 70 * FEE_MULTIPLIER; // 70%
 
     address public scheduler;
 
@@ -217,7 +217,7 @@ contract ComplexBank is Pausable, BankI {
             OracleI currentOracle = OracleI(current);
             if ((currentOracle.rate() != 0) &&
                 !currentOracle.waitQuery() &&
-                (now - currentOracle.callbackTime()) < oracleActual)
+                (now - currentOracle.updateTime()) < oracleActual)
                 count++;
         }
         return count;
@@ -289,14 +289,14 @@ contract ComplexBank is Pausable, BankI {
         require(_sellFee <= MAX_FEE);
 
         if (sellFee != _sellFee) {
-            uint256 maximalOracleRate = sellRate.mul(RATE_MULTIPLIER).mul(REVERSE_PERCENT) / (RATE_MULTIPLIER * REVERSE_PERCENT + sellFee * RATE_MULTIPLIER / 100);
+            uint256 maximalOracleRate = sellRate.mul(RATE_MULTIPLIER).mul(FEE_MULTIPLIER) / (RATE_MULTIPLIER * FEE_MULTIPLIER + sellFee * RATE_MULTIPLIER / 100);
             sellFee = _sellFee;
-            sellRate = maximalOracleRate.mul(RATE_MULTIPLIER * REVERSE_PERCENT + sellFee * RATE_MULTIPLIER / 100) / (RATE_MULTIPLIER * REVERSE_PERCENT);
+            sellRate = maximalOracleRate.mul(RATE_MULTIPLIER * FEE_MULTIPLIER + sellFee * RATE_MULTIPLIER / 100) / (RATE_MULTIPLIER * FEE_MULTIPLIER);
         }
         if (buyFee != _buyFee) {
-            uint256 minimalOracleRate = buyRate.mul(RATE_MULTIPLIER * REVERSE_PERCENT) / (RATE_MULTIPLIER * REVERSE_PERCENT - buyFee * RATE_MULTIPLIER / 100);
+            uint256 minimalOracleRate = buyRate.mul(RATE_MULTIPLIER * FEE_MULTIPLIER) / (RATE_MULTIPLIER * FEE_MULTIPLIER - buyFee * RATE_MULTIPLIER / 100);
             buyFee = _buyFee;
-            buyRate = minimalOracleRate.mul(RATE_MULTIPLIER * REVERSE_PERCENT - buyFee * RATE_MULTIPLIER / 100) / (RATE_MULTIPLIER * REVERSE_PERCENT);
+            buyRate = minimalOracleRate.mul(RATE_MULTIPLIER * FEE_MULTIPLIER - buyFee * RATE_MULTIPLIER / 100) / (RATE_MULTIPLIER * FEE_MULTIPLIER);
         }
     }
     
@@ -419,7 +419,7 @@ contract ComplexBank is Pausable, BankI {
         uint256 curBalance = this.balance;
         if ((curBalance != 0) && (sellRate != 0)) {
             uint256 canGetCryptoBySellingTokens = (reserveTokens * RATE_MULTIPLIER) / sellRate;
-            reserve = (curBalance * REVERSE_PERCENT * 100) / canGetCryptoBySellingTokens;
+            reserve = (curBalance * FEE_MULTIPLIER * 100) / canGetCryptoBySellingTokens;
         }
         return reserve;
     }
@@ -469,8 +469,8 @@ contract ComplexBank is Pausable, BankI {
                 maximalRate = Math.max256(_rate, maximalRate);
             }
         } // foreach oracles
-        buyRate = minimalRate.mul(REVERSE_PERCENT * RATE_MULTIPLIER - buyFee * RATE_MULTIPLIER / 100) / REVERSE_PERCENT / RATE_MULTIPLIER;
-        sellRate = maximalRate.mul(REVERSE_PERCENT * RATE_MULTIPLIER + sellFee * RATE_MULTIPLIER / 100) / REVERSE_PERCENT / RATE_MULTIPLIER;
+        buyRate = minimalRate.mul(FEE_MULTIPLIER * RATE_MULTIPLIER - buyFee * RATE_MULTIPLIER / 100) / FEE_MULTIPLIER / RATE_MULTIPLIER;
+        sellRate = maximalRate.mul(FEE_MULTIPLIER * RATE_MULTIPLIER + sellFee * RATE_MULTIPLIER / 100) / FEE_MULTIPLIER / RATE_MULTIPLIER;
         calcTime = now;
     }
     // 04-spread calc end
