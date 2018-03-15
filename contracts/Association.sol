@@ -259,7 +259,6 @@ contract Association is Ownable {
                 require(p.recipient.call.value(p.amount)(p.transactionBytecode));
             else if (p.tp == TypeProposal.TRANSFER_OWNERSHIP) {
                 bank.transferOwnership(p.recipient);
-                cash.transferOwnership(p.recipient);
             } else if (p.tp == TypeProposal.ATTACH_TOKEN) {
                 bank.attachToken(p.recipient);
             } else if (p.tp == TypeProposal.SET_FEES) {
