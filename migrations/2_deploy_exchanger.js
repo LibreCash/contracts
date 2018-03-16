@@ -71,14 +71,14 @@ module.exports = function(deployer, network) {
     .then(() => Promise.all(oracles.map((oracle) => oracle.deployed())))
     .then((contracts) => Promise.all(contracts.map((oracle) => oracle.setBank(exchanger.address))))
     .then(() => cash.deployed())
-    .then((cashInstance) => {
+    .then((_cash) => {
         if (deployBank)
-            return cashInstance.transferOwnership(exchanger.address)
+            return _cash.transferOwnership(exchanger.address)
     })
     .then(() => exchanger.deployed())
-    .then((exchangerInstance) => {
+    .then((_exchanger) => {
         if (deployBank)
-            return exchangerInstance.claimOwnership()
+            return _exchanger.claimOwnership()
     })
     .then(() => {
         if (deployBank && deployDAO) {
@@ -95,12 +95,12 @@ module.exports = function(deployer, network) {
     })
     .then(() => {
         if (deployBank && deployDAO) {
-            return Promise.all([exchanger.deployed(), association.deployed()])
+            return exchanger.deployed();
         }
     })
-    .then((_contracts) => {
+    .then((_exchanger) => {
         if (deployBank && deployDAO) {
-            return _contracts[0].transferOwnership(association.address)
+            return _exchanger.transferOwnership(association.address)
         }
     })
     .then(() => {
