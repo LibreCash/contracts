@@ -14,7 +14,7 @@ import "../interfaces/I_Oracle.sol";
 contract OracleBase is Ownable, usingOraclize, OracleI {
     event NewOraclizeQuery();
     event OraclizeError(string desciption);
-    event PriceTicker(string price);
+    event PriceTicker(string price, bytes32 queryId, bytes proof);
     event BankSet(address bankAddress);
 
     struct OracleConfig {
@@ -32,16 +32,17 @@ contract OracleBase is Ownable, usingOraclize, OracleI {
     address public bankAddress;
     uint256 public rate;
     bool public waitQuery = false;
-    OracleConfig public oracleConfig; // заполняется конструктором потомка константами из него же
+    OracleConfig public oracleConfig;
 
-    // public для тестов, но может и оставим
+    
     uint256 public gasPrice = 20 * 10**9;
     uint256 public gasLimit = 100000;
 
-    uint256 constant MIN_GAS_PRICE = 2 * 10**9; // чтобы мы не могли убить работу контракта полностью
-    uint256 constant MAX_GAS_PRICE = 1000 * 10**9; // мало ли что будет с сетью, но больше 1000 ГВей за газ вряд ли будет (?)
-    uint256 constant MIN_GAS_LIMIT = 95000; // по факту 87600+ стоит, чтобы мы не могли убить контракт
-    uint256 constant MAX_GAS_LIMIT = 10000000; // ну и чтоб не заставляли людей платить слишком много, перестав сами обновлять данные
+    uint256 constant MIN_GAS_PRICE = 1 * 10**9; // Min gas price limit
+    uint256 constant MAX_GAS_PRICE = 100 * 10**9; // Max gas limit pric
+    uint256 constant MIN_GAS_LIMIT = 95000; 
+    uint256 constant MAX_GAS_LIMIT = 1000000;
+    uint256 constant MIN_REQUEST_PRICE = 0.001118 ether;
 
     modifier onlyBank() {
         require(msg.sender == bankAddress);
@@ -53,14 +54,6 @@ contract OracleBase is Ownable, usingOraclize, OracleI {
      */
     function OracleBase() public {
         oraclize_setProof(proofType_TLSNotary | proofStorage_IPFS);
-    }
-
-    /**
-     * @dev Sets oraclize price limit (maximum query cost).
-     * @param limitInWei New limit.
-     */
-    function setPriceLimit(uint256 limitInWei) public onlyOwner {
-        priceLimit = limitInWei;
     }
 
     /**
@@ -133,7 +126,7 @@ contract OracleBase is Ownable, usingOraclize, OracleI {
         delete validIds[myid];
         callbackTime = now;
         waitQuery = false;
-        PriceTicker(result);
+        PriceTicker(result, myid, proof);
     }
 
     /**
