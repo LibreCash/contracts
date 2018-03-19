@@ -24,7 +24,8 @@ contract ComplexBank is Pausable, BankI {
     uint256 public calcTime = 0; // the time of calcRates()
     uint256 public oracleTimeout = 10 minutes; // Timeout to wait oracle data
     uint256 public oracleActual = oracleTimeout + 5 minutes;
-    uint256 public ratePeriod = 10 minutes;
+    // RATE_PERIOD should be greater than or equal to ORACLE_ACTUAL
+    uint256 public ratePeriod = 15 minutes;
     bool public locked = false;
     uint256 public reserveTokens = 0; // how many tokens (mint - burn) this bank
 
