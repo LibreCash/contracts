@@ -53,7 +53,7 @@ const
         MIN_RATE:100 * RATE_MULTIPLIER,
         MAX_RATE:5000 * RATE_MULTIPLIER,
         MIN_READY_ORACLES:2,
-        ORACLE_ACTUAL:10 * minutes,
+        ORACLE_ACTUAL:15 * minutes,
         ORACLE_TIMEOUT:10 * minutes,
         RATE_PERIOD:10 * minutes
     };
