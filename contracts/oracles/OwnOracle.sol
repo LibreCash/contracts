@@ -72,6 +72,7 @@ contract OwnOracle is Ownable {
      */
     function updateRate() external onlyBank returns (bool) {
         NewOraclizeQuery();
+        updateTime = now;
         waitQuery = true;
         return true;
     }
@@ -84,7 +85,6 @@ contract OwnOracle is Ownable {
     function __callback(uint256 result) public {
         require(msg.sender == updaterAddress && waitQuery);
         rate = result;
-        updateTime = now;
         callbackTime = now;
         waitQuery = false;
         PriceTicker(result);
