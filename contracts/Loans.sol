@@ -257,21 +257,23 @@ contract Loans is Ownable {
     }
 
     function refundAmountEth(uint256 amount, uint256 margin) public view returns(uint256) {
-        return amount.add(margin) * feeEth / PERCENT_MULTIPLIER / 100;
+        return amount.add(margin) * (100 * PERCENT_MULTIPLIER + feeEth) / PERCENT_MULTIPLIER / 100;
     }
 
     function refundAmountLibre(uint256 amount, uint256 margin) public view returns(uint256) {
-        return amount.add(margin) * feeLibre / PERCENT_MULTIPLIER / 100;
+        return amount.add(margin) * (100 * PERCENT_MULTIPLIER + feeLibre) / PERCENT_MULTIPLIER / 100;
     }
 
     function calcPledgeLibre(uint256 amount, uint256 margin) public view returns(uint256) {
-        return refundAmountLibre(amount, margin).mul(RATE_MULTIPLIER) * pledgePercent /
-                  exchanger.sellRate() / PERCENT_MULTIPLIER / 100;
+        return refundAmountLibre(amount, margin).mul(RATE_MULTIPLIER) * 
+                  (100 * PERCENT_MULTIPLIER + pledgePercent) / exchanger.sellRate() /
+                      PERCENT_MULTIPLIER / 100;
     }
 
     function calcPledgeEth(uint256 amount, uint256 margin) public view returns(uint256) {
-        return refundAmountEth(amount, margin).mul(exchanger.buyRate()) * pledgePercent /
-                  RATE_MULTIPLIER / PERCENT_MULTIPLIER / 100;
+        return refundAmountEth(amount, margin).mul(RATE_MULTIPLIER) * 
+                  (100 * PERCENT_MULTIPLIER + pledgePercent) / exchanger.sellRate() /
+                      PERCENT_MULTIPLIER / 100;
     }
 
     function acceptLoanLibre(uint256 id) public payable {
