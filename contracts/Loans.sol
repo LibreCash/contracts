@@ -265,12 +265,14 @@ contract Loans is Ownable {
         uint256 filler = 0;
         for (uint256 i = 0; i < loans.length; i++) {
             if (true) {
-                orders[filler] = i;
                 counter++;
                 filler++;
             }
             if (filler < firstOrder) continue;
-            if (filler >= firstOrder + _pageCount) continue;
+            if (filler > firstOrder + _pageCount) continue;
+            if (true) {
+                orders[filler] = i - 1;
+            }
             // after tests filler changes to counter - firstOrder
         }
         return (orders, counter);
