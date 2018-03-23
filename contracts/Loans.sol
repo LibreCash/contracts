@@ -25,8 +25,8 @@ contract Loans is Ownable {
         uint256 max;
     }
 
-    Limit public loanLimitEth = Limit(1000 wei, 1 ether);
-    Limit public loanLimitLibre = Limit(100 wei, 100 ether);
+    Limit public loanLimitEth = Limit(0, 100 ether);
+    Limit public loanLimitLibre = Limit(0 wei, 100 ether);
 
     event NewLoan(Assets asset, uint256 timestamp, uint256 deadline, uint256 amount, uint256 margin, Status status);
 
@@ -45,8 +45,10 @@ contract Loans is Ownable {
     }
 
     struct Loan {
+        address holder;
+        address recipient;
         uint256 timestamp;
-        uint256 deadline;
+        uint256 period;
         uint256 amount;
         uint256 margin;
         Status status;
@@ -54,40 +56,53 @@ contract Loans is Ownable {
 
     function Loans(address _libre, address _exchanger) public {
         require(_libre != 0x0 && _exchanger != 0x0);
-        Libre = _libre;
+        Libre = _libre; 
         Exchanger = _exchanger;
         token = LibreCash(Libre);
         exchanger = ComplexExchanger(Exchanger);
     }
 
 
-    function getLoanLibre(uint256 id) public view returns(uint256,uint256,uint256,uint256,Status) {
-        Loan memory loan = loansLibre[id];
-        return (loan.timestamp,loan.deadline,loan.amount,loan.margin,loan.status);
+    function getLoanLibre(uint256 id) public view returns(address,address,uint256,uint256,uint256,uint256,Status) {
+        return getLoan(loansLibre,id);
     }
 
-    function getLoanEth(uint256 id) public view returns(uint256,uint256,uint256,uint256,Status) {
-        Loan memory loan = loansEth[id];
-        return (loan.timestamp,loan.deadline,loan.amount,loan.margin,loan.status);
+    function getLoanEth(uint256 id) public view returns(address,address,uint256,uint256,uint256,uint256,Status) {
+        return getLoan(loansEth,id);
+    }
+
+
+
+    function getLoan(Loan[] loans,uint256 id) internal view returns(address,address,uint256,uint256,uint256,uint256,Status) {
+        Loan memory loan = loans[id];
+        return (
+            loan.holder,
+            loan.recipient,
+            loan.timestamp,
+            loan.period,
+            loan.amount,
+            loan.margin,
+            loan.status
+            );
     }
 
     function createLoanLibre(uint256 _deadline, uint256 _amount, uint256 _margin) public {
         require(_deadline > now  && _amount >= loanLimitLibre.min && _amount <= loanLimitLibre.max);
         
         token.transferFrom(msg.sender,this,_amount);
-        Loan memory curLoan = Loan(now,_deadline,_amount, _margin,Status.active);
+        Loan memory curLoan = Loan(msg.sender,0x0,now,_deadline,_amount, _margin,Status.active);
         loansLibre.push(curLoan);
 
         NewLoan(Assets.eth, now, _deadline, _amount, _margin, Status.active);
     }
 
     function createLoanEth(uint256 _deadline, uint256 _amount, uint256 _margin) payable public {
-        require(_deadline > now && _amount >= msg.value);
+        require(_deadline > now && _amount <= msg.value);
         require(_amount >= loanLimitEth.min && _amount <= loanLimitEth.max);
         
         uint256 refund = msg.value.sub(_amount);
         
-        Loan memory curLoan = Loan(now,_deadline,msg.value,_margin,Status.active);
+        Loan memory curLoan = Loan(msg.sender, 0x0, now, _deadline, msg.value, _margin, Status.active);
         
         loansEth.push(curLoan);
         
@@ -97,6 +112,37 @@ contract Loans is Ownable {
             msg.sender.transfer(refund);
 
     }
+
+    function cancelLoanEth(uint256 id) public {
+        Loan memory loan = loansEth[id];
+        require(
+            loan.holder == msg.sender && 
+            loan.recipient == 0x0 && 
+            loan.status == Status.active
+        );
+        address holder = loansEth[id].holder;
+
+        loansEth[id].holder = 0x0;
+        loansEth[id].status = Status.completed;
+        holder.transfer(loan.amount);
+    }
+
+
+    function cancelLoanLibre(uint256 id) public {
+        Loan memory loan = loansLibre[id];
+        require(
+            loan.holder == msg.sender && 
+            loan.recipient == 0x0 && 
+            loan.status == Status.active
+        );
+        address holder = loansEth[id].holder;
+
+        loansEth[id].holder = 0x0;
+        loansEth[id].status = Status.completed;
+
+        token.transfer(holder,loan.amount);
+    }
+
 
     function loansCount() public view returns(uint256,uint256) {
         return (loansLibre.length,loansEth.length);
@@ -113,4 +159,5 @@ contract Loans is Ownable {
     function LibreRates() public view returns(uint256,uint256) {
         return (exchanger.buyRate(),exchanger.sellRate());
     }
+
 }
