@@ -90,8 +90,6 @@ contract Loans is Ownable {
         return getLoan(loansEth, id, Assets.eth);
     }
 
-
-
     function getLoan(Loan[] loans,uint256 id, Assets asset) internal view returns(address,address,uint256,uint256,uint256,uint256,uint256,Status) {
         Loan memory loan = loans[id];
         uint256 refund = (asset == Assets.libre) ? refundAmountEth(loan.amount,loan.margin) : refundAmountLibre(loan.amount,loan.margin);
@@ -104,7 +102,7 @@ contract Loans is Ownable {
             loan.margin,
             refund,
             loan.status
-            );
+        );
     }
 
     function createLoanLibre(uint256 _period, uint256 _amount, uint256 _margin) public {
