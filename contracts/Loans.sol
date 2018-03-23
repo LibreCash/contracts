@@ -299,13 +299,38 @@ contract Loans is Ownable {
         return requestCost;
     }
 
-    function refundAmountLibre(uint256 ethAmount, uint256 margin) public view returns(uint256) {
+    function calcPledgeLibre(uint256 ethAmount, uint256 margin) public view returns(uint256) {
         // Implement percent and fee multiplication later
-        return isRateActual() ? ethAmount.add(margin) : 0;
+        require(isRateActual());
+        return ethAmount.add(margin);
     }
 
-    function refundAmountEth(uint256 libreAmount, uint256 margin) public view returns(uint256) {
+    function calcPledgeEth(uint256 libreAmount, uint256 margin) public view returns(uint256) {
         // Implement percent and fee multiplication later
-        return isRateActual() ? libreAmount.add(margin) : 0;
+        require(isRateActual());
+        return libreAmount.add(margin);
+    }
+
+    function acceptLoanLibre(uint256 id) public payable {
+        Loan memory loan = loansLibre[id];
+        uint256 pledge = calcPledgeLibre(loan.amount,loan.margin);
+
+        require(
+            loan.holder != 0x0  && 
+            loan.status == Status.active
+        ); 
+        uint256 refund = msg.value.sub(pledge); // throw ex if msg.value < pledge
+        
+        loan.recipient = msg.sender;
+        loan.timestamp = now;
+        loan.status = Status.used;
+        loan.pledge = pledge;
+        loansLibre[id] = loan;
+
+        token.transfer(msg.sender,loan.amount);
+
+        if(refund > 0)
+            msg.sender.transfer(refund);
+        // LoanAccepted(id,msge.sender,pledge,loan.timestamp+loan.period);
     }
 }
