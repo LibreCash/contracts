@@ -16,6 +16,8 @@ contract Loans is Ownable {
     address public Exchanger;
     mapping(address=>bool) oracles;
 
+    mapping(address => uint256) public balance;
+
     uint256 public rateTime;
     uint256 public rate;
     uint256 public RATE_ACTUAL = 10 minutes;
@@ -29,6 +31,7 @@ contract Loans is Ownable {
     uint256 public fee = 200;
     uint256 public percent = 150;
     uint256 public constant REVERSE_PERCENT = 100;
+    uint256 public constant RATE_MULTIPLIER = 1000;
     uint256 public requestCost = 0.0005 ether;
 
     struct Limit {
@@ -70,6 +73,7 @@ contract Loans is Ownable {
         uint256 period;
         uint256 amount;
         uint256 margin;
+        uint256 pledge;
         Status status;
     }
 
@@ -102,14 +106,14 @@ contract Loans is Ownable {
             loan.amount,
             loan.margin,
             loan.status
-            );
+        );
     }
 
     function createLoanLibre(uint256 _period, uint256 _amount, uint256 _margin) public {
         require(_amount >= loanLimitLibre.min && _amount <= loanLimitLibre.max);
         
         token.transferFrom(msg.sender,this,_amount);
-        Loan memory curLoan = Loan(msg.sender,0x0,now,_period,_amount, _margin,Status.active);
+        Loan memory curLoan = Loan(msg.sender,0x0,now,_period,_amount, _margin,0,Status.active);
         loansLibre.push(curLoan);
 
         NewLoan(Assets.eth, now, _period, _amount, _margin, Status.active);
@@ -120,7 +124,7 @@ contract Loans is Ownable {
         
         uint256 refund = msg.value.sub(_amount);
         
-        Loan memory curLoan = Loan(msg.sender, 0x0, now, _period, msg.value, _margin, Status.active);
+        Loan memory curLoan = Loan(msg.sender, 0x0, now, _period, msg.value, _margin, 0, Status.active);
         
         loansEth.push(curLoan);
         
@@ -161,6 +165,89 @@ contract Loans is Ownable {
         token.transfer(holder,loan.amount);
     }
 
+    function backEth(uint256 id) public payable {
+        Loan memory loan = loansEth[id];
+        uint256 needSend = loan.amount.add(loan.margin);
+
+        require (
+            loan.holder != 0x0 &&
+            msg.sender == loan.recipient &&
+            msg.value >= needSend
+        );
+
+        balance[loan.holder] = balance[loan.holder].add(needSend);
+        token.transfer(msg.sender, loan.pledge);
+
+        if (msg.value > needSend)
+            msg.sender.transfer(msg.value - needSend);
+
+        loansEth[id].holder = 0x0;
+    }
+
+    function backLibre(uint256 id) public {
+        Loan memory loan = loansLibre[id];
+        uint256 needBack = loan.amount.add(loan.margin);
+
+
+        require (
+            loan.holder != 0x0 &&
+            msg.sender == loan.recipient
+        );
+
+        token.transferFrom(msg.sender, this, needBack);
+        token.transfer(loan.holder, needBack);
+        balance[loan.recipient] = balance[loan.recipient].add(loan.pledge);
+
+        loansLibre[id].holder = 0x0;
+    }
+
+    function closeLoanEth(uint256 id) public {
+        Loan memory loan = loansEth[id];
+
+        require (
+            msg.sender == loan.holder &&
+            now > (loan.timestamp + loan.period) &&
+            exchanger.getState() == ComplexExchanger.State.PROCESSING_ORDERS
+        );
+
+        uint256 rate = exchanger.sellRate();
+        uint256 needReturn = loan.amount.add(loan.margin);
+        uint256 havePledge = loan.pledge.mul(RATE_MULTIPLIER) / rate;
+
+        if (havePledge < needReturn)
+          needReturn = havePledge;
+
+        uint256 sellTokens = needReturn * rate / RATE_MULTIPLIER;
+
+        token.approve(Exchanger,sellTokens);
+        exchanger.sellTokens(loan.holder,sellTokens);
+
+        loansEth[id].holder = 0x0;
+    }
+    
+
+    function closeLoanLibre(uint256 id) public {
+        Loan memory loan = loansLibre[id];
+
+
+        require (
+            msg.sender == loan.holder &&
+            now > (loan.timestamp + loan.period) &&
+            exchanger.getState() == ComplexExchanger.State.PROCESSING_ORDERS
+        );
+        
+        uint256 rate = exchanger.buyRate();
+        uint256 needReturn = loan.amount.add(loan.margin);
+        uint256 havePledge = loan.pledge * rate / RATE_MULTIPLIER;
+
+        if (havePledge < needReturn)
+          needReturn = havePledge;
+
+        uint256 buyTokens = needReturn.mul(RATE_MULTIPLIER) / rate;
+        exchanger.buyTokens.value(buyTokens)(loan.holder);
+
+        loansLibre[id].holder = 0x0;
+    }
 
 
     /**
