@@ -333,4 +333,23 @@ contract Loans is Ownable {
             msg.sender.transfer(refund);
         // LoanAccepted(id,msge.sender,pledge,loan.timestamp+loan.period);
     }
+
+    function acceptLoanEth(uint id) public {
+        Loan memory loan = loansLibre[id];
+        uint256 pledge = calcPledgeEth(loan.amount,loan.margin);
+
+        require(
+            loan.holder != 0x0  && 
+            loan.status == Status.active
+        ); 
+
+        loan.recipient = msg.sender;
+        loan.timestamp = now;
+        loan.status = Status.used;
+        loan.pledge = pledge;
+        loansLibre[id] = loan;
+
+        token.transferFrom(msg.sender,loan.amount); // thow if user doesn't allow tokens
+        msg.sender.transfer(loan.amount);
+    }
 }
