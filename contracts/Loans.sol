@@ -14,11 +14,22 @@ contract Loans is Ownable {
     using SafeMath for uint256;
     address public Libre;
     address public Exchanger;
+    mapping(address=>bool) oracles;
+
+    uint256 public rateTime;
+    uint256 public rate;
+    uint256 public RATE_ACTUAL = 10 minutes;
+    uint256 public requestTime;
+
+
     LibreCash token;
     ComplexExchanger exchanger;
 
-    uint256 public constant percent = 200;
+
+    uint256 public fee = 200;
+    uint256 public percent = 150;
     uint256 public constant REVERSE_PERCENT = 100;
+    uint256 public requestCost = 0.0005 ether;
 
     struct Limit {
         uint256 min;
@@ -29,6 +40,14 @@ contract Loans is Ownable {
     Limit public loanLimitLibre = Limit(0 wei, 100 ether);
 
     event NewLoan(Assets asset, uint256 timestamp, uint256 deadline, uint256 amount, uint256 margin, Status status);
+    event OracleRequest();
+    event OracleAdded(address oracle);
+    event Ticker(uint256 rate);
+
+    modifier onlyOracle {
+        require(oracles[msg.sender]);
+        _;
+    }
 
     Loan[] loansLibre;
     Loan[] loansEth;
@@ -86,27 +105,26 @@ contract Loans is Ownable {
             );
     }
 
-    function createLoanLibre(uint256 _deadline, uint256 _amount, uint256 _margin) public {
-        require(_deadline > now  && _amount >= loanLimitLibre.min && _amount <= loanLimitLibre.max);
+    function createLoanLibre(uint256 _period, uint256 _amount, uint256 _margin) public {
+        require(_amount >= loanLimitLibre.min && _amount <= loanLimitLibre.max);
         
         token.transferFrom(msg.sender,this,_amount);
-        Loan memory curLoan = Loan(msg.sender,0x0,now,_deadline,_amount, _margin,Status.active);
+        Loan memory curLoan = Loan(msg.sender,0x0,now,_period,_amount, _margin,Status.active);
         loansLibre.push(curLoan);
 
-        NewLoan(Assets.eth, now, _deadline, _amount, _margin, Status.active);
+        NewLoan(Assets.eth, now, _period, _amount, _margin, Status.active);
     }
 
-    function createLoanEth(uint256 _deadline, uint256 _amount, uint256 _margin) payable public {
-        require(_deadline > now && _amount <= msg.value);
-        require(_amount >= loanLimitEth.min && _amount <= loanLimitEth.max);
+    function createLoanEth(uint256 _period, uint256 _amount, uint256 _margin) payable public {
+        require(_amount <= msg.value &&_amount >= loanLimitEth.min && _amount <= loanLimitEth.max);
         
         uint256 refund = msg.value.sub(_amount);
         
-        Loan memory curLoan = Loan(msg.sender, 0x0, now, _deadline, msg.value, _margin, Status.active);
+        Loan memory curLoan = Loan(msg.sender, 0x0, now, _period, msg.value, _margin, Status.active);
         
         loansEth.push(curLoan);
         
-        NewLoan(Assets.libre, now, _deadline, _amount, _margin, Status.active);
+        NewLoan(Assets.libre,now, _period, _amount, _margin, Status.active);
 
         if(refund > 0)
             msg.sender.transfer(refund);
@@ -144,6 +162,10 @@ contract Loans is Ownable {
     }
 
 
+
+    /**
+     * @dev Returns loans count (Libre, Eth)
+     */
     function loansCount() public view returns(uint256,uint256) {
         return (loansLibre.length,loansEth.length);
     }
@@ -153,11 +175,41 @@ contract Loans is Ownable {
     }
 
     function isRateActual() public view returns(bool) {
-        return exchanger.getState() == ComplexExchanger.State.PROCESSING_ORDERS;
+        return now - rateTime < RATE_ACTUAL;
     }
 
-    function LibreRates() public view returns(uint256,uint256) {
-        return (exchanger.buyRate(),exchanger.sellRate());
+    /**
+     * @dev Allows contract owner to set loans fee.
+     * @param _fee The fee percent
+     */
+    function setFee(uint256 _fee) public onlyOwner {
+        fee = _fee;
+    }
+
+    function setPercent(uint256 _percent) public onlyOwner {
+        percent = _percent;
+    }
+
+    function __callback(uint256 _rate) public onlyOracle {
+        rate = _rate;
+        rateTime = now;
+    }   
+
+    function addOracle(address oracle) public onlyOwner {
+        require(!oracles[oracle]);
+        oracles[oracle] = true;
+        OracleAdded(oracle);
+    }
+
+
+    function requestRate() public payable {
+        require(!isRateActual() && msg.value >= requestPrice() && (now - requestTime) > 10 minutes);
+        requestTime = now;
+        OracleRequest();
+    }
+
+    function requestPrice() public view returns(uint256) {
+        return requestCost;
     }
 
 }
