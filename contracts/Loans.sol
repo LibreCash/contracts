@@ -86,18 +86,17 @@ contract Loans is Ownable {
     }
 
 
-    function getLoanLibre(uint256 id) public view returns(address,address,uint256,uint256,uint256,uint256,Status) {
-        return getLoan(loansLibre,id);
+    function getLoanLibre(uint256 id) public view returns(address,address,uint256,uint256,uint256,uint256,uint256,Status) {
+        return getLoan(loansLibre,id, Assets.libre);
     }
 
-    function getLoanEth(uint256 id) public view returns(address,address,uint256,uint256,uint256,uint256,Status) {
-        return getLoan(loansEth,id);
+    function getLoanEth(uint256 id) public view returns(address,address,uint256,uint256,uint256,uint256,uint256,Status) {
+        return getLoan(loansEth, id, Assets.eth);
     }
 
-
-
-    function getLoan(Loan[] loans,uint256 id) internal view returns(address,address,uint256,uint256,uint256,uint256,Status) {
+    function getLoan(Loan[] loans,uint256 id, Assets asset) internal view returns(address,address,uint256,uint256,uint256,uint256,uint256,Status) {
         Loan memory loan = loans[id];
+        uint256 refund = (asset == Assets.libre) ? refundAmountEth(loan.amount,loan.margin) : refundAmountLibre(loan.amount,loan.margin);
         return (
             loan.holder,
             loan.recipient,
@@ -105,6 +104,7 @@ contract Loans is Ownable {
             loan.period,
             loan.amount,
             loan.margin,
+            refund,
             loan.status
         );
     }
@@ -299,4 +299,13 @@ contract Loans is Ownable {
         return requestCost;
     }
 
+    function refundAmountLibre(uint256 ethAmount, uint256 margin) public view returns(uint256) {
+        // Implement percent and fee multiplication later
+        return isRateActual() ? ethAmount.add(margin) : 0;
+    }
+
+    function refundAmountEth(uint256 libreAmount, uint256 margin) public view returns(uint256) {
+        // Implement percent and fee multiplication later
+        return isRateActual() ? libreAmount.add(margin) : 0;
+    }
 }
