@@ -259,50 +259,59 @@ contract Loans is Ownable {
 
     function getLoans(uint256 _page, uint256 _pageCount, uint8 _type) public view returns (uint256[], uint256) {
         uint256 firstOrder = _page * _pageCount;
-        Loan[] memory loans = (_type == 0) ? loansEth : loansLibre;
+        uint256 lastOrder = firstOrder + _pageCount;
+        // 1 - eth, 0 - libre (check?)
+        Loan[] memory loans = (_type == 1) ? loansEth : loansLibre;
         uint256[] memory orders = new uint256[](_pageCount);
         uint256 counter = 0;
-        uint256 filler = 0;
         for (uint256 i = 0; i < loans.length; i++) {
-            if (true) {
+            bool _active = (loans[i].status == Status.active);
+            if (_active) {
                 counter++;
-                filler++;
             }
-            if (filler < firstOrder) continue;
-            if (filler > firstOrder + _pageCount) continue;
-            if (true) {
-                orders[filler] = i - 1;
+            if (counter - 1 < firstOrder) continue;
+            if (counter - 1 > lastOrder - 1) continue;
+            if (_active) {
+                orders[counter - firstOrder - 1] = i;
             }
-            // after tests filler changes to counter - firstOrder
         }
         return (orders, counter);
     }
 
     // method only for tests
     function fillTestLoans() public {
-        Loan memory curLoan = Loan(msg.sender, 0x0, now, 300, 100, 100, 0, Status.active);        
-        loansEth.push(curLoan);        
-        loansEth.push(curLoan);        
-        loansEth.push(curLoan);        
-        loansEth.push(curLoan);        
-        loansEth.push(curLoan);        
-        loansEth.push(curLoan);        
-        loansEth.push(curLoan);        
-        loansEth.push(curLoan);        
-        loansEth.push(curLoan);        
-        loansEth.push(curLoan);        
-        loansEth.push(curLoan);        
-        loansEth.push(curLoan);        
-        loansEth.push(curLoan);        
-        Loan memory curLoan2 = Loan(msg.sender, 0x0, now, 222, 444, 555, 0, Status.active);
-        loansLibre.push(curLoan2);
-        loansLibre.push(curLoan2);
-        loansLibre.push(curLoan2);
-        loansLibre.push(curLoan2);
-        loansLibre.push(curLoan2);
-        loansLibre.push(curLoan2);
-        loansLibre.push(curLoan2);
-        
+        loansEth.push(Loan(msg.sender, 0x0, now, 300, 100, 100, 0, Status.active));        
+        loansEth.push(Loan(msg.sender, 0x0, now, 300, 100, 100, 0, Status.active));        
+        loansEth.push(Loan(msg.sender, 0x0, now, 300, 100, 100, 0, Status.used));        
+        loansEth.push(Loan(msg.sender, 0x0, now, 300, 100, 100, 0, Status.active));        
+        loansEth.push(Loan(msg.sender, 0x0, now, 300, 100, 100, 0, Status.completed));        
+        loansEth.push(Loan(msg.sender, 0x0, now, 300, 100, 100, 0, Status.active));        
+        loansEth.push(Loan(msg.sender, 0x0, now, 300, 100, 100, 0, Status.active));        
+        loansEth.push(Loan(msg.sender, 0x0, now, 300, 100, 100, 0, Status.active));        
+        loansEth.push(Loan(msg.sender, 0x0, now, 300, 100, 100, 0, Status.used));        
+        loansEth.push(Loan(msg.sender, 0x0, now, 300, 100, 100, 0, Status.active));        
+        loansEth.push(Loan(msg.sender, 0x0, now, 300, 100, 100, 0, Status.active));   
+        loansEth.push(Loan(msg.sender, 0x0, now, 300, 100, 100, 0, Status.completed));        
+        loansEth.push(Loan(msg.sender, 0x0, now, 300, 100, 100, 0, Status.active));        
+        loansEth.push(Loan(msg.sender, 0x0, now, 300, 100, 100, 0, Status.active));        
+        loansEth.push(Loan(msg.sender, 0x0, now, 300, 100, 100, 0, Status.active));        
+        loansEth.push(Loan(msg.sender, 0x0, now, 300, 100, 100, 0, Status.used));        
+        loansEth.push(Loan(msg.sender, 0x0, now, 300, 100, 100, 0, Status.active));        
+        loansEth.push(Loan(msg.sender, 0x0, now, 300, 100, 100, 0, Status.active));   
+
+        loansLibre.push(Loan(msg.sender, 0x0, now, 222, 444, 555, 0, Status.used));
+        loansLibre.push(Loan(msg.sender, 0x0, now, 222, 444, 555, 0, Status.used));
+        loansLibre.push(Loan(msg.sender, 0x0, now, 222, 444, 555, 0, Status.active));
+        loansLibre.push(Loan(msg.sender, 0x0, now, 222, 444, 555, 0, Status.completed));
+        loansLibre.push(Loan(msg.sender, 0x0, now, 222, 444, 555, 0, Status.used));
+        loansLibre.push(Loan(msg.sender, 0x0, now, 222, 444, 555, 0, Status.used));
+        loansLibre.push(Loan(msg.sender, 0x0, now, 222, 444, 555, 0, Status.active));
+        loansLibre.push(Loan(msg.sender, 0x0, now, 222, 444, 555, 0, Status.active));
+        loansLibre.push(Loan(msg.sender, 0x0, now, 222, 444, 555, 0, Status.active));        
+        loansLibre.push(Loan(msg.sender, 0x0, now, 222, 444, 555, 0, Status.used));
+        loansLibre.push(Loan(msg.sender, 0x0, now, 222, 444, 555, 0, Status.active));
+        loansLibre.push(Loan(msg.sender, 0x0, now, 222, 444, 555, 0, Status.active));
+        loansLibre.push(Loan(msg.sender, 0x0, now, 222, 444, 555, 0, Status.active));        
     }
 
     function tokenBalance() public view  returns(uint256) {
