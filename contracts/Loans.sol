@@ -19,7 +19,7 @@ contract Loans is Ownable {
     mapping(address => uint256) public balance;
     uint256 public feeLibre = 200;
     uint256 public feeEth = 200;
-    uint256 public pledgePercent = 150;
+    uint256 public pledgePercent = 15000;
     uint256 public constant PERCENT_MULTIPLIER = 100;
     uint256 public constant RATE_MULTIPLIER = 1000;
 
@@ -264,14 +264,12 @@ contract Loans is Ownable {
     }
 
     function calcPledgeLibre(Loan loan) internal view returns(uint256) {
-        return refundAmount(loan).mul(RATE_MULTIPLIER) * 
-                  (100 * PERCENT_MULTIPLIER + pledgePercent) / exchanger.sellRate() /
+        return refundAmount(loan).mul(RATE_MULTIPLIER) * pledgePercent / exchanger.buyRate() /
                       PERCENT_MULTIPLIER / 100;
     }
 
     function calcPledgeEth(Loan loan) internal view returns(uint256) {
-        return refundAmount(loan).mul(exchanger.buyRate()) * 
-                  (100 * PERCENT_MULTIPLIER + pledgePercent) / RATE_MULTIPLIER /
+        return refundAmount(loan).mul(exchanger.sellRate()) * pledgePercent / RATE_MULTIPLIER /
                       PERCENT_MULTIPLIER / 100;
     }
 
