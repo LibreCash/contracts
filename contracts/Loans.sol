@@ -308,7 +308,7 @@ contract Loans is Ownable {
     }
 
     function acceptLoanEth(uint id) public {
-        Loan memory loan = loansLibre[id];
+        Loan memory loan = loansEth[id];
 
         require(
             loan.status == Status.ACTIVE &&
@@ -321,7 +321,7 @@ contract Loans is Ownable {
         loan.timestamp = now;
         loan.status = Status.USED;
         loan.pledge = pledge;
-        loansLibre[id] = loan;
+        loansEth[id] = loan;
 
         token.transferFrom(msg.sender,this,pledge); // thow if user doesn't allow tokens
         msg.sender.transfer(loan.amount);
