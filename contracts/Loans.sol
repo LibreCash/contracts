@@ -102,7 +102,7 @@ contract Loans is Ownable {
         return asset == Assets.LIBRE ? calcPledgeLibre(loan) : calcPledgeEth(loan);
     }
 
-    function createLoanLibre(uint256 _period, uint256 _amount, uint256 _margin) public {
+    function giveLibre(uint256 _period, uint256 _amount, uint256 _margin) public {
         require(_amount >= loanLimitLibre.min && _amount <= loanLimitLibre.max);
         
         token.transferFrom(msg.sender,this,_amount);
@@ -112,7 +112,7 @@ contract Loans is Ownable {
         NewLoan(Assets.ETH, now, _period, _amount, _margin, Status.ACTIVE);
     }
 
-    function createLoanEth(uint256 _period, uint256 _amount, uint256 _margin) payable public {
+    function giveEth(uint256 _period, uint256 _amount, uint256 _margin) payable public {
         require(_amount <= msg.value &&_amount >= loanLimitEth.min && _amount <= loanLimitEth.max);
         
         uint256 refund = msg.value.sub(_amount);
@@ -128,7 +128,7 @@ contract Loans is Ownable {
 
     }
 
-    function cancelLoanEth(uint256 id) public {
+    function cancelEth(uint256 id) public {
         Loan memory loan = loansEth[id];
         require(
             loan.holder == msg.sender &&
@@ -140,7 +140,7 @@ contract Loans is Ownable {
     }
 
 
-    function cancelLoanLibre(uint256 id) public {
+    function cancelLibre(uint256 id) public {
         Loan memory loan = loansLibre[id];
         require(
             loan.holder == msg.sender &&
@@ -151,7 +151,7 @@ contract Loans is Ownable {
         token.transfer(loan.holder,loan.amount);
     }
 
-    function backEth(uint256 id) public payable {
+    function returnEth(uint256 id) public payable {
         Loan memory loan = loansEth[id];
         uint256 needSend = loan.amount.add(loan.margin);
 
@@ -169,7 +169,7 @@ contract Loans is Ownable {
             msg.sender.transfer(msg.value - needSend);
     }
 
-    function backLibre(uint256 id) public {
+    function returnLibre(uint256 id) public {
         Loan memory loan = loansLibre[id];
         uint256 needBack = loan.amount.add(loan.margin);
 
@@ -184,7 +184,7 @@ contract Loans is Ownable {
         balance[loan.recipient] = balance[loan.recipient].add(loan.pledge);
     }
 
-    function closeLoanEth(uint256 id) public {
+    function claimEth(uint256 id) public {
         Loan memory loan = loansEth[id];
 
         require (
@@ -209,7 +209,7 @@ contract Loans is Ownable {
     }
     
 
-    function closeLoanLibre(uint256 id) public {
+    function claimLibre(uint256 id) public {
         Loan memory loan = loansLibre[id];
 
 
@@ -273,7 +273,7 @@ contract Loans is Ownable {
                       PERCENT_MULTIPLIER / 100;
     }
 
-    function acceptLoanLibre(uint256 id) public payable {
+    function takeLoanLibre(uint256 id) public payable {
         Loan memory loan = loansLibre[id];
 
         require(
@@ -297,7 +297,7 @@ contract Loans is Ownable {
         // LoanAccepted(id,msge.sender,pledge,loan.timestamp+loan.period);
     }
 
-    function acceptLoanEth(uint id) public {
+    function takeLoanEth(uint id) public {
         Loan memory loan = loansEth[id];
 
         require(
