@@ -1,6 +1,5 @@
 pragma solidity ^0.4.18;
 
-
 import "./zeppelin/math/SafeMath.sol";
 import "./zeppelin/math/Math.sol";
 import "./zeppelin/lifecycle/Pausable.sol";
@@ -16,55 +15,40 @@ contract Loans is Ownable {
     address public Exchanger;
     mapping(address=>bool) oracles;
 
-    mapping(address => uint256) public balance;
-
-    uint256 public rateTime;
-    uint256 public rate;
-    uint256 public RATE_ACTUAL = 10 minutes;
     uint256 constant MAX_UINT256 = 2**256 - 1;
-    uint256 public requestTime;
-
 
     LibreCash token;
     ComplexExchanger exchanger;
 
-
-    uint256 public fee = 200;
-    uint256 public percent = 150;
-    uint256 public constant REVERSE_PERCENT = 100;
+    mapping(address => uint256) public balance;
+    uint256 public feeLibre = 200;
+    uint256 public feeEth = 200;
+    uint256 public pledgePercent = 15000;
+    uint256 public constant PERCENT_MULTIPLIER = 100;
     uint256 public constant RATE_MULTIPLIER = 1000;
-    uint256 public requestCost = 0.0005 ether;
 
     struct Limit {
         uint256 min;
         uint256 max;
     }
 
-    Limit public loanLimitEth = Limit(0, 100 ether);
-    Limit public loanLimitLibre = Limit(0 wei, 100 ether);
+    Limit public loanLimitEth = Limit(0, 10000 ether);
+    Limit public loanLimitLibre = Limit(0 wei, 100000 ether);
 
     event NewLoan(Assets asset, uint256 timestamp, uint256 deadline, uint256 amount, uint256 margin, Status status);
     event OracleRequest();
     event OracleAdded(address oracle);
     event Ticker(uint256 rate);
 
-    modifier onlyOracle {
-        require(oracles[msg.sender]);
-        _;
-    }
-
-    Loan[] loansLibre;
-    Loan[] loansEth;
-
     enum Assets {
-        libre,
-        eth
+        LIBRE,
+        ETH
     }
 
     enum Status {
-        active,
-        used,
-        completed
+        ACTIVE,
+        USED,
+        COMPLETED
     }
 
     struct Loan {
@@ -74,9 +58,13 @@ contract Loans is Ownable {
         uint256 period;
         uint256 amount;
         uint256 margin;
+        uint256 fee;
         uint256 pledge;
         Status status;
     }
+
+    Loan[] loansLibre;
+    Loan[] loansEth;
 
     function Loans(address _libre, address _exchanger) public {
         require(_libre != 0x0 && _exchanger != 0x0);
@@ -87,37 +75,45 @@ contract Loans is Ownable {
     }
 
 
-    function getLoanLibre(uint256 id) public view returns(address,address,uint256,uint256,uint256,uint256,uint256,Status) {
-        return getLoan(loansLibre,id, Assets.libre);
+    function getLoanLibre(uint256 id) public view returns(address,address,uint256[6],Status) {
+        return getLoan(Assets.LIBRE, loansLibre[id]);
     }
 
-    function getLoanEth(uint256 id) public view returns(address,address,uint256,uint256,uint256,uint256,uint256,Status) {
-        return getLoan(loansEth, id, Assets.eth);
+    function getLoanEth(uint256 id) public view returns(address,address,uint256[6],Status) {
+        return getLoan(Assets.ETH, loansEth[id]);
     }
 
-    function getLoan(Loan[] loans,uint256 id, Assets asset) internal view returns(address,address,uint256,uint256,uint256,uint256,uint256,Status) {
-        Loan memory loan = loans[id];
-        uint256 refund = (asset == Assets.libre) ? refundAmountEth(loan.amount,loan.margin) : refundAmountLibre(loan.amount,loan.margin);
-        return (
-            loan.holder,
-            loan.recipient,
+    function getLoan(Assets asset, Loan loan) internal view 
+        returns(address,address,uint256[6],Status)
+    {
+        uint256[6] memory loanData = [
             loan.timestamp,
             loan.period,
             loan.amount,
             loan.margin,
-            refund,
+            refundAmount(loan),
+            calcPledge(asset,loan)
+        ];
+
+        return (
+            loan.holder,
+            loan.recipient,
+            loanData,
             loan.status
         );
+    }
+    function calcPledge(Assets asset,Loan loan) internal returns(uint256) {
+        return asset == Assets.LIBRE ? calcPledgeLibre(loan) : calcPledgeEth(loan);
     }
 
     function createLoanLibre(uint256 _period, uint256 _amount, uint256 _margin) public {
         require(_amount >= loanLimitLibre.min && _amount <= loanLimitLibre.max);
         
         token.transferFrom(msg.sender,this,_amount);
-        Loan memory curLoan = Loan(msg.sender,0x0,now,_period,_amount, _margin,0,Status.active);
+        Loan memory curLoan = Loan(msg.sender, 0x0, now, _period, _amount, _margin, feeLibre, 0, Status.ACTIVE);
         loansLibre.push(curLoan);
 
-        NewLoan(Assets.eth, now, _period, _amount, _margin, Status.active);
+        NewLoan(Assets.ETH, now, _period, _amount, _margin, Status.ACTIVE);
     }
 
     function createLoanEth(uint256 _period, uint256 _amount, uint256 _margin) payable public {
@@ -125,11 +121,11 @@ contract Loans is Ownable {
         
         uint256 refund = msg.value.sub(_amount);
         
-        Loan memory curLoan = Loan(msg.sender, 0x0, now, _period, msg.value, _margin, 0, Status.active);
+        Loan memory curLoan = Loan(msg.sender, 0x0, now, _period, _amount, _margin, feeEth, 0, Status.ACTIVE);
         
         loansEth.push(curLoan);
         
-        NewLoan(Assets.libre,now, _period, _amount, _margin, Status.active);
+        NewLoan(Assets.LIBRE,now, _period, _amount, _margin, Status.ACTIVE);
 
         if(refund > 0)
             msg.sender.transfer(refund);
@@ -139,31 +135,24 @@ contract Loans is Ownable {
     function cancelLoanEth(uint256 id) public {
         Loan memory loan = loansEth[id];
         require(
-            loan.holder == msg.sender && 
-            loan.recipient == 0x0 && 
-            loan.status == Status.active
+            loan.holder == msg.sender &&
+            loan.status == Status.ACTIVE
         );
-        address holder = loansEth[id].holder;
 
-        loansEth[id].holder = 0x0;
-        loansEth[id].status = Status.completed;
-        holder.transfer(loan.amount);
+        loansEth[id].status = Status.COMPLETED;
+        loansEth[id].holder.transfer(loan.amount);
     }
 
 
     function cancelLoanLibre(uint256 id) public {
         Loan memory loan = loansLibre[id];
         require(
-            loan.holder == msg.sender && 
-            loan.recipient == 0x0 && 
-            loan.status == Status.active
+            loan.holder == msg.sender &&
+            loan.status == Status.ACTIVE
         );
-        address holder = loansEth[id].holder;
 
-        loansEth[id].holder = 0x0;
-        loansEth[id].status = Status.completed;
-
-        token.transfer(holder,loan.amount);
+        loansEth[id].status = Status.COMPLETED;
+        token.transfer(loan.holder,loan.amount);
     }
 
     function backEth(uint256 id) public payable {
@@ -171,35 +160,32 @@ contract Loans is Ownable {
         uint256 needSend = loan.amount.add(loan.margin);
 
         require (
-            loan.holder != 0x0 &&
+            loan.status == Status.USED &&
             msg.sender == loan.recipient &&
             msg.value >= needSend
         );
 
+        loansEth[id].status = Status.COMPLETED;
         balance[loan.holder] = balance[loan.holder].add(needSend);
         token.transfer(msg.sender, loan.pledge);
 
         if (msg.value > needSend)
             msg.sender.transfer(msg.value - needSend);
-
-        loansEth[id].holder = 0x0;
     }
 
     function backLibre(uint256 id) public {
         Loan memory loan = loansLibre[id];
         uint256 needBack = loan.amount.add(loan.margin);
 
-
         require (
-            loan.holder != 0x0 &&
+            loan.status == Status.USED &&
             msg.sender == loan.recipient
         );
 
+        loansLibre[id].status = Status.COMPLETED;
         token.transferFrom(msg.sender, this, needBack);
         token.transfer(loan.holder, needBack);
         balance[loan.recipient] = balance[loan.recipient].add(loan.pledge);
-
-        loansLibre[id].holder = 0x0;
     }
 
     function closeLoanEth(uint256 id) public {
@@ -207,6 +193,7 @@ contract Loans is Ownable {
 
         require (
             msg.sender == loan.holder &&
+            loan.status == Status.USED &&
             now > (loan.timestamp + loan.period) &&
             exchanger.getState() == ComplexExchanger.State.PROCESSING_ORDERS
         );
@@ -220,10 +207,9 @@ contract Loans is Ownable {
 
         uint256 sellTokens = needReturn * rate / RATE_MULTIPLIER;
 
+        loansEth[id].status = Status.COMPLETED;
         token.approve(Exchanger,sellTokens);
         exchanger.sellTokens(loan.holder,sellTokens);
-
-        loansEth[id].holder = 0x0;
     }
     
 
@@ -233,6 +219,7 @@ contract Loans is Ownable {
 
         require (
             msg.sender == loan.holder &&
+            loan.status == Status.USED &&
             now > (loan.timestamp + loan.period) &&
             exchanger.getState() == ComplexExchanger.State.PROCESSING_ORDERS
         );
@@ -245,9 +232,9 @@ contract Loans is Ownable {
           needReturn = havePledge;
 
         uint256 buyTokens = needReturn.mul(RATE_MULTIPLIER) / rate;
-        exchanger.buyTokens.value(buyTokens)(loan.holder);
 
-        loansLibre[id].holder = 0x0;
+        loansLibre[id].status = Status.COMPLETED;
+        exchanger.buyTokens.value(buyTokens)(loan.holder);
     }
 
 
@@ -282,9 +269,9 @@ contract Loans is Ownable {
         }
         uint256 counter = 0;
         for (i = 0; i < loans.length; i++) {
-            bool _active = ((isActive && (loans[i].status == Status.active)) ||
-                            (isUsed && (loans[i].status == Status.used)) ||
-                            (isCompleted && (loans[i].status == Status.completed)));
+            bool _active = ((isActive && (loans[i].status == Status.ACTIVE)) ||
+                            (isUsed && (loans[i].status == Status.USED)) ||
+                            (isCompleted && (loans[i].status == Status.COMPLETED)));
             if (_active) {
                 counter++;
             }
@@ -298,89 +285,137 @@ contract Loans is Ownable {
 
     // method only for tests
     function fillTestLoans() public {
-        loansEth.push(Loan(msg.sender, 0x0, now, 300, 100, 1000, 0, Status.active));        
-        loansEth.push(Loan(msg.sender, 0x0, now, 300, 200, 1100, 0, Status.active));        
-        loansEth.push(Loan(msg.sender, 0x0, now, 300, 300, 1200, 0, Status.used));        
-        loansEth.push(Loan(msg.sender, 0x0, now, 300, 400, 1300, 0, Status.active));        
-        loansEth.push(Loan(msg.sender, 0x0, now, 300, 500, 1400, 0, Status.completed));        
-        loansEth.push(Loan(msg.sender, 0x0, now, 300, 600, 1500, 0, Status.active));        
-        loansEth.push(Loan(msg.sender, 0x0, now, 300, 700, 1600, 0, Status.active));        
-        loansEth.push(Loan(msg.sender, 0x0, now, 300, 800, 1700, 0, Status.active));        
-        loansEth.push(Loan(msg.sender, 0x0, now, 300, 900, 1800, 0, Status.used));        
-        loansEth.push(Loan(msg.sender, 0x0, now, 300, 1000, 1900, 0, Status.active));        
-        loansEth.push(Loan(msg.sender, 0x0, now, 300, 1100, 2000, 0, Status.active));   
-        loansEth.push(Loan(msg.sender, 0x0, now, 300, 1200, 2100, 0, Status.completed));        
-        loansEth.push(Loan(msg.sender, 0x0, now, 300, 1300, 2200, 0, Status.active));        
-        loansEth.push(Loan(msg.sender, 0x0, now, 300, 1400, 2300, 0, Status.active));        
-        loansEth.push(Loan(msg.sender, 0x0, now, 300, 1500, 2400, 0, Status.active));        
-        loansEth.push(Loan(msg.sender, 0x0, now, 300, 1600, 2500, 0, Status.used));        
-        loansEth.push(Loan(msg.sender, 0x0, now, 300, 1700, 2600, 0, Status.active));        
-        loansEth.push(Loan(msg.sender, 0x0, now, 300, 1800, 2700, 0, Status.active));   
+        loansEth.push(Loan(msg.sender, 0x0, now, 300, 100, 1000, 200, 0, Status.ACTIVE));        
+        loansEth.push(Loan(msg.sender, 0x0, now, 300, 200, 1100, 200, 0, Status.ACTIVE));        
+        loansEth.push(Loan(msg.sender, 0x0, now, 300, 300, 1200, 200, 0, Status.USED));        
+        loansEth.push(Loan(msg.sender, 0x0, now, 300, 400, 1300, 200, 0, Status.ACTIVE));        
+        loansEth.push(Loan(msg.sender, 0x0, now, 300, 500, 1400, 200, 0, Status.COMPLETED));        
+        loansEth.push(Loan(msg.sender, 0x0, now, 300, 600, 1500, 200, 0, Status.ACTIVE));        
+        loansEth.push(Loan(msg.sender, 0x0, now, 300, 700, 1600, 200, 0, Status.ACTIVE));        
+        loansEth.push(Loan(msg.sender, 0x0, now, 300, 800, 1700, 200, 0, Status.ACTIVE));        
+        loansEth.push(Loan(msg.sender, 0x0, now, 300, 900, 1800, 200, 0, Status.USED));        
+        loansEth.push(Loan(msg.sender, 0x0, now, 300, 1000, 1900, 200, 0, Status.ACTIVE));        
+        loansEth.push(Loan(msg.sender, 0x0, now, 300, 1100, 2000, 200, 0, Status.ACTIVE));   
+        loansEth.push(Loan(msg.sender, 0x0, now, 300, 1200, 2100, 200, 0, Status.COMPLETED));        
+        loansEth.push(Loan(msg.sender, 0x0, now, 300, 1300, 2200, 200, 0, Status.ACTIVE));        
+        loansEth.push(Loan(msg.sender, 0x0, now, 300, 1400, 2300, 200, 0, Status.ACTIVE));        
+        loansEth.push(Loan(msg.sender, 0x0, now, 300, 1500, 2400, 200, 0, Status.ACTIVE));        
+        loansEth.push(Loan(msg.sender, 0x0, now, 300, 1600, 2500, 200, 0, Status.USED));        
+        loansEth.push(Loan(msg.sender, 0x0, now, 300, 1700, 2600, 200, 0, Status.ACTIVE));        
+        loansEth.push(Loan(msg.sender, 0x0, now, 300, 1800, 2700, 200, 0, Status.ACTIVE));   
 
-        loansLibre.push(Loan(msg.sender, 0x0, now, 222, 111, 11, 0, Status.used));
-        loansLibre.push(Loan(msg.sender, 0x0, now, 222, 222, 22, 0, Status.used));
-        loansLibre.push(Loan(msg.sender, 0x0, now, 222, 333, 33, 0, Status.active));
-        loansLibre.push(Loan(msg.sender, 0x0, now, 222, 444, 44, 0, Status.completed));
-        loansLibre.push(Loan(msg.sender, 0x0, now, 222, 555, 55, 0, Status.used));
-        loansLibre.push(Loan(msg.sender, 0x0, now, 222, 666, 66, 0, Status.used));
-        loansLibre.push(Loan(msg.sender, 0x0, now, 222, 777, 77, 0, Status.active));
-        loansLibre.push(Loan(msg.sender, 0x0, now, 222, 888, 88, 0, Status.active));
-        loansLibre.push(Loan(msg.sender, 0x0, now, 222, 999, 99, 0, Status.active));        
-        loansLibre.push(Loan(msg.sender, 0x0, now, 222, 1111, 111, 0, Status.used));
-        loansLibre.push(Loan(msg.sender, 0x0, now, 222, 2222, 222, 0, Status.active));
-        loansLibre.push(Loan(msg.sender, 0x0, now, 222, 3333, 333, 0, Status.active));
-        loansLibre.push(Loan(msg.sender, 0x0, now, 222, 4444, 444, 0, Status.active));        
+        loansLibre.push(Loan(msg.sender, 0x0, now, 222, 111, 11, 200, 0, Status.USED));
+        loansLibre.push(Loan(msg.sender, 0x0, now, 222, 222, 22, 200, 0, Status.USED));
+        loansLibre.push(Loan(msg.sender, 0x0, now, 222, 333, 33, 200, 0, Status.ACTIVE));
+        loansLibre.push(Loan(msg.sender, 0x0, now, 222, 444, 44, 200, 0, Status.COMPLETED));
+        loansLibre.push(Loan(msg.sender, 0x0, now, 222, 555, 55, 200, 0, Status.USED));
+        loansLibre.push(Loan(msg.sender, 0x0, now, 222, 666, 66, 200, 0, Status.USED));
+        loansLibre.push(Loan(msg.sender, 0x0, now, 222, 777, 77, 200, 0, Status.ACTIVE));
+        loansLibre.push(Loan(msg.sender, 0x0, now, 222, 888, 88, 200, 0, Status.ACTIVE));
+        loansLibre.push(Loan(msg.sender, 0x0, now, 222, 999, 99, 200, 0, Status.ACTIVE));        
+        loansLibre.push(Loan(msg.sender, 0x0, now, 222, 1111, 111, 200, 0, Status.USED));
+        loansLibre.push(Loan(msg.sender, 0x0, now, 222, 2222, 222, 200, 0, Status.ACTIVE));
+        loansLibre.push(Loan(msg.sender, 0x0, now, 222, 3333, 333, 200, 0, Status.ACTIVE));
+        loansLibre.push(Loan(msg.sender, 0x0, now, 222, 4444, 444, 200, 0, Status.ACTIVE));        
     }
 
     function tokenBalance() public view  returns(uint256) {
         return token.balanceOf(this);
     }
 
-    function isRateActual() public view returns(bool) {
-        return now - rateTime < RATE_ACTUAL;
-    }
-
     /**
      * @dev Allows contract owner to set loans fee.
-     * @param _fee The fee percent
+     * @param _feeLibre The fee percent in Libre
+     * @param _feeEth The fee percent in Ether
      */
-    function setFee(uint256 _fee) public onlyOwner {
-        fee = _fee;
+    function setFee(uint256 _feeLibre, uint256 _feeEth) public onlyOwner {
+        feeLibre = _feeLibre;
+        feeEth = _feeEth;
     }
 
     function setPercent(uint256 _percent) public onlyOwner {
-        percent = _percent;
+        pledgePercent = _percent;
     }
 
-    function __callback(uint256 _rate) public onlyOracle {
-        rate = _rate;
-        rateTime = now;
-    }   
-
-    function addOracle(address oracle) public onlyOwner {
-        require(!oracles[oracle]);
-        oracles[oracle] = true;
-        OracleAdded(oracle);
+    function refundAmount(Loan loan) internal view returns(uint256) {
+        return loan.amount.add(loan.margin) * (100 * PERCENT_MULTIPLIER + loan.fee) / PERCENT_MULTIPLIER / 100;
     }
 
-
-    function requestRate() public payable {
-        require(!isRateActual() && msg.value >= requestPrice() && (now - requestTime) > 10 minutes);
-        requestTime = now;
-        OracleRequest();
+    function calcPledgeLibre(Loan loan) internal view returns(uint256) {
+        return refundAmount(loan).mul(RATE_MULTIPLIER) * pledgePercent / exchanger.buyRate() /
+                      PERCENT_MULTIPLIER / 100;
     }
 
-    function requestPrice() public view returns(uint256) {
-        return requestCost;
+    function calcPledgeEth(Loan loan) internal view returns(uint256) {
+        return refundAmount(loan).mul(exchanger.sellRate()) * pledgePercent / RATE_MULTIPLIER /
+                      PERCENT_MULTIPLIER / 100;
     }
 
-    function refundAmountLibre(uint256 ethAmount, uint256 margin) public view returns(uint256) {
-        // Implement percent and fee multiplication later
-        return isRateActual() ? ethAmount.add(margin) : 0;
+    function acceptLoanLibre(uint256 id) public payable {
+        Loan memory loan = loansLibre[id];
+
+        require(
+            loan.status == Status.ACTIVE &&
+            exchanger.getState() == ComplexExchanger.State.PROCESSING_ORDERS
+        );
+
+        uint256 pledge = calcPledgeLibre(loan);
+        uint256 refund = msg.value.sub(pledge); // throw ex if msg.value < pledge
+        
+        loan.recipient = msg.sender;
+        loan.timestamp = now;
+        loan.status = Status.USED;
+        loan.pledge = pledge;
+        loansLibre[id] = loan;
+
+        token.transfer(msg.sender,loan.amount);
+
+        if(refund > 0)
+            msg.sender.transfer(refund);
+        // LoanAccepted(id,msge.sender,pledge,loan.timestamp+loan.period);
     }
 
-    function refundAmountEth(uint256 libreAmount, uint256 margin) public view returns(uint256) {
-        // Implement percent and fee multiplication later
-        return isRateActual() ? libreAmount.add(margin) : 0;
+    function acceptLoanEth(uint id) public {
+        Loan memory loan = loansEth[id];
+
+        require(
+            loan.status == Status.ACTIVE &&
+            exchanger.getState() == ComplexExchanger.State.PROCESSING_ORDERS
+        );
+
+        uint256 pledge = calcPledgeEth(loan);
+
+        loan.recipient = msg.sender;
+        loan.timestamp = now;
+        loan.status = Status.USED;
+        loan.pledge = pledge;
+        loansEth[id] = loan;
+
+        token.transferFrom(msg.sender,this,pledge); // thow if user doesn't allow tokens
+        msg.sender.transfer(loan.amount);
+    }
+
+    function withdraw() public onlyOwner {
+        owner.transfer(address(this).balance);
+    }
+
+    function setExchanger(address _exchanger) public onlyOwner {
+        Exchanger = _exchanger;
+        exchanger = ComplexExchanger(Exchanger);
+    }
+
+    function setLibre(address _libre) public onlyOwner {
+        Libre = _libre;
+        token = LibreCash(Libre);
+    }
+
+    function claimBalance(uint256 amount) public {
+        require (balance[msg.sender] > 0);
+
+        if (amount == 0)
+            amount = balance[msg.sender];
+
+        balance[msg.sender] = balance[msg.sender].sub(amount);
+        msg.sender.transfer(amount);
     }
 }
