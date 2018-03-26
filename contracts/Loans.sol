@@ -117,7 +117,7 @@ contract Loans is Ownable {
         
         uint256 refund = msg.value.sub(_amount);
         
-        Loan memory curLoan = Loan(msg.sender, 0x0, now, _period, msg.value, _margin, feeEth, 0, Status.ACTIVE);
+        Loan memory curLoan = Loan(msg.sender, 0x0, now, _period, _amount, _margin, feeEth, 0, Status.ACTIVE);
         
         loansEth.push(curLoan);
         
