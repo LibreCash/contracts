@@ -278,8 +278,8 @@ contract Loans is Ownable {
     }
 
     function calcPledgeEth(uint256 amount, uint256 margin) public view returns(uint256) {
-        return refundAmountEth(amount, margin).mul(RATE_MULTIPLIER) * 
-                  (100 * PERCENT_MULTIPLIER + pledgePercent) / exchanger.sellRate() /
+        return refundAmountEth(amount, margin).mul(exchanger.buyRate()) * 
+                  (100 * PERCENT_MULTIPLIER + pledgePercent) / RATE_MULTIPLIER /
                       PERCENT_MULTIPLIER / 100;
     }
 
