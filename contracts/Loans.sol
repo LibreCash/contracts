@@ -21,6 +21,7 @@ contract Loans is Ownable {
     uint256 public rateTime;
     uint256 public rate;
     uint256 public RATE_ACTUAL = 10 minutes;
+    uint256 constant MAX_UINT256 = 2**256 - 1;
     uint256 public requestTime;
 
 
@@ -276,8 +277,11 @@ contract Loans is Ownable {
         bool isCompleted = (_statuses / 4) != 0;
 
         uint256[] memory orders = new uint256[](_pageCount);
+        for (uint256 i = 0; i < _pageCount; i++) {
+            orders[i] = MAX_UINT256;
+        }
         uint256 counter = 0;
-        for (uint256 i = 0; i < loans.length; i++) {
+        for (i = 0; i < loans.length; i++) {
             bool _active = ((isActive && (loans[i].status == Status.active)) ||
                             (isUsed && (loans[i].status == Status.used)) ||
                             (isCompleted && (loans[i].status == Status.completed)));
