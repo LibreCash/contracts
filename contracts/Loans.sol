@@ -81,23 +81,29 @@ contract Loans is Ownable {
     function getLoan(Assets asset, Loan loan) internal view 
         returns(address,address,uint256[6],Status)
     {
-        uint256 refund = (asset == Assets.LIBRE) ? refundAmountLibre(loan.amount,loan.margin) :
-                            refundAmountEth(loan.amount,loan.margin);
-        uint256 pledge = (asset == Assets.LIBRE) ? calcPledgeLibre(loan.amount, loan.margin) :
-                            calcPledgeEth(loan.amount, loan.margin);
-        uint256[6] arr;
-        arr[0] = loan.timestamp;
-        arr[1] = loan.period;
-        arr[2] = loan.amount;
-        arr[3] = loan.margin;
-        arr[4] = refund;
-        arr[5] = pledge;
+        uint256[6] memory loanData = [
+            loan.timestamp,
+            loan.period,
+            loan.amount,
+            loan.margin,
+            refundAmount(asset,loan),
+            calcPledge(asset,loan)
+        ];
+
         return (
             loan.holder,
             loan.recipient,
-            arr,
+            loanData,
             loan.status
         );
+    }
+
+    function refundAmount(Assets asset,Loan loan) internal returns(uint256) {
+        return asset == Assets.LIBRE ?  refundAmountLibre(loan.amount,loan.margin) : refundAmountEth(loan.amount,loan.margin);
+    }
+
+    function calcPledge(Assets asset,Loan loan) internal returns(uint256) {
+        return asset == Assets.LIBRE ? calcPledgeLibre(loan.amount,loan.margin) : calcPledgeEth(loan.amount,loan.margin);
     }
 
     function createLoanLibre(uint256 _period, uint256 _amount, uint256 _margin) public {
