@@ -257,20 +257,34 @@ contract Loans is Ownable {
         return (loansLibre.length,loansEth.length);
     }
 
-    function getLoans(uint256 _page, uint256 _pageCount, uint8 _type) public view returns (uint256[], uint256) {
+    function getLoans(uint256 _page, uint8 _pageCount, uint8 _type, uint8 _statuses) public view returns (uint256[], uint256) {
         uint256 firstOrder = _page * _pageCount;
-        uint256 lastOrder = firstOrder + _pageCount;
         // 1 - eth, 0 - libre (check?)
         Loan[] memory loans = (_type == 1) ? loansEth : loansLibre;
+        // statuses:
+        // 000 - 0 - none
+        // 001 - 1 - active
+        // 010 - 2 - used
+        // 011 - 3 - active & used
+        // 100 - 4 - completed
+        // 101 - 5 - completed & active
+        // 110 - 6 - completed & used
+        // 111 - 7 - all
+        // isActive * 1 + isUsed * 2 + isCompleted * 4
+        bool isActive = (_statuses % 2) != 0;
+        bool isUsed = (_statuses / 2 % 2) != 0;
+        bool isCompleted = (_statuses / 4) != 0;
+
         uint256[] memory orders = new uint256[](_pageCount);
         uint256 counter = 0;
         for (uint256 i = 0; i < loans.length; i++) {
-            bool _active = (loans[i].status == Status.active);
+            bool _active = ((isActive && (loans[i].status == Status.active)) ||
+                            (isUsed && (loans[i].status == Status.used)) ||
+                            (isCompleted && (loans[i].status == Status.completed)));
             if (_active) {
                 counter++;
             }
-            if (counter - 1 < firstOrder) continue;
-            if (counter - 1 > lastOrder - 1) continue;
+            if (counter - 1 < firstOrder || counter - 1 > firstOrder + _pageCount - 1) continue;
             if (_active) {
                 orders[counter - firstOrder - 1] = i;
             }
@@ -280,38 +294,38 @@ contract Loans is Ownable {
 
     // method only for tests
     function fillTestLoans() public {
-        loansEth.push(Loan(msg.sender, 0x0, now, 300, 100, 100, 0, Status.active));        
-        loansEth.push(Loan(msg.sender, 0x0, now, 300, 100, 100, 0, Status.active));        
-        loansEth.push(Loan(msg.sender, 0x0, now, 300, 100, 100, 0, Status.used));        
-        loansEth.push(Loan(msg.sender, 0x0, now, 300, 100, 100, 0, Status.active));        
-        loansEth.push(Loan(msg.sender, 0x0, now, 300, 100, 100, 0, Status.completed));        
-        loansEth.push(Loan(msg.sender, 0x0, now, 300, 100, 100, 0, Status.active));        
-        loansEth.push(Loan(msg.sender, 0x0, now, 300, 100, 100, 0, Status.active));        
-        loansEth.push(Loan(msg.sender, 0x0, now, 300, 100, 100, 0, Status.active));        
-        loansEth.push(Loan(msg.sender, 0x0, now, 300, 100, 100, 0, Status.used));        
-        loansEth.push(Loan(msg.sender, 0x0, now, 300, 100, 100, 0, Status.active));        
-        loansEth.push(Loan(msg.sender, 0x0, now, 300, 100, 100, 0, Status.active));   
-        loansEth.push(Loan(msg.sender, 0x0, now, 300, 100, 100, 0, Status.completed));        
-        loansEth.push(Loan(msg.sender, 0x0, now, 300, 100, 100, 0, Status.active));        
-        loansEth.push(Loan(msg.sender, 0x0, now, 300, 100, 100, 0, Status.active));        
-        loansEth.push(Loan(msg.sender, 0x0, now, 300, 100, 100, 0, Status.active));        
-        loansEth.push(Loan(msg.sender, 0x0, now, 300, 100, 100, 0, Status.used));        
-        loansEth.push(Loan(msg.sender, 0x0, now, 300, 100, 100, 0, Status.active));        
-        loansEth.push(Loan(msg.sender, 0x0, now, 300, 100, 100, 0, Status.active));   
+        loansEth.push(Loan(msg.sender, 0x0, now, 300, 100, 1000, 0, Status.active));        
+        loansEth.push(Loan(msg.sender, 0x0, now, 300, 200, 1100, 0, Status.active));        
+        loansEth.push(Loan(msg.sender, 0x0, now, 300, 300, 1200, 0, Status.used));        
+        loansEth.push(Loan(msg.sender, 0x0, now, 300, 400, 1300, 0, Status.active));        
+        loansEth.push(Loan(msg.sender, 0x0, now, 300, 500, 1400, 0, Status.completed));        
+        loansEth.push(Loan(msg.sender, 0x0, now, 300, 600, 1500, 0, Status.active));        
+        loansEth.push(Loan(msg.sender, 0x0, now, 300, 700, 1600, 0, Status.active));        
+        loansEth.push(Loan(msg.sender, 0x0, now, 300, 800, 1700, 0, Status.active));        
+        loansEth.push(Loan(msg.sender, 0x0, now, 300, 900, 1800, 0, Status.used));        
+        loansEth.push(Loan(msg.sender, 0x0, now, 300, 1000, 1900, 0, Status.active));        
+        loansEth.push(Loan(msg.sender, 0x0, now, 300, 1100, 2000, 0, Status.active));   
+        loansEth.push(Loan(msg.sender, 0x0, now, 300, 1200, 2100, 0, Status.completed));        
+        loansEth.push(Loan(msg.sender, 0x0, now, 300, 1300, 2200, 0, Status.active));        
+        loansEth.push(Loan(msg.sender, 0x0, now, 300, 1400, 2300, 0, Status.active));        
+        loansEth.push(Loan(msg.sender, 0x0, now, 300, 1500, 2400, 0, Status.active));        
+        loansEth.push(Loan(msg.sender, 0x0, now, 300, 1600, 2500, 0, Status.used));        
+        loansEth.push(Loan(msg.sender, 0x0, now, 300, 1700, 2600, 0, Status.active));        
+        loansEth.push(Loan(msg.sender, 0x0, now, 300, 1800, 2700, 0, Status.active));   
 
-        loansLibre.push(Loan(msg.sender, 0x0, now, 222, 444, 555, 0, Status.used));
-        loansLibre.push(Loan(msg.sender, 0x0, now, 222, 444, 555, 0, Status.used));
-        loansLibre.push(Loan(msg.sender, 0x0, now, 222, 444, 555, 0, Status.active));
-        loansLibre.push(Loan(msg.sender, 0x0, now, 222, 444, 555, 0, Status.completed));
-        loansLibre.push(Loan(msg.sender, 0x0, now, 222, 444, 555, 0, Status.used));
-        loansLibre.push(Loan(msg.sender, 0x0, now, 222, 444, 555, 0, Status.used));
-        loansLibre.push(Loan(msg.sender, 0x0, now, 222, 444, 555, 0, Status.active));
-        loansLibre.push(Loan(msg.sender, 0x0, now, 222, 444, 555, 0, Status.active));
-        loansLibre.push(Loan(msg.sender, 0x0, now, 222, 444, 555, 0, Status.active));        
-        loansLibre.push(Loan(msg.sender, 0x0, now, 222, 444, 555, 0, Status.used));
-        loansLibre.push(Loan(msg.sender, 0x0, now, 222, 444, 555, 0, Status.active));
-        loansLibre.push(Loan(msg.sender, 0x0, now, 222, 444, 555, 0, Status.active));
-        loansLibre.push(Loan(msg.sender, 0x0, now, 222, 444, 555, 0, Status.active));        
+        loansLibre.push(Loan(msg.sender, 0x0, now, 222, 111, 11, 0, Status.used));
+        loansLibre.push(Loan(msg.sender, 0x0, now, 222, 222, 22, 0, Status.used));
+        loansLibre.push(Loan(msg.sender, 0x0, now, 222, 333, 33, 0, Status.active));
+        loansLibre.push(Loan(msg.sender, 0x0, now, 222, 444, 44, 0, Status.completed));
+        loansLibre.push(Loan(msg.sender, 0x0, now, 222, 555, 55, 0, Status.used));
+        loansLibre.push(Loan(msg.sender, 0x0, now, 222, 666, 66, 0, Status.used));
+        loansLibre.push(Loan(msg.sender, 0x0, now, 222, 777, 77, 0, Status.active));
+        loansLibre.push(Loan(msg.sender, 0x0, now, 222, 888, 88, 0, Status.active));
+        loansLibre.push(Loan(msg.sender, 0x0, now, 222, 999, 99, 0, Status.active));        
+        loansLibre.push(Loan(msg.sender, 0x0, now, 222, 1111, 111, 0, Status.used));
+        loansLibre.push(Loan(msg.sender, 0x0, now, 222, 2222, 222, 0, Status.active));
+        loansLibre.push(Loan(msg.sender, 0x0, now, 222, 3333, 333, 0, Status.active));
+        loansLibre.push(Loan(msg.sender, 0x0, now, 222, 4444, 444, 0, Status.active));        
     }
 
     function tokenBalance() public view  returns(uint256) {
