@@ -79,12 +79,13 @@ contract Loans is Ownable {
     }
 
     function getLoan(Assets asset, Loan loan) internal view 
-        returns(address,address,uint256[6] arr,Status)
+        returns(address,address,uint256[6],Status)
     {
         uint256 refund = (asset == Assets.LIBRE) ? refundAmountLibre(loan.amount,loan.margin) :
                             refundAmountEth(loan.amount,loan.margin);
         uint256 pledge = (asset == Assets.LIBRE) ? calcPledgeLibre(loan.amount, loan.margin) :
                             calcPledgeEth(loan.amount, loan.margin);
+        uint256[6] arr;
         arr[0] = loan.timestamp;
         arr[1] = loan.period;
         arr[2] = loan.amount;
@@ -318,5 +319,19 @@ contract Loans is Ownable {
 
         token.transferFrom(msg.sender,this,pledge); // thow if user doesn't allow tokens
         msg.sender.transfer(loan.amount);
+    }
+
+    function withdraw() public onlyOwner {
+        owner.transfer(address(this).balance);
+    }
+
+    function setExchanger(address _exchanger) public onlyOwner {
+        Exchanger = _exchanger;
+        exchanger = ComplexExchanger(Exchanger);
+    }
+
+    function setLibre(address _libre) public onlyOwner {
+        Libre = _libre;
+        token = LibreCash(Libre);
     }
 }
