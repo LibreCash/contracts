@@ -113,7 +113,7 @@ module.exports = function(deployer, network) {
         }
     })
     .then(()=>{
-        return deployLoans ? deployer.deploy(loans, exchanger.address,cash.address) : null;
+        return deployLoans ? deployer.deploy(loans,cash.address,exchanger.address) : null;
     })
     .then(() => {
         writeContractData(cash);
