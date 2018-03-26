@@ -330,4 +330,14 @@ contract Loans is Ownable {
         Libre = _libre;
         token = LibreCash(Libre);
     }
+
+    fucntion claimBalance(uint256 amount) public {
+        require (balance[msg.sender] > 0);
+
+        if (amount == 0)
+            amount = balance[msg.sender];
+
+        balance[msg.sender] = balance[msg.sender].sub(amount)
+        msg.sender.transfer(amount);
+    }
 }
