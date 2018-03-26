@@ -20,6 +20,7 @@ contract Loans is Ownable {
     uint256 public feeLibre = 200;
     uint256 public feeEth = 200;
     uint256 public pledgePercent = 15000;
+    uint256 public marginCallPercent = 13000;
     uint256 public constant PERCENT_MULTIPLIER = 100;
     uint256 public constant RATE_MULTIPLIER = 1000;
 
@@ -99,7 +100,8 @@ contract Loans is Ownable {
         );
     }
     function calcPledge(Assets asset,Loan loan) internal returns(uint256) {
-        return asset == Assets.LIBRE ? calcPledgeLibre(loan) : calcPledgeEth(loan);
+        return asset == Assets.LIBRE ? calcPledgeLibre(loan, pledgePercent) :
+                            calcPledgeEth(loan, pledgePercent);
     }
 
     function giveLibre(uint256 _period, uint256 _amount, uint256 _margin) public {
@@ -190,8 +192,9 @@ contract Loans is Ownable {
         require (
             msg.sender == loan.holder &&
             loan.status == Status.USED &&
-            now > (loan.timestamp + loan.period) &&
-            exchanger.getState() == ComplexExchanger.State.PROCESSING_ORDERS
+            exchanger.getState() == ComplexExchanger.State.PROCESSING_ORDERS &&
+            (now > (loan.timestamp + loan.period) || 
+                calcPledgeEth(loan, marginCallPercent) > loan.pledge)
         );
 
         uint256 rate = exchanger.sellRate();
@@ -216,8 +219,9 @@ contract Loans is Ownable {
         require (
             msg.sender == loan.holder &&
             loan.status == Status.USED &&
-            now > (loan.timestamp + loan.period) &&
-            exchanger.getState() == ComplexExchanger.State.PROCESSING_ORDERS
+            exchanger.getState() == ComplexExchanger.State.PROCESSING_ORDERS &&
+            (now > (loan.timestamp + loan.period) ||
+                calcPledgeLibre(loan, marginCallPercent) > loan.pledge)
         );
         
         uint256 rate = exchanger.buyRate();
@@ -259,17 +263,21 @@ contract Loans is Ownable {
         pledgePercent = _percent;
     }
 
+    function setMarginCallPercent(uint256 _percent) public onlyOwner {
+        marginCallPercent = _percent;
+    }
+
     function refundAmount(Loan loan) internal view returns(uint256) {
         return loan.amount.add(loan.margin) * (100 * PERCENT_MULTIPLIER + loan.fee) / PERCENT_MULTIPLIER / 100;
     }
 
-    function calcPledgeLibre(Loan loan) internal view returns(uint256) {
-        return refundAmount(loan).mul(RATE_MULTIPLIER) * pledgePercent / exchanger.buyRate() /
+    function calcPledgeLibre(Loan loan, uint256 percent) internal view returns(uint256) {
+        return refundAmount(loan).mul(RATE_MULTIPLIER) * percent / exchanger.buyRate() /
                       PERCENT_MULTIPLIER / 100;
     }
 
-    function calcPledgeEth(Loan loan) internal view returns(uint256) {
-        return refundAmount(loan).mul(exchanger.sellRate()) * pledgePercent / RATE_MULTIPLIER /
+    function calcPledgeEth(Loan loan, uint256 percent) internal view returns(uint256) {
+        return refundAmount(loan).mul(exchanger.sellRate()) * percent / RATE_MULTIPLIER /
                       PERCENT_MULTIPLIER / 100;
     }
 
@@ -281,7 +289,7 @@ contract Loans is Ownable {
             exchanger.getState() == ComplexExchanger.State.PROCESSING_ORDERS
         );
 
-        uint256 pledge = calcPledgeLibre(loan);
+        uint256 pledge = calcPledgeLibre(loan, pledgePercent);
         uint256 refund = msg.value.sub(pledge); // throw ex if msg.value < pledge
         
         loan.recipient = msg.sender;
@@ -305,7 +313,7 @@ contract Loans is Ownable {
             exchanger.getState() == ComplexExchanger.State.PROCESSING_ORDERS
         );
 
-        uint256 pledge = calcPledgeEth(loan);
+        uint256 pledge = calcPledgeEth(loan, pledgePercent);
 
         loan.recipient = msg.sender;
         loan.timestamp = now;
@@ -337,7 +345,7 @@ contract Loans is Ownable {
         if (amount == 0)
             amount = balance[msg.sender];
 
-        balance[msg.sender] = balance[msg.sender].sub(amount)
+        balance[msg.sender] = balance[msg.sender].sub(amount);
         msg.sender.transfer(amount);
     }
 }
