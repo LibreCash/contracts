@@ -28,8 +28,8 @@ contract Loans is Ownable {
         uint256 max;
     }
 
-    Limit public loanLimitEth = Limit(0, 100 ether);
-    Limit public loanLimitLibre = Limit(0 wei, 100 ether);
+    Limit public loanLimitEth = Limit(0, 10000 ether);
+    Limit public loanLimitLibre = Limit(0 wei, 100000 ether);
 
     event NewLoan(Assets asset, uint256 timestamp, uint256 deadline, uint256 amount, uint256 margin, Status status);
     event OracleRequest();
@@ -54,6 +54,7 @@ contract Loans is Ownable {
         uint256 period;
         uint256 amount;
         uint256 margin;
+        uint256 fee;
         uint256 pledge;
         Status status;
     }
@@ -86,7 +87,7 @@ contract Loans is Ownable {
             loan.period,
             loan.amount,
             loan.margin,
-            refundAmount(asset,loan),
+            refundAmount(loan),
             calcPledge(asset,loan)
         ];
 
@@ -97,20 +98,15 @@ contract Loans is Ownable {
             loan.status
         );
     }
-
-    function refundAmount(Assets asset,Loan loan) internal returns(uint256) {
-        return asset == Assets.LIBRE ?  refundAmountLibre(loan.amount,loan.margin) : refundAmountEth(loan.amount,loan.margin);
-    }
-
     function calcPledge(Assets asset,Loan loan) internal returns(uint256) {
-        return asset == Assets.LIBRE ? calcPledgeLibre(loan.amount,loan.margin) : calcPledgeEth(loan.amount,loan.margin);
+        return asset == Assets.LIBRE ? calcPledgeLibre(loan) : calcPledgeEth(loan);
     }
 
     function createLoanLibre(uint256 _period, uint256 _amount, uint256 _margin) public {
         require(_amount >= loanLimitLibre.min && _amount <= loanLimitLibre.max);
         
         token.transferFrom(msg.sender,this,_amount);
-        Loan memory curLoan = Loan(msg.sender,0x0,now,_period,_amount, _margin,0,Status.ACTIVE);
+        Loan memory curLoan = Loan(msg.sender, 0x0, now, _period, _amount, _margin, feeLibre, 0, Status.ACTIVE);
         loansLibre.push(curLoan);
 
         NewLoan(Assets.ETH, now, _period, _amount, _margin, Status.ACTIVE);
@@ -121,7 +117,7 @@ contract Loans is Ownable {
         
         uint256 refund = msg.value.sub(_amount);
         
-        Loan memory curLoan = Loan(msg.sender, 0x0, now, _period, msg.value, _margin, 0, Status.ACTIVE);
+        Loan memory curLoan = Loan(msg.sender, 0x0, now, _period, msg.value, _margin, feeEth, 0, Status.ACTIVE);
         
         loansEth.push(curLoan);
         
@@ -263,22 +259,18 @@ contract Loans is Ownable {
         pledgePercent = _percent;
     }
 
-    function refundAmountEth(uint256 amount, uint256 margin) public view returns(uint256) {
-        return amount.add(margin) * (100 * PERCENT_MULTIPLIER + feeEth) / PERCENT_MULTIPLIER / 100;
+    function refundAmount(Loan loan) internal view returns(uint256) {
+        return loan.amount.add(loan.margin) * (100 * PERCENT_MULTIPLIER + loan.fee) / PERCENT_MULTIPLIER / 100;
     }
 
-    function refundAmountLibre(uint256 amount, uint256 margin) public view returns(uint256) {
-        return amount.add(margin) * (100 * PERCENT_MULTIPLIER + feeLibre) / PERCENT_MULTIPLIER / 100;
-    }
-
-    function calcPledgeLibre(uint256 amount, uint256 margin) public view returns(uint256) {
-        return refundAmountLibre(amount, margin).mul(RATE_MULTIPLIER) * 
+    function calcPledgeLibre(Loan loan) internal view returns(uint256) {
+        return refundAmount(loan).mul(RATE_MULTIPLIER) * 
                   (100 * PERCENT_MULTIPLIER + pledgePercent) / exchanger.sellRate() /
                       PERCENT_MULTIPLIER / 100;
     }
 
-    function calcPledgeEth(uint256 amount, uint256 margin) public view returns(uint256) {
-        return refundAmountEth(amount, margin).mul(exchanger.buyRate()) * 
+    function calcPledgeEth(Loan loan) internal view returns(uint256) {
+        return refundAmount(loan).mul(exchanger.buyRate()) * 
                   (100 * PERCENT_MULTIPLIER + pledgePercent) / RATE_MULTIPLIER /
                       PERCENT_MULTIPLIER / 100;
     }
@@ -291,7 +283,7 @@ contract Loans is Ownable {
             exchanger.getState() == ComplexExchanger.State.PROCESSING_ORDERS
         );
 
-        uint256 pledge = calcPledgeLibre(loan.amount, loan.margin);
+        uint256 pledge = calcPledgeLibre(loan);
         uint256 refund = msg.value.sub(pledge); // throw ex if msg.value < pledge
         
         loan.recipient = msg.sender;
@@ -315,7 +307,7 @@ contract Loans is Ownable {
             exchanger.getState() == ComplexExchanger.State.PROCESSING_ORDERS
         );
 
-        uint256 pledge = calcPledgeEth(loan.amount, loan.margin);
+        uint256 pledge = calcPledgeEth(loan);
 
         loan.recipient = msg.sender;
         loan.timestamp = now;
