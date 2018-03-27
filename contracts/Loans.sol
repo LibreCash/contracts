@@ -281,7 +281,7 @@ contract Loans is Ownable {
             orders[i] = MAX_UINT256;
         }
         uint256 counter = 0;
-        for (i = 0; i < loans.length; i++) {
+        for (i = loans.length - 1; i >= 0; i--) {
             bool _active = ((isActive && (loans[i].status == Status.ACTIVE)) ||
                             (isUsed && (loans[i].status == Status.USED)) ||
                             (isCompleted && (loans[i].status == Status.COMPLETED)));
