@@ -194,7 +194,7 @@ contract Loans is Ownable {
             loan.status == Status.USED &&
             exchanger.getState() == ComplexExchanger.State.PROCESSING_ORDERS &&
             (now > (loan.timestamp + loan.period) || 
-                calcPledgeEth(loan, marginCallPercent) > loan.pledge)
+            calcPledgeEth(loan, marginCallPercent) > loan.pledge)
         );
 
         uint256 rate = exchanger.sellRate();
@@ -207,8 +207,8 @@ contract Loans is Ownable {
         uint256 sellTokens = needReturn * rate / RATE_MULTIPLIER;
 
         loansEth[id].status = Status.COMPLETED;
-        token.approve(Exchanger,sellTokens);
-        exchanger.sellTokens(loan.holder,sellTokens);
+        token.approve(Exchanger, sellTokens);
+        exchanger.sellTokens(loan.holder, sellTokens);
     }
     
 
@@ -221,7 +221,7 @@ contract Loans is Ownable {
             loan.status == Status.USED &&
             exchanger.getState() == ComplexExchanger.State.PROCESSING_ORDERS &&
             (now > (loan.timestamp + loan.period) ||
-                calcPledgeLibre(loan, marginCallPercent) > loan.pledge)
+            calcPledgeLibre(loan, marginCallPercent) > loan.pledge)
         );
         
         uint256 rate = exchanger.buyRate();
@@ -272,13 +272,11 @@ contract Loans is Ownable {
     }
 
     function calcPledgeLibre(Loan loan, uint256 percent) internal view returns(uint256) {
-        return refundAmount(loan).mul(RATE_MULTIPLIER) * percent / exchanger.buyRate() /
-                      PERCENT_MULTIPLIER / 100;
+        return refundAmount(loan).mul(RATE_MULTIPLIER) * percent / exchanger.buyRate() / PERCENT_MULTIPLIER / 100;
     }
 
     function calcPledgeEth(Loan loan, uint256 percent) internal view returns(uint256) {
-        return refundAmount(loan).mul(exchanger.sellRate()) * percent / RATE_MULTIPLIER /
-                      PERCENT_MULTIPLIER / 100;
+        return refundAmount(loan).mul(exchanger.sellRate()) * percent / RATE_MULTIPLIER / PERCENT_MULTIPLIER / 100;
     }
 
     function takeLoanLibre(uint256 id) public payable {
@@ -321,7 +319,7 @@ contract Loans is Ownable {
         loan.pledge = pledge;
         loansEth[id] = loan;
 
-        token.transferFrom(msg.sender,this,pledge); // thow if user doesn't allow tokens
+        token.transferFrom(msg.sender, this, pledge); // thow if user doesn't allow tokens
         msg.sender.transfer(loan.amount);
     }
 
@@ -339,13 +337,12 @@ contract Loans is Ownable {
         token = LibreCash(Libre);
     }
 
-    function claimBalance(uint256 amount) public {
+    function claimBalance(uint256 _amount) public {
         require (balance[msg.sender] > 0);
+        
+        _amount = (_amount == 0) ? balance[msg.sender] : _amount;
 
-        if (amount == 0)
-            amount = balance[msg.sender];
-
-        balance[msg.sender] = balance[msg.sender].sub(amount);
-        msg.sender.transfer(amount);
+        balance[msg.sender] = balance[msg.sender].sub(_amount);
+        msg.sender.transfer(_amount);
     }
 }
