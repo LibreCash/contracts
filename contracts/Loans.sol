@@ -289,9 +289,10 @@ contract Loans is Ownable {
             if (_active) {
                 counter++;
             }
-            if (counter - 1 < firstOrder || counter - 1 > firstOrder + _pagination[1] - 1) continue;
+            if (counter - 1 < firstOrder || counter > firstOrder + _pagination[1]) continue;
             if (_active) {
-                orders[counter - firstOrder - 1] = i;
+                // STACK TOO DEEP ERROR HERE, WIP
+                orders[_pagination[1] - counter + firstOrder] = i;
             }
         }
         return (orders, counter);
