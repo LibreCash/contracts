@@ -211,6 +211,7 @@ contract Loans is Ownable {
         if (havePledge < needSend)
             needSend = havePledge;
 
+        require(Exchanger.balance >= needSend);
         uint256 sellTokens = needSend * rate / RATE_MULTIPLIER;
 
         loansEth[id].status = Status.COMPLETED;
@@ -239,6 +240,7 @@ contract Loans is Ownable {
         if (havePledge < needSend)
           needSend = havePledge;
 
+        require(token.balanceOf(Exchanger) >= needSend);
         uint256 buyTokens = needSend.mul(RATE_MULTIPLIER) / rate;
 
         loansLibre[id].status = Status.COMPLETED;
