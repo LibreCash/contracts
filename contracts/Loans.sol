@@ -118,7 +118,7 @@ contract Loans is Ownable {
     }
 
     function giveEth(uint256 _period, uint256 _amount, uint256 _margin) payable public {
-        require(_amount <= msg.value &&_amount >= loanLimitEth.min && _amount <= loanLimitEth.max);
+        require(_amount <= msg.value && _amount >= loanLimitEth.min && _amount <= loanLimitEth.max);
         
         uint256 refund = msg.value.sub(_amount);
         
@@ -126,7 +126,7 @@ contract Loans is Ownable {
         
         loansEth.push(curLoan);
         
-        NewLoan(Assets.LIBRE,now, _period, _amount, _margin, Status.ACTIVE);
+        NewLoan(Assets.LIBRE, now, _period, _amount, _margin, Status.ACTIVE);
 
         if(refund > 0)
             msg.sender.transfer(refund);
@@ -200,7 +200,7 @@ contract Loans is Ownable {
             msg.sender == loan.holder &&
             loan.status == Status.USED &&
             exchanger.getState() == ComplexExchanger.State.PROCESSING_ORDERS &&
-            (now > (loan.timestamp + loan.period) || 
+            (now > (loan.timestamp + loan.period * 1 minutes) || 
             calcPledgeEth(loan, marginCallPercent) > loan.pledge)
         );
 
@@ -228,7 +228,7 @@ contract Loans is Ownable {
             msg.sender == loan.holder &&
             loan.status == Status.USED &&
             exchanger.getState() == ComplexExchanger.State.PROCESSING_ORDERS &&
-            (now > (loan.timestamp + loan.period) ||
+            (now > (loan.timestamp + loan.period * 1 minutes) ||
             calcPledgeLibre(loan, marginCallPercent) > loan.pledge)
         );
 
@@ -388,7 +388,7 @@ contract Loans is Ownable {
 
         if(refund > 0)
             msg.sender.transfer(refund);
-        // LoanAccepted(id,msge.sender,pledge,loan.timestamp+loan.period);
+        // LoanAccepted(id,msge.sender,pledge,loan.timestamp+loan.period minutes);
     }
 
     function takeLoanEth(uint id) public {
