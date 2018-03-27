@@ -360,7 +360,7 @@ contract Loans is Ownable {
     }
 
     function calcPledgeLibre(Loan loan, uint256 percent) internal view returns(uint256) {
-        return refundAmount(loan).mul(RATE_MULTIPLIER) * percent / exchanger.buyRate() / PERCENT_MULTIPLIER / 100;
+        return exchanger.buyRate() == 0 ? 0 : refundAmount(loan).mul(RATE_MULTIPLIER) * percent / exchanger.buyRate() / PERCENT_MULTIPLIER / 100;
     }
 
     function calcPledgeEth(Loan loan, uint256 percent) internal view returns(uint256) {
