@@ -521,7 +521,7 @@ contract Loans is Ownable {
 
     /**
      * @dev set libre address
-     * @param _exchanger contract address
+     * @param _libre contract address
      */
     function setLibre(address _libre) public onlyOwner {
         Libre = _libre;
