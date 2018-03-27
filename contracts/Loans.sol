@@ -13,7 +13,6 @@ contract Loans is Ownable {
     using SafeMath for uint256;
     address public Libre;
     address public Exchanger;
-    mapping(address=>bool) oracles;
 
     uint256 constant MAX_UINT256 = 2**256 - 1;
 
