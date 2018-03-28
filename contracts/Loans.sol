@@ -255,20 +255,17 @@ contract Loans is Ownable {
         return (loansLibre.length,loansEth.length);
     }
 
-    function getLoans(uint256[2] _pagination, uint8 _type, uint8 _statuses) public view returns (uint256[], uint256) {
+    function getLoans(uint256[2] _pagination, uint8 _type, uint8 _statuses) public view returns (uint256[]) {
         // _pagination [_page, _pageCount]
         uint256 firstOrder = _pagination[0] * _pagination[1];
         // 1 - eth, 0 - libre (check?)
         Loan[] memory loans = (_type == 1) ? loansEth : loansLibre;
         // statuses:
-        // 000 - 0 - none
-        // 001 - 1 - active
-        // 010 - 2 - used
-        // 011 - 3 - active & used
-        // 100 - 4 - completed
-        // 101 - 5 - completed & active
-        // 110 - 6 - completed & used
-        // 111 - 7 - all
+        // 0000 - 0 - none
+        // 0001 - 1 - active
+        // 0010 - 2 - used
+        // 0100 - 4 - completed
+        // 0111 - 7 - all
         // 1xxx - own
         // isActive * 1 + isUsed * 2 + isCompleted * 4 + isOwn * 8
         bool isActive = (_statuses % 2) != 0;
@@ -281,25 +278,56 @@ contract Loans is Ownable {
             orders[i] = MAX_UINT256;
         }
         uint256 counter = 0;
-        for (i = loans.length - 1; i >= 0; i--) {
-            bool _active = ((isActive && (loans[i].status == Status.ACTIVE)) ||
-                            (isUsed && (loans[i].status == Status.USED)) ||
-                            (isCompleted && (loans[i].status == Status.COMPLETED)));
-            _active = isOwn ? loans[i].holder == msg.sender && _active : _active;
+        uint256 filler = 0;
+        for (i = loans.length; i > 0; i--) {
+            bool _active = ((isActive && (loans[i - 1].status == Status.ACTIVE)) ||
+                            (isUsed && (loans[i - 1].status == Status.USED)) ||
+                            (isCompleted && (loans[i - 1].status == Status.COMPLETED)));
+            _active = isOwn ? loans[i - 1].holder == msg.sender && _active : _active;
             if (_active) {
                 counter++;
             }
             if (counter - 1 < firstOrder || counter > firstOrder + _pagination[1]) continue;
             if (_active) {
-                // STACK TOO DEEP ERROR HERE, WIP
-                orders[_pagination[1] - counter + firstOrder] = i;
+                orders[filler] = i - 1;
+                filler++;
             }
         }
-        return (orders, counter);
+        return (orders);
     }
 
+    function getLoanCount(uint8 _type, uint8 _statuses) public view returns (uint256) {
+        // 1 - eth, 0 - libre (check?)
+        Loan[] memory loans = (_type == 1) ? loansEth : loansLibre;
+        // statuses:
+        // 0000 - 0 - none
+        // 0001 - 1 - active
+        // 0010 - 2 - used
+        // 0100 - 4 - completed
+        // 0111 - 7 - all
+        // 1xxx - own
+        // isActive * 1 + isUsed * 2 + isCompleted * 4 + isOwn * 8
+        bool isActive = (_statuses % 2) != 0;
+        bool isUsed = (_statuses / 2 % 2) != 0;
+        bool isCompleted = (_statuses / 4 % 4) != 0;
+        bool isOwn = (_statuses / 8 % 8) != 0;
+
+        uint256 counter = 0;
+        for (uint256 i = loans.length; i > 0; i--) {
+            bool _active = ((isActive && (loans[i - 1].status == Status.ACTIVE)) ||
+                            (isUsed && (loans[i - 1].status == Status.USED)) ||
+                            (isCompleted && (loans[i - 1].status == Status.COMPLETED)));
+            _active = isOwn ? loans[i - 1].holder == msg.sender && _active : _active;
+            if (_active) {
+                counter++;
+            }
+        }
+        return (counter);
+    }
+
+
     // method only for tests
-    function fillTestLoans() public {
+/*    function fillTestLoans() public {
         loansEth.push(Loan(msg.sender, 0x0, now, 300, 100, 1000, 200, 0, Status.ACTIVE));        
         loansEth.push(Loan(msg.sender, 0x0, now, 300, 200, 1100, 200, 0, Status.ACTIVE));        
         loansEth.push(Loan(msg.sender, 0x0, now, 300, 300, 1200, 200, 0, Status.USED));        
@@ -332,7 +360,7 @@ contract Loans is Ownable {
         loansLibre.push(Loan(msg.sender, 0x0, now, 222, 2222, 222, 200, 0, Status.ACTIVE));
         loansLibre.push(Loan(msg.sender, 0x0, now, 222, 3333, 333, 200, 0, Status.ACTIVE));
         loansLibre.push(Loan(msg.sender, 0x0, now, 222, 4444, 444, 200, 0, Status.ACTIVE));        
-    }
+    }*/
 
     function tokenBalance() public view  returns(uint256) {
         return token.balanceOf(this);
