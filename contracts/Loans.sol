@@ -382,43 +382,6 @@ contract Loans is Ownable {
         return (counter);
     }
 
-
-    // method only for tests
-/*    function fillTestLoans() public {
-        loansEth.push(Loan(msg.sender, 0x0, now, 300, 100, 1000, 200, 0, Status.ACTIVE));        
-        loansEth.push(Loan(msg.sender, 0x0, now, 300, 200, 1100, 200, 0, Status.ACTIVE));        
-        loansEth.push(Loan(msg.sender, 0x0, now, 300, 300, 1200, 200, 0, Status.USED));        
-        loansEth.push(Loan(msg.sender, 0x0, now, 300, 400, 1300, 200, 0, Status.ACTIVE));        
-        loansEth.push(Loan(msg.sender, 0x0, now, 300, 500, 1400, 200, 0, Status.COMPLETED));        
-        loansEth.push(Loan(msg.sender, 0x0, now, 300, 600, 1500, 200, 0, Status.ACTIVE));        
-        loansEth.push(Loan(msg.sender, 0x0, now, 300, 700, 1600, 200, 0, Status.ACTIVE));        
-        loansEth.push(Loan(msg.sender, 0x0, now, 300, 800, 1700, 200, 0, Status.ACTIVE));        
-        loansEth.push(Loan(msg.sender, 0x0, now, 300, 900, 1800, 200, 0, Status.USED));        
-        loansEth.push(Loan(msg.sender, 0x0, now, 300, 1000, 1900, 200, 0, Status.ACTIVE));        
-        loansEth.push(Loan(msg.sender, 0x0, now, 300, 1100, 2000, 200, 0, Status.ACTIVE));   
-        loansEth.push(Loan(msg.sender, 0x0, now, 300, 1200, 2100, 200, 0, Status.COMPLETED));        
-        loansEth.push(Loan(msg.sender, 0x0, now, 300, 1300, 2200, 200, 0, Status.ACTIVE));        
-        loansEth.push(Loan(msg.sender, 0x0, now, 300, 1400, 2300, 200, 0, Status.ACTIVE));        
-        loansEth.push(Loan(msg.sender, 0x0, now, 300, 1500, 2400, 200, 0, Status.ACTIVE));        
-        loansEth.push(Loan(msg.sender, 0x0, now, 300, 1600, 2500, 200, 0, Status.USED));        
-        loansEth.push(Loan(msg.sender, 0x0, now, 300, 1700, 2600, 200, 0, Status.ACTIVE));        
-        loansEth.push(Loan(msg.sender, 0x0, now, 300, 1800, 2700, 200, 0, Status.ACTIVE));   
-
-        loansLibre.push(Loan(msg.sender, 0x0, now, 222, 111, 11, 200, 0, Status.USED));
-        loansLibre.push(Loan(msg.sender, 0x0, now, 222, 222, 22, 200, 0, Status.USED));
-        loansLibre.push(Loan(msg.sender, 0x0, now, 222, 333, 33, 200, 0, Status.ACTIVE));
-        loansLibre.push(Loan(msg.sender, 0x0, now, 222, 444, 44, 200, 0, Status.COMPLETED));
-        loansLibre.push(Loan(msg.sender, 0x0, now, 222, 555, 55, 200, 0, Status.USED));
-        loansLibre.push(Loan(msg.sender, 0x0, now, 222, 666, 66, 200, 0, Status.USED));
-        loansLibre.push(Loan(msg.sender, 0x0, now, 222, 777, 77, 200, 0, Status.ACTIVE));
-        loansLibre.push(Loan(msg.sender, 0x0, now, 222, 888, 88, 200, 0, Status.ACTIVE));
-        loansLibre.push(Loan(msg.sender, 0x0, now, 222, 999, 99, 200, 0, Status.ACTIVE));        
-        loansLibre.push(Loan(msg.sender, 0x0, now, 222, 1111, 111, 200, 0, Status.USED));
-        loansLibre.push(Loan(msg.sender, 0x0, now, 222, 2222, 222, 200, 0, Status.ACTIVE));
-        loansLibre.push(Loan(msg.sender, 0x0, now, 222, 3333, 333, 200, 0, Status.ACTIVE));
-        loansLibre.push(Loan(msg.sender, 0x0, now, 222, 4444, 444, 200, 0, Status.ACTIVE));        
-    }*/
-
     /**
      * @dev Return token balance
      */
