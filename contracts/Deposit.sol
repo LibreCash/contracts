@@ -13,13 +13,12 @@ contract Deposit is Ownable {
     address public Libre;
     LibreCash libre;
 
-
-    uint256 public percent = 1000; // 10%
     uint256 public needAmount = 20000 ether;
-    uint256 public period;
     uint256 constant REVERSE_PERCENT = 10000;
+    
+    DepositPlan[] public plans;
 
-    event NewDeposit(address beneficiar, int256 timestamp, uint256 deadline, uint256 amount, uint256 margin);
+    event NewDeposit(address beneficiar, uint256 timestamp, uint256 deadline, uint256 amount, uint256 margin);
     event ClaimDeposit(address beneficiar, uint256 amount, uint256 margin);
 
     struct OwnDeposit {
@@ -29,6 +28,12 @@ contract Deposit is Ownable {
         uint256 margin;
     }
 
+    struct DepositPlan {
+        uint256 period;
+        uint256 percent;
+        uint256 minAmount;
+    }
+
     mapping(address=>OwnDeposit[]) public deposits;
 
     function Deposit(address _libre) public {
@@ -36,16 +41,8 @@ contract Deposit is Ownable {
         libre = LibreCash(Libre);
     }
 
-    function setPercent(uint256 _percent) public onlyOwner {
-        percent = _percent;
-    }
-
     function setAmount(uint256 _amount) public onlyOwner {
         needAmount = _amount;
-    }
-
-    function setPeriod(uint256 _period) public onlyOwner {
-        period = _period;
     }
 
     function myDeposits() public returns(OwnDeposit[]) {
@@ -71,21 +68,37 @@ contract Deposit is Ownable {
         ClaimDeposit(msg.sender, dep.amount, dep.margin);
     }
 
-    function createDeposit(uint256 _amount) public {
+    function createPlan(uint256 period, uint256 percent, uint256 minAmount) public onlyOwner {
+        require(period > 0);
+        plans.push(DepositPlan(period, percent,minAmount));
+    }
+
+    function deletePlan(uint256 planId) public onlyOwner {
+        delete plans[planId];
+    }
+
+    function changePlan(uint256 planId, uint256 period, uint256 percent, uint256 minAmount) public onlyOwner {
+        require(period > 0);
+        plans[planId] = DepositPlan(period, percent,minAmount);
+    }
+
+    function createDeposit(uint256 _amount,uint256 planId) public {
         _amount = (_amount <= needAmount) ? _amount : needAmount;
+        DepositPlan memory plan = plans[planId];
+
         libre.transferFrom(msg.sender, this, _amount);
         deposits[msg.sender].push(OwnDeposit(
             now,
-            now.add(period),
+            now.add(plan.period),
             _amount,
-            calcProfit(_amount)
+            calcProfit(_amount, plan)
         ));
         needAmount.sub(_amount);
-        NewDeposit(msg.sender, now, now.add(period), _amount, calcProfit(_amount));
+        NewDeposit(msg.sender, now, now.add(plan.period), _amount, calcProfit(_amount, plan));
     }
 
-    function calcProfit(uint256 _amount) public returns(uint256) {
+    function calcProfit(uint256 _amount, DepositPlan plan) public returns(uint256) {
         // Check it later
-        return _amount.mul(REVERSE_PERCENT.add(percent)).div(REVERSE_PERCENT);
+        return _amount.mul(REVERSE_PERCENT.add(plan.percent)).div(REVERSE_PERCENT);
     }
 }
