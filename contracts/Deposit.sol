@@ -15,6 +15,7 @@ contract Deposit is Ownable {
 
     uint256 public needAmount = 20000 ether;
     uint256 constant REVERSE_PERCENT = 10000;
+    uint256 public lockedTokens = 0;
     
     DepositPlan[] public plans;
 
@@ -43,10 +44,6 @@ contract Deposit is Ownable {
 
     function setAmount(uint256 _amount) public onlyOwner {
         needAmount = _amount;
-    }
-
-    function myDeposits() public returns(OwnDeposit[]) {
-        return deposits[msg.sender];
     }
 
     function myDeposit(uint256 id) public returns(uint256,uint256, uint256,uint256) {
@@ -85,23 +82,32 @@ contract Deposit is Ownable {
     function createDeposit(uint256 _amount, uint256 planId) public {
         _amount = (_amount <= needAmount) ? _amount : needAmount;
         DepositPlan memory plan = plans[planId];
+        uint256 margin = calcProfit(_amount, planId);
         
-        require(_amount >= plan.minAmount);
+        lockedTokens.add(margin);
+        require(_amount >= plan.minAmount && margin <= availableTokens());
+        lockedTokens.add(_amount);
+
 
         libre.transferFrom(msg.sender, this, _amount);
         deposits[msg.sender].push(OwnDeposit(
             now,
             now.add(plan.period),
             _amount,
-            calcProfit(_amount, plan)
+            calcProfit(_amount, planId)
         ));
 
         needAmount.sub(_amount);
-        NewDeposit(msg.sender, now, now.add(plan.period), _amount, calcProfit(_amount, plan));
+        NewDeposit(msg.sender, now, now.add(plan.period), _amount, calcProfit(_amount, planId));
     }
 
-    function calcProfit(uint256 _amount, DepositPlan plan) public view returns(uint256) {
+    function availableTokens() public view returns(uint256) {
+        return libre.balanceOf(this).sub(lockedTokens);   
+    }
+
+    function calcProfit(uint256 _amount, uint256 planId) internal view returns(uint256) {
         // Check it later
+        DepositPlan plan = plans[planId];
         return _amount.mul(REVERSE_PERCENT.add(plan.percent)).div(REVERSE_PERCENT);
     }
 }
