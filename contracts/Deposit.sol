@@ -70,7 +70,7 @@ contract Deposit is Ownable {
 
     function createPlan(uint256 period, uint256 percent, uint256 minAmount) public onlyOwner {
         require(period > 0);
-        plans.push(DepositPlan(period, percent,minAmount));
+        plans.push(DepositPlan(period, percent, minAmount));
     }
 
     function deletePlan(uint256 planId) public onlyOwner {
@@ -79,12 +79,14 @@ contract Deposit is Ownable {
 
     function changePlan(uint256 planId, uint256 period, uint256 percent, uint256 minAmount) public onlyOwner {
         require(period > 0);
-        plans[planId] = DepositPlan(period, percent,minAmount);
+        plans[planId] = DepositPlan(period, percent, minAmount);
     }
 
-    function createDeposit(uint256 _amount,uint256 planId) public {
+    function createDeposit(uint256 _amount, uint256 planId) public {
         _amount = (_amount <= needAmount) ? _amount : needAmount;
         DepositPlan memory plan = plans[planId];
+        
+        require(_amount >= plan.minAmount);
 
         libre.transferFrom(msg.sender, this, _amount);
         deposits[msg.sender].push(OwnDeposit(
@@ -93,11 +95,12 @@ contract Deposit is Ownable {
             _amount,
             calcProfit(_amount, plan)
         ));
+
         needAmount.sub(_amount);
         NewDeposit(msg.sender, now, now.add(plan.period), _amount, calcProfit(_amount, plan));
     }
 
-    function calcProfit(uint256 _amount, DepositPlan plan) public returns(uint256) {
+    function calcProfit(uint256 _amount, DepositPlan plan) public view returns(uint256) {
         // Check it later
         return _amount.mul(REVERSE_PERCENT.add(plan.percent)).div(REVERSE_PERCENT);
     }
