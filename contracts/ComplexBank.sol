@@ -26,7 +26,6 @@ contract ComplexBank is Pausable, BankI {
     uint256 public oracleActual = oracleTimeout + 5 minutes;
     // RATE_PERIOD should be greater than or equal to ORACLE_ACTUAL
     uint256 public ratePeriod = 15 minutes;
-    bool public locked = false;
     uint256 public reserveTokens = 0; // how many tokens (mint - burn) this bank
 
 
@@ -61,8 +60,7 @@ contract ComplexBank is Pausable, BankI {
      * @dev get contract state.
      */
     function getState() public view returns (State) {
-        if (locked)
-            return State.LOCKED;
+        if(paused) return State.LOCKED;
 
         if (now - calcTime < ratePeriod)
             return State.PROCESSING_ORDERS;
@@ -255,14 +253,6 @@ contract ComplexBank is Pausable, BankI {
      */
     function setRatePeriod(uint256 _period) public onlyOwner {
         ratePeriod = _period;
-    }
-
-    /**
-     * @dev Lets owner to set  locked contract.
-     * @param lock Set locked value.
-     */
-    function setLock(bool lock) public onlyOwner {
-        locked = lock;
     }
 
     /**
