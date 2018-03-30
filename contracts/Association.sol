@@ -78,15 +78,15 @@ contract Association is Ownable {
      *
      * First time setup
      */
-    function Association(ERC20 sharesAddress, ComplexBank bank, LibreCash cash, uint minimumSharesToPassAVote, uint minMinutesForDebate) payable {
-        changeVotingRules(sharesAddress, bank, cash, minimumSharesToPassAVote, minMinutesForDebate);
+    function Association(ERC20 sharesAddress, ComplexBank _bank, LibreCash _cash, uint minShares, uint minDebatePeriod) public {
+        changeVotingRules(sharesAddress, _bank, _cash, minShares, minDebatePeriod);
     }
 
     function getTokenBalance() public view returns(uint256) {
         return sharesTokenAddress.balanceOf(msg.sender);
     }
 
-    function proposalsLength() public view returns (uint) {
+    function prsLength() public view returns (uint) {
         return proposals.length;
     }
     // Change to internal after testing
@@ -285,6 +285,8 @@ contract Association is Ownable {
                 bank.setLock(p.amount > 0);
             } else if (p.tp == TypeProposal.CLAIM_OWNERSHIP) {
                 bank.claimOwnership();
+            } else if (p.tp == TypeProposal.SET_BANK_ADDRESS ) {
+                setBankAddress(p.recipient);
             }
         }
 
@@ -294,7 +296,7 @@ contract Association is Ownable {
         ProposalTallied(proposalID, int(yea - nay), quorum);
     }
 
-    function proposalUniversal(address beneficiary, uint weiAmount, 
+    function prUniversal(address beneficiary, uint weiAmount, 
                                 string jobDescription, uint debatingPeriodInMinutes, bytes transactionBytecode) 
         public onlyShareholders returns (uint proposalID) 
     {
@@ -303,7 +305,7 @@ contract Association is Ownable {
                             jobDescription, debatingPeriodInMinutes, transactionBytecode);
     }
 
-    function proposalUniversalInEther(address beneficiary, uint etherAmount, 
+    function prUniversalInEther(address beneficiary, uint etherAmount, 
                                 string jobDescription, uint debatingPeriodInMinutes, bytes transactionBytecode) 
         public onlyShareholders returns (uint proposalID) 
     {
@@ -312,14 +314,14 @@ contract Association is Ownable {
                             jobDescription, debatingPeriodInMinutes, transactionBytecode);
     }
 
-    function proposalTransferOwnership(address newOwner, string jobDescription, uint debatingPeriodInMinutes) 
+    function prTransferOwnership(address newOwner, string jobDescription, uint debatingPeriodInMinutes) 
         public onlyShareholders returns (uint proposalID) 
     {
         return newProposal(TypeProposal.TRANSFER_OWNERSHIP, newOwner, 0, 0, 
                             jobDescription, debatingPeriodInMinutes, "0");
     }
 
-    function proposalAttachToken(address _tokenAddress, string jobDescription, uint debatingPeriodInMinutes) 
+    function prAttachToken(address _tokenAddress, string jobDescription, uint debatingPeriodInMinutes) 
         public onlyShareholders returns (uint proposalID) 
     {
         require(_tokenAddress != address(0x0));
@@ -327,14 +329,14 @@ contract Association is Ownable {
                             jobDescription, debatingPeriodInMinutes, "0");
     }
 
-    function proposalFees(uint256 _buyFee, uint256 _sellFee, string jobDescription, uint debatingPeriodInMinutes) 
+    function prFees(uint256 _buyFee, uint256 _sellFee, string jobDescription, uint debatingPeriodInMinutes) 
         public onlyShareholders returns (uint proposalID) 
     {
         return newProposal(TypeProposal.SET_FEES, address(0), _buyFee, _sellFee, 
                             jobDescription, debatingPeriodInMinutes, "0");
     }
 
-    function proposalAddOracle(address _address, string jobDescription, uint debatingPeriodInMinutes) 
+    function prAddOracle(address _address, string jobDescription, uint debatingPeriodInMinutes) 
         public onlyShareholders returns (uint proposalID) 
     {
         require(_address != address(0x0));
@@ -342,7 +344,7 @@ contract Association is Ownable {
                             jobDescription, debatingPeriodInMinutes, "0");
     }
 
-    function proposalDisableOracle(address _address, string jobDescription, uint debatingPeriodInMinutes) 
+    function prDisableOracle(address _address, string jobDescription, uint debatingPeriodInMinutes) 
         public onlyShareholders returns (uint proposalID) 
     {
         require(_address != address(0x0));
@@ -350,7 +352,7 @@ contract Association is Ownable {
                             jobDescription, debatingPeriodInMinutes, "0");
     }
 
-    function proposalEnableOracle(address _address, string jobDescription, uint debatingPeriodInMinutes) 
+    function prEnableOracle(address _address, string jobDescription, uint debatingPeriodInMinutes) 
         public onlyShareholders returns (uint proposalID) 
     {
         require(_address != address(0x0));
@@ -358,7 +360,7 @@ contract Association is Ownable {
                             jobDescription, debatingPeriodInMinutes, "0");
     }
 
-    function proposalDeleteOracle(address _address, string jobDescription, uint debatingPeriodInMinutes) 
+    function prDeleteOracle(address _address, string jobDescription, uint debatingPeriodInMinutes) 
         public onlyShareholders returns (uint proposalID) 
     {
         require(_address != address(0x0));
@@ -366,7 +368,7 @@ contract Association is Ownable {
                             jobDescription, debatingPeriodInMinutes, "0");
     }
 
-    function proposalScheduler(address _scheduler, string jobDescription, uint debatingPeriodInMinutes) 
+    function prScheduler(address _scheduler, string jobDescription, uint debatingPeriodInMinutes) 
         public onlyShareholders returns (uint proposalID) 
     {
         require(_scheduler != address(0x0));
@@ -374,14 +376,14 @@ contract Association is Ownable {
                             jobDescription, debatingPeriodInMinutes, "0");
     }
 
-    function proposalWithdrawBalance(string jobDescription, uint debatingPeriodInMinutes) 
+    function prWithdrawBalance(string jobDescription, uint debatingPeriodInMinutes) 
         public onlyShareholders returns (uint proposalID) 
     {
         return newProposal(TypeProposal.WITHDRAW_BALANCE, address(0), 0, 0, 
                             jobDescription, debatingPeriodInMinutes, "0");
     }
 
-    function proposalBankAddress(address _bankAddress, string jobDescription, uint debatingPeriodInMinutes) 
+    function prBankAddress(address _bankAddress, string jobDescription, uint debatingPeriodInMinutes) 
         public onlyShareholders returns (uint proposalID) 
     {
         require(_bankAddress != address(0x0));
@@ -389,42 +391,45 @@ contract Association is Ownable {
                             jobDescription, debatingPeriodInMinutes, "0");
     }
 
-    function proposalOracleTimeout(uint256 _period, string jobDescription, uint debatingPeriodInMinutes) 
+    function prOracleTimeout(uint256 _period, string jobDescription, uint debatingPeriodInMinutes) 
         public onlyShareholders returns (uint proposalID) 
     {
         return newProposal(TypeProposal.SET_ORACLE_TIMEOUT, address(0), _period, 0, 
                             jobDescription, debatingPeriodInMinutes, "0");
     }
 
-    function proposalOracleActual(uint256 _period, string jobDescription, uint debatingPeriodInMinutes) 
+    function prOracleActual(uint256 _period, string jobDescription, uint debatingPeriodInMinutes) 
         public onlyShareholders returns (uint proposalID) 
     {
         return newProposal(TypeProposal.SET_ORACLE_ACTUAL, address(0), _period, 0, 
                             jobDescription, debatingPeriodInMinutes, "0");
     }
 
-    function proposalRatePeriod(uint256 _period, string jobDescription, uint debatingPeriodInMinutes) 
+    function prRatePeriod(uint256 _period, string jobDescription, uint debatingPeriodInMinutes) 
         public onlyShareholders returns (uint proposalID) 
     {
         return newProposal(TypeProposal.SET_RATE_PERIOD, address(0), _period, 0, 
                             jobDescription, debatingPeriodInMinutes, "0");
     }
 
-    function proposalLock(uint256 lock, string jobDescription, uint debatingPeriodInMinutes) 
+    function prLock(uint256 lock, string jobDescription, uint debatingPeriodInMinutes) 
         public onlyShareholders returns (uint proposalID) 
     {
         return newProposal(TypeProposal.SET_LOCK, address(0), lock, 0, 
                             jobDescription, debatingPeriodInMinutes, "0");
     }
 
-    function proposalClaimOwnership(address ownership, string jobDescription, uint debatingPeriodInMinutes) 
+    function prClaimOwnership(string jobDescription, uint debatingPeriodInMinutes) 
         public onlyShareholders returns (uint proposalID) 
     {
-        return newProposal(TypeProposal.CLAIM_OWNERSHIP, address(0), 0, 0, 
+        return newProposal(TypeProposal.CLAIM_OWNERSHIP, address(this), 0, 0, 
                             jobDescription, debatingPeriodInMinutes, "0");
     }
+    
+    function setBankAddress(address _bank)  internal {
+        bank = ComplexBank(_bank);
+    }
 
-    // Delete after testing. Need to Withdraw method (Bank withdraw to owner = Association)
-    function() payable {}
+    function() payable public {}
 }
 
