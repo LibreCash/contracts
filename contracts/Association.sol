@@ -45,7 +45,7 @@ contract Association is Ownable {
         SET_ORACLE_TIMEOUT,
         SET_ORACLE_ACTUAL,
         SET_RATE_PERIOD,
-        SET_LOCK,
+        SET_PAUSED,
         CLAIM_OWNERSHIP
     }
 
@@ -281,8 +281,8 @@ contract Association is Ownable {
                 bank.setOracleActual(p.amount);
             } else if (p.tp == TypeProposal.SET_RATE_PERIOD) {
                 bank.setRatePeriod(p.amount);
-            } else if (p.tp == TypeProposal.SET_LOCK) {
-                bank.setLock(p.amount > 0);
+            } else if (p.tp == TypeProposal.SET_PAUSED) {
+                (p.amount > 0) ? bank.pause() : bank.unpause();
             } else if (p.tp == TypeProposal.CLAIM_OWNERSHIP) {
                 bank.claimOwnership();
             } else if (p.tp == TypeProposal.SET_BANK_ADDRESS ) {
@@ -412,10 +412,10 @@ contract Association is Ownable {
                             jobDescription, debatingPeriodInMinutes, "0");
     }
 
-    function prLock(uint256 lock, string jobDescription, uint debatingPeriodInMinutes) 
+    function prPause(uint256 paused, string jobDescription, uint debatingPeriodInMinutes) 
         public onlyShareholders returns (uint proposalID) 
     {
-        return newProposal(TypeProposal.SET_LOCK, address(0), lock, 0, 
+        return newProposal(TypeProposal.SET_PAUSED, address(0), paused, 0, 
                             jobDescription, debatingPeriodInMinutes, "0");
     }
 
