@@ -20,7 +20,6 @@ interface BankI {
     function setOracleTimeout(uint256 _period) public;
     function setOracleActual(uint256 _period) public;
     function setRatePeriod(uint256 _period) public;
-    function setLock(bool lock) public;
 
     /* Tokens admin methods */
     function transferTokenOwner(address newOwner) public;

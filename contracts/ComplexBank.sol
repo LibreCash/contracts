@@ -60,7 +60,8 @@ contract ComplexBank is Pausable, BankI {
      * @dev get contract state.
      */
     function getState() public view returns (State) {
-        if(paused) return State.LOCKED;
+        if (paused)
+            return State.LOCKED;
 
         if (now - calcTime < ratePeriod)
             return State.PROCESSING_ORDERS;
@@ -140,7 +141,7 @@ contract ComplexBank is Pausable, BankI {
      * @dev Attaches token contract.
      * @param _tokenAddress The token address.
      */
-    function attachToken(address _tokenAddress) public whenNotPaused onlyOwner {
+    function attachToken(address _tokenAddress) public onlyOwner {
         require(_tokenAddress != 0x0);
         tokenAddress = _tokenAddress;
         token = LibreCash(tokenAddress);
@@ -234,7 +235,7 @@ contract ComplexBank is Pausable, BankI {
      * @dev Lets owner to set  Oracle timeout period.
      * @param _period Oracle data waiting timeout.
      */
-    function setOracleTimeout(uint256 _period) public whenNotPaused onlyOwner {
+    function setOracleTimeout(uint256 _period) public onlyOwner {
         oracleTimeout = _period;
     }
 
@@ -242,7 +243,7 @@ contract ComplexBank is Pausable, BankI {
      * @dev Lets owner to set  Oracle actual period.
      * @param _period Oracle data actual timeout.
      */
-    function setOracleActual(uint256 _period) public whenNotPaused onlyOwner {
+    function setOracleActual(uint256 _period) public onlyOwner {
         require (_period > oracleTimeout);
         oracleActual = _period;
     }
@@ -251,7 +252,7 @@ contract ComplexBank is Pausable, BankI {
      * @dev Lets owner to set  rate period.
      * @param _period rate period.
      */
-    function setRatePeriod(uint256 _period) public whenNotPaused onlyOwner {
+    function setRatePeriod(uint256 _period) public onlyOwner {
         ratePeriod = _period;
     }
 
@@ -268,7 +269,7 @@ contract ComplexBank is Pausable, BankI {
      * @param _buyFee The buy fee.
      * @param _sellFee The sell fee.
      */
-    function setFees(uint256 _buyFee, uint256 _sellFee) public whenNotPaused onlyOwner {
+    function setFees(uint256 _buyFee, uint256 _sellFee) public onlyOwner {
         require(_buyFee <= MAX_FEE);
         require(_sellFee <= MAX_FEE);
 
@@ -288,7 +289,7 @@ contract ComplexBank is Pausable, BankI {
      * @dev Adds an oracle.
      * @param _address The oracle address.
      */
-    function addOracle(address _address) public whenNotPaused onlyOwner {
+    function addOracle(address _address) public onlyOwner {
         require((_address != 0x0) && (!oracleExists(_address)));
         OracleI currentOracle = OracleI(_address);
         bytes32 oracleName = currentOracle.oracleName();
@@ -317,7 +318,7 @@ contract ComplexBank is Pausable, BankI {
      * @dev Disables an oracle.
      * @param _address The oracle address.
      */
-    function disableOracle(address _address) public whenNotPaused onlyOwner {
+    function disableOracle(address _address) public onlyOwner {
         require((oracleExists(_address)) && (oracles[_address].enabled));
         oracles[_address].enabled = false;
         numEnabledOracles--;
@@ -328,7 +329,7 @@ contract ComplexBank is Pausable, BankI {
      * @dev Enables an oracle.
      * @param _address The oracle address.
      */
-    function enableOracle(address _address) public whenNotPaused onlyOwner {
+    function enableOracle(address _address) public onlyOwner {
         require((oracleExists(_address)) && (!oracles[_address].enabled));
         oracles[_address].enabled = true;
         numEnabledOracles++;
@@ -339,7 +340,7 @@ contract ComplexBank is Pausable, BankI {
      * @dev Deletes an oracle.
      * @param _address The oracle address.
      */
-    function deleteOracle(address _address) public whenNotPaused onlyOwner {
+    function deleteOracle(address _address) public onlyOwner {
         require(oracleExists(_address));
         OracleDeleted(_address, oracles[_address].name);
         if (firstOracle == _address) {
@@ -360,7 +361,7 @@ contract ComplexBank is Pausable, BankI {
      * @dev Sends money to oracles and start requestRates.
      * @param fund Desired balance of every oracle.
      */
-    function schedulerUpdateRate(uint256 fund) public whenNotPaused {
+    function schedulerUpdateRate(uint256 fund) public {
         require(msg.sender == scheduler);
         for (address cur = firstOracle; cur != 0x0; cur = oracles[cur].next) {
             if (oracles[cur].enabled)
@@ -373,7 +374,7 @@ contract ComplexBank is Pausable, BankI {
      * @dev Set scheduler
      * @param _scheduler new scheduler address
      */
-    function setScheduler(address _scheduler) public whenNotPaused onlyOwner {
+    function setScheduler(address _scheduler) public onlyOwner {
         require(_scheduler != 0x0);
         scheduler = _scheduler;
     }
@@ -411,7 +412,7 @@ contract ComplexBank is Pausable, BankI {
     /**
      * @dev Requests every enabled oracle to get the actual rate.
      */
-    function requestRates() payable public whenNotPaused state(State.REQUEST_RATES) {
+    function requestRates() payable public state(State.REQUEST_RATES) {
         require(numEnabledOracles >= MIN_ORACLES_ENABLED);
         uint256 sendValue = msg.value;
 
@@ -440,7 +441,7 @@ contract ComplexBank is Pausable, BankI {
     /**
      * @dev Processes data from ready oracles to get rates.
      */
-    function calcRates() public whenNotPaused state(State.CALC_RATES) {
+    function calcRates() public state(State.CALC_RATES) {
         uint256 minimalRate = 2**256 - 1; // Max for UINT256
         uint256 maximalRate = 0;
 
@@ -465,14 +466,14 @@ contract ComplexBank is Pausable, BankI {
      * @dev set new owner.
      * @param newOwner The new owner for token.
      */
-    function transferTokenOwner(address newOwner) public whenNotPaused onlyOwner {
+    function transferTokenOwner(address newOwner) public onlyOwner {
         token.transferOwnership(newOwner);
     }
 
     /**
      * @dev Claims token ownership.
      */
-    function claimOwnership() public whenNotPaused onlyOwner {
+    function claimOwnership() public onlyOwner {
         token.claimOwnership();
     }
 
@@ -480,7 +481,7 @@ contract ComplexBank is Pausable, BankI {
     /**
      * @dev Withdraws all the balance to owner.
      */
-    function withdrawBalance() public whenNotPaused onlyOwner {
+    function withdrawBalance() public onlyOwner {
         owner.transfer(this.balance);
     }
 }
