@@ -72,6 +72,13 @@ module.exports = function(deployer, network) {
     .then((contracts) => Promise.all(contracts.map((oracle) => oracle.setBank(exchanger.address))))
     .then(() => cash.deployed())
     .then((_cash) => {
+        // mint tokens to me for tests :)
+        _cash.mint.sendTransaction(web3.eth.coinbase, 1000 * 10 ** 18);
+        // mint cash to the exchanger
+        if (!deployBank) {
+            return _cash.mint.sendTransaction(exchanger.address, 100 * 10 ** 18);
+        }
+        // transfer ownership to the bank (not exchanger) contract
         if (deployBank)
             return _cash.transferOwnership(exchanger.address)
     })
@@ -101,14 +108,6 @@ module.exports = function(deployer, network) {
     .then((_exchanger) => {
         if (deployBank && deployDAO) {
             return _exchanger.transferOwnership(association.address)
-        }
-    })
-    .then(() => {
-        return cash.deployed()
-    })
-    .then((_cash) =>{
-        if (!deployBank) {
-            return _cash.mint.sendTransaction(exchanger.address, 100 * 10 ** 18)
         }
     })
     .then(() => {

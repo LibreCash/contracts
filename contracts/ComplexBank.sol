@@ -60,7 +60,8 @@ contract ComplexBank is Pausable, BankI {
      * @dev get contract state.
      */
     function getState() public view returns (State) {
-        if(paused) return State.LOCKED;
+        if (paused)
+            return State.LOCKED;
 
         if (now - calcTime < ratePeriod)
             return State.PROCESSING_ORDERS;
