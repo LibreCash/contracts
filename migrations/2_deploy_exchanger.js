@@ -147,7 +147,7 @@ module.exports = function(deployer, network) {
         }
         writeContractData(exchanger);
 
-        if(deployLoans) {
+        if (deployLoans) {
             writeContractData(loans);
         }
         
@@ -155,7 +155,14 @@ module.exports = function(deployer, network) {
             writeContractData(oracle);
         });
     })
-
+    .then(() => createMistLoader([
+        exchanger,
+        cash,
+        (deployBank && deployDAO) ? liberty : null,
+        (deployBank && deployDAO) ? association : null,
+        deployDeposit ? deposit : null,
+        deployLoans ? loans : null
+    ].concat(oracles)))
     .then(() => console.log("END DEPLOY"));
 }; // end module.exports
 
@@ -170,7 +177,22 @@ function writeContractData(artifact) {
                 `abiRefactored: '${JSON.stringify(mew_abi)}'`;
 
     createDir(directory);
-    fs.writeFileSync(`${directory}${artifact.contractName}.js`,data);
+    fs.writeFileSync(`${directory}${artifact.contractName}.js`, data);
+}
+
+function createMistLoader(contracts) {
+    let loader = `${__dirname}/../build/data/loader.js`;
+    var data = "CustomContracts.find().fetch().map((m) => {if (m.name.indexOf('_') == 0) CustomContracts.remove(m._id)});";
+    for (let i = 0; i < contracts.length; i++) {
+        if (contracts[i] == null) continue;
+        data += `
+        CustomContracts.insert({
+            address: "${contracts[i].address}",
+            name: "_${contracts[i].contractName}",
+            jsonInterface: ${JSON.stringify(contracts[i]._json.abi)}
+        });`;
+        fs.writeFileSync(loader, data);
+    }
 }
 
 function createDir(dirname) {
