@@ -8,6 +8,7 @@ import "./interfaces/I_Bank.sol";
 import "./token/LibreCash.sol";
 import "./ComplexExchanger.sol";
 
+
 contract Deposit is Ownable {
     using SafeMath for uint256;
     address public Libre;
@@ -46,7 +47,7 @@ contract Deposit is Ownable {
         needAmount = _amount;
     }
 
-    function myDeposit(uint256 id) public returns(uint256,uint256, uint256,uint256) {
+    function myDeposit(uint256 id) public view returns(uint256, uint256, uint256, uint256) {
         OwnDeposit memory dep = deposits[msg.sender][id];
         return (
             dep.timestamp,
@@ -60,7 +61,7 @@ contract Deposit is Ownable {
         OwnDeposit dep = deposits[msg.sender][id];
         require(dep.deadline >= now);
         uint256 refundAmount = dep.amount.add(dep.margin);
-        libre.transfer(msg.sender,refundAmount);
+        libre.transfer(msg.sender, refundAmount);
         delete deposits[msg.sender][id];
         ClaimDeposit(msg.sender, dep.amount, dep.margin);
     }
