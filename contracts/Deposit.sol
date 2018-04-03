@@ -8,6 +8,7 @@ import "./interfaces/I_Bank.sol";
 import "./token/LibreCash.sol";
 import "./ComplexExchanger.sol";
 
+
 contract Deposit is Ownable {
     using SafeMath for uint256;
     address public Libre;
@@ -15,6 +16,7 @@ contract Deposit is Ownable {
 
     uint256 public needAmount = 20000 ether;
     uint256 constant REVERSE_PERCENT = 10000;
+    uint256 constant YEAR_SECONDS = 365.25 * 24 * 60 * 60;
     uint256 public lockedTokens = 0;
     
     DepositPlan[] public plans;
@@ -46,7 +48,7 @@ contract Deposit is Ownable {
         needAmount = _amount;
     }
 
-    function myDeposit(uint256 id) public returns(uint256,uint256, uint256,uint256) {
+    function myDeposit(uint256 id) public view returns(uint256, uint256, uint256, uint256) {
         OwnDeposit memory dep = deposits[msg.sender][id];
         return (
             dep.timestamp,
@@ -60,7 +62,7 @@ contract Deposit is Ownable {
         OwnDeposit dep = deposits[msg.sender][id];
         require(dep.deadline >= now);
         uint256 refundAmount = dep.amount.add(dep.margin);
-        libre.transfer(msg.sender,refundAmount);
+        libre.transfer(msg.sender, refundAmount);
         delete deposits[msg.sender][id];
         ClaimDeposit(msg.sender, dep.amount, dep.margin);
     }
@@ -82,7 +84,7 @@ contract Deposit is Ownable {
     function createDeposit(uint256 _amount, uint256 planId) public {
         _amount = (_amount <= needAmount) ? _amount : needAmount;
         DepositPlan memory plan = plans[planId];
-        uint256 margin = calcProfit(_amount, planId);
+        uint256 margin = _amount.add(calcProfit(_amount, planId));
         
         lockedTokens.add(margin);
         require(_amount >= plan.minAmount && margin <= availableTokens());
@@ -94,20 +96,23 @@ contract Deposit is Ownable {
             now,
             now.add(plan.period),
             _amount,
-            calcProfit(_amount, planId)
+            margin
         ));
 
         needAmount.sub(_amount);
-        NewDeposit(msg.sender, now, now.add(plan.period), _amount, calcProfit(_amount, planId));
+        NewDeposit(msg.sender, now, now.add(plan.period), _amount, margin);
     }
 
     function availableTokens() public view returns(uint256) {
         return libre.balanceOf(this).sub(lockedTokens);   
     }
 
-    function calcProfit(uint256 _amount, uint256 planId) internal view returns(uint256) {
-        // Check it later
-        DepositPlan plan = plans[planId];
-        return _amount.mul(REVERSE_PERCENT.add(plan.percent)).div(REVERSE_PERCENT);
+    function calcProfit(uint256 _amount, uint256 _planId) public view returns(uint256) {
+        DepositPlan storage plan = plans[_planId];
+        // yearlyProfitX100 = _amount * percent * 100
+        uint256 yearlyProfitX100 = _amount.mul(plan.percent);
+        // periodicProfit = yearlyProfitX100 * period / 365.25 days / 100
+        uint256 periodicProfit = yearlyProfitX100.mul(plan.period).div(YEAR_SECONDS).div(REVERSE_PERCENT);
+        return periodicProfit;
     }
 }
