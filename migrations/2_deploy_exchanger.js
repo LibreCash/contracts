@@ -109,6 +109,19 @@ module.exports = function(deployer, network) {
         }
     })
     .then(() => {
+        if (deployDeposit) {
+            return Promise.all([cash.deployed(), deposit.deployed()]);
+        }
+    })
+    .then((_contracts) => {
+        if (deployDeposit) {
+            return Promise.all([
+                _contracts[0].mint.sendTransaction(deposit.address, 10000 * 10 ** 18),
+                _contracts[0].approve.sendTransaction(deposit.address, 10000 * 10 ** 18)
+            ]);
+        }
+    })
+    .then(() => {
         if (deployBank && deployDAO) {
             return exchanger.deployed();
         }
