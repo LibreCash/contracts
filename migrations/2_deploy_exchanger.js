@@ -22,7 +22,7 @@ module.exports = function(deployer, network) {
         },
         deployBank = false,
         deployDAO = false, // is actual when deployBank only
-
+        deployLoans = true,
         appendContract = (network == "mainnet" || network == "testnet") ? сontractsList.mainnet : сontractsList.local,
         oracles = appendContract.map((oracle) => {
             name = path.posix.basename(oracle);
@@ -33,6 +33,7 @@ module.exports = function(deployer, network) {
         liberty = artifacts.require('./LibertyToken.sol'),
         association = artifacts.require('./Association.sol'),
         exchanger = artifacts.require(`./Complex${deployBank ? 'Bank' : 'Exchanger'}.sol`),
+        loans = deployLoans ? artifacts.require(`./Loans.sol`) : null;
   
         config = {
             buyFee: 250,
@@ -110,6 +111,9 @@ module.exports = function(deployer, network) {
             return _exchanger.transferOwnership(association.address)
         }
     })
+    .then(()=>{
+        return deployLoans ? deployer.deploy(loans,cash.address,exchanger.address) : null;
+    })
     .then(() => {
         writeContractData(cash);
         if (deployBank && deployDAO) {
@@ -117,10 +121,16 @@ module.exports = function(deployer, network) {
             writeContractData(association);
         }
         writeContractData(exchanger);
+
+        if(deployLoans) {
+            writeContractData(loans);
+        }
+        
         oracles.forEach((oracle) => {
             writeContractData(oracle);
         });
     })
+
     .then(() => console.log("END DEPLOY"));
 }; // end module.exports
 
