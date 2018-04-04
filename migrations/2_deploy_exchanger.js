@@ -20,8 +20,8 @@ module.exports = function(deployer, network) {
             'oracles/OracleMockTest'
         ]
         },
-        deployBank = false,
-        deployDAO = false, // is actual when deployBank only
+        deployBank = true,
+        deployDAO = true, // is actual when deployBank only
         deployDeposit = true,
         deployLoans = true,
         
@@ -147,7 +147,7 @@ module.exports = function(deployer, network) {
         }
         writeContractData(exchanger);
 
-        if(deployLoans) {
+        if (deployLoans) {
             writeContractData(loans);
         }
         
@@ -155,7 +155,18 @@ module.exports = function(deployer, network) {
             writeContractData(oracle);
         });
     })
-
+    .then(() => createMistLoader(
+        [
+            exchanger,
+            cash,
+            (deployBank && deployDAO) ? liberty : null,
+            (deployBank && deployDAO) ? association : null,
+            deployDeposit ? deposit : null,
+            deployLoans ? loans : null
+        ].concat(oracles),
+        cash,
+        (deployBank && deployDAO) ? liberty : null
+    ))
     .then(() => console.log("END DEPLOY"));
 }; // end module.exports
 
@@ -170,7 +181,42 @@ function writeContractData(artifact) {
                 `abiRefactored: '${JSON.stringify(mew_abi)}'`;
 
     createDir(directory);
-    fs.writeFileSync(`${directory}${artifact.contractName}.js`,data);
+    fs.writeFileSync(`${directory}${artifact.contractName}.js`, data);
+}
+
+function createMistLoader(contracts, cash, liberty) {
+    let loader = `${__dirname}/../build/data/loader.js`;
+    var data = `        // paste the script to mist developer console to autoimport all deployed contracts and tokens
+        CustomContracts.find().fetch().map((m) => {if (m.name.indexOf('_') == 0) CustomContracts.remove(m._id)});
+        Tokens.find().fetch().map((m) => {if (m.name.indexOf('_') == 0) Tokens.remove(m._id)});`;
+    for (let i = 0; i < contracts.length; i++) {
+        if (contracts[i] == null) continue;
+        data += `
+        CustomContracts.insert({
+            address: "${contracts[i].address}",
+            name: "_${contracts[i].contractName}",
+            jsonInterface: ${JSON.stringify(contracts[i]._json.abi)}
+        });`;
+    }
+    if (cash != null) {
+        data += `
+        Tokens.insert({
+            address: "${cash.address}",
+            decimals: 18,
+            name: "_LibreCash",
+            symbol: "_Libre"
+        });`
+    }
+    if (liberty != null) {
+        data += `
+        Tokens.insert({
+            address: "${liberty.address}",
+            decimals: 18,
+            name: "_Liberty",
+            symbol: "_LBRS"
+        });`
+    }
+    fs.writeFileSync(loader, data);
 }
 
 function createDir(dirname) {
