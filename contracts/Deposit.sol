@@ -37,19 +37,31 @@ contract Deposit is Ownable {
         uint256 minAmount;
     }
 
-    mapping(address=>OwnDeposit[]) public deposits;
+    mapping (address => OwnDeposit[]) public deposits;
 
+    /**
+     * @dev Constructor.
+     * @param _libre Address of LibreCash contract.
+     */
     function Deposit(address _libre) public {
         Libre = _libre;
         libre = LibreCash(Libre);
     }
 
+    /**
+     * @dev Set amout the contract needs.
+     * @param _amount New amount.
+     */
     function setAmount(uint256 _amount) public onlyOwner {
         needAmount = _amount;
     }
 
-    function myDeposit(uint256 id) public view returns(uint256, uint256, uint256, uint256) {
-        OwnDeposit memory dep = deposits[msg.sender][id];
+    /**
+     * @dev View method with deposit information.
+     * @param _id Deposit ID.
+     */
+    function myDeposit(uint256 _id) public view returns(uint256, uint256, uint256, uint256) {
+        OwnDeposit memory dep = deposits[msg.sender][_id];
         return (
             dep.timestamp,
             dep.deadline,
@@ -58,33 +70,59 @@ contract Deposit is Ownable {
         );
     }
 
-    function claimDeposit(uint256 id) public {
-        OwnDeposit dep = deposits[msg.sender][id];
+    /**
+     * @dev Lets user to get back his deposit with margin after deadline.
+     * @param _id Deposit ID.
+     */
+    function claimDeposit(uint256 _id) public {
+        OwnDeposit storage dep = deposits[msg.sender][_id];
         require(dep.deadline >= now);
         uint256 refundAmount = dep.amount.add(dep.margin);
         libre.transfer(msg.sender, refundAmount);
-        delete deposits[msg.sender][id];
+        delete deposits[msg.sender][_id];
         ClaimDeposit(msg.sender, dep.amount, dep.margin);
     }
 
-    function createPlan(uint256 period, uint256 percent, uint256 minAmount) public onlyOwner {
-        require(period > 0);
-        plans.push(DepositPlan(period, percent, minAmount));
+    /**
+     * @dev Creates deposit plan.
+     * @param _period Deposit period (lifetime in seconds).
+     * @param _percent Deposit percentage (annual).
+     * @param _minAmount Minimum deposit amount.
+     */
+    function createPlan(uint256 _period, uint256 _percent, uint256 _minAmount) public onlyOwner {
+        require(_period > 0);
+        plans.push(DepositPlan(_period, _percent, _minAmount));
     }
 
-    function deletePlan(uint256 planId) public onlyOwner {
-        delete plans[planId];
+    /**
+     * @dev Delete deposit plan.
+     * @param _id Deposit plan ID.
+     */
+    function deletePlan(uint256 _id) public onlyOwner {
+        delete plans[_id];
     }
 
-    function changePlan(uint256 planId, uint256 period, uint256 percent, uint256 minAmount) public onlyOwner {
-        require(period > 0);
-        plans[planId] = DepositPlan(period, percent, minAmount);
+    /**
+     * @dev Change deposit plan.
+     * @param _id Deposit plan ID.
+     * @param _period Deposit period (lifetime in seconds).
+     * @param _percent Deposit percentage (annual).
+     * @param _minAmount Minimum deposit amount.
+     */
+    function changePlan(uint256 _id, uint256 _period, uint256 _percent, uint256 _minAmount) public onlyOwner {
+        require(_period > 0);
+        plans[_id] = DepositPlan(_period, _percent, _minAmount);
     }
 
-    function createDeposit(uint256 _amount, uint256 planId) public {
+    /**
+     * @dev Create deposit.
+     * @param _amount Libre amount.
+     * @param _planId Deposit plan ID.
+     */
+    function createDeposit(uint256 _amount, uint256 _planId) public {
         _amount = (_amount <= needAmount) ? _amount : needAmount;
-        DepositPlan memory plan = plans[planId];
-        uint256 margin = _amount.add(calcProfit(_amount, planId));
+        DepositPlan memory plan = plans[_planId];
+        uint256 margin = _amount.add(calcProfit(_amount, _planId));
         
         lockedTokens.add(margin);
         require(_amount >= plan.minAmount && margin <= availableTokens());
@@ -103,10 +141,18 @@ contract Deposit is Ownable {
         NewDeposit(msg.sender, now, now.add(plan.period), _amount, margin);
     }
 
+    /**
+     * @dev Get available tokens on the deposit contract.
+     */
     function availableTokens() public view returns(uint256) {
         return libre.balanceOf(this).sub(lockedTokens);   
     }
 
+    /**
+     * @dev Calculate potential profit.
+     * @param _amount Libre amount.
+     * @param _planId Deposit plan ID.
+     */
     function calcProfit(uint256 _amount, uint256 _planId) public view returns(uint256) {
         DepositPlan storage plan = plans[_planId];
         // yearlyProfitX100 = _amount * percent * 100
