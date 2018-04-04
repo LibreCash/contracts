@@ -75,9 +75,10 @@ contract Deposit is Ownable {
      * @param _id Deposit ID.
      */
     function claimDeposit(uint256 _id) public {
-        OwnDeposit dep = deposits[msg.sender][_id];
+        OwnDeposit storage dep = deposits[msg.sender][_id];
         require(dep.deadline <= now);
         uint256 refundAmount = dep.amount.add(dep.margin);
+        lockedTokens = lockedTokens.sub(refundAmount);
         libre.transfer(msg.sender, refundAmount);
         delete deposits[msg.sender][_id];
         ClaimDeposit(msg.sender, dep.amount, dep.margin);
@@ -126,8 +127,6 @@ contract Deposit is Ownable {
         
         lockedTokens = lockedTokens.add(margin);
         require(_amount >= plan.minAmount && margin <= availableTokens());
-        lockedTokens = lockedTokens.add(_amount);
-
 
         libre.transferFrom(msg.sender, this, _amount);
         deposits[msg.sender].push(OwnDeposit(
