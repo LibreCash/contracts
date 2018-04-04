@@ -81,8 +81,8 @@ contract Deposit is Ownable {
         lockedTokens = lockedTokens.sub(refundAmount);
         needAmount = needAmount.add(dep.amount);
         libre.transfer(msg.sender, refundAmount);
-        delete deposits[msg.sender][_id];
         ClaimDeposit(msg.sender, dep.amount, dep.margin);
+        delete deposits[msg.sender][_id];
     }
 
     /**
