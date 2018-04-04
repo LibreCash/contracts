@@ -1,4 +1,3 @@
-
 pragma solidity ^0.4.18;
 
 import "./zeppelin/math/SafeMath.sol";
@@ -117,6 +116,16 @@ contract Deposit is Ownable {
     }
 
     /**
+     * @dev get deposit plan.
+     * @param planId Deposit plan ID.
+     */
+    function getPlan(uint256 planId) public view returns(uint256 period, uint256 percent, uint256 minAmount) {
+        period = plans[planId].period;
+        percent = plans[planId].percent;
+        minAmount = plans[planId].minAmount;
+    }
+
+    /**
      * @dev Create deposit.
      * @param _amount Libre amount.
      * @param _planId Deposit plan ID.
@@ -146,7 +155,7 @@ contract Deposit is Ownable {
      * @dev Get available tokens on the deposit contract.
      */
     function availableTokens() public view returns(uint256) {
-        return libre.balanceOf(this).sub(lockedTokens);   
+        return libre.balanceOf(this).sub(lockedTokens);
     }
 
     /**
