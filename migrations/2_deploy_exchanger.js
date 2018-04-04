@@ -46,15 +46,17 @@ module.exports = function(deployer, network) {
         };
     // end let block
 
-
     deployer.deploy(cash)
-    .then(() => {
-        if (deployBank && deployDAO) return deployer.deploy(liberty);
-    })
-    .then(() => Promise.all(oracles.map((oracle) => deployer.deploy(oracle))))
-    .then(() => {
+    .then(async() => {
+        let _cash = await cash.deployed()
+
+        if (deployBank && deployDAO) 
+            await deployer.deploy(liberty);
+
+        await Promise.all(oracles.map((oracle) => deployer.deploy(oracle)))
+        let _oracles = await Promise.all(oracles.map((oracle) => oracle.deployed()))
+
         let oraclesAddress = oracles.map((oracle) => oracle.address);
-        
         console.log("Contract configuration");
         console.log(config);
 
@@ -70,31 +72,19 @@ module.exports = function(deployer, network) {
         if (!deployBank)
             args = args.concat([config.deadline, config.withdrawWallet]);
 
-        return deployer.deploy(...args);
-    })
-    .then(() => Promise.all(oracles.map((oracle) => oracle.deployed())))
-    .then((contracts) => Promise.all(contracts.map((oracle) => oracle.setBank(exchanger.address))))
-    .then(() => cash.deployed())
-    .then((_cash) => {
+        await deployer.deploy(...args);
+        let _exchanger = await exchanger.deployed()
+
+        await Promise.all(_oracles.map((oracle) => oracle.setBank(exchanger.address)))
+
         // mint tokens to me for tests :)
         _cash.mint.sendTransaction(web3.eth.coinbase, 1000 * 10 ** 18);
-        // mint cash to the exchanger
-        if (!deployBank) {
-            return _cash.mint.sendTransaction(exchanger.address, 100 * 10 ** 18);
-        }
-        // transfer ownership to the bank (not exchanger) contract
-        if (deployBank) {
-            return _cash.transferOwnership(exchanger.address);
-        }
-    })
-    .then(() => exchanger.deployed())
-    .then((_exchanger) => {
-        if (deployBank)
-            return _exchanger.claimOwnership()
-    })
-    .then(() => {
+
+        if (!deployBank)
+            await _cash.mint.sendTransaction(exchanger.address, 100 * 10 ** 18);
+
         if (deployBank && deployDAO) {
-            return deployer.deploy(
+            await deployer.deploy(
                 association,
                 /* Constructor params */
                 liberty.address,
@@ -104,39 +94,25 @@ module.exports = function(deployer, network) {
                 /* minMinutesForDebate: */ 1
             );
         }
-    })
-    .then(() => {
+
         if (deployDeposit) {
-            return deployer.deploy(deposit, cash.address);
+            await deployer.deploy(deposit, cash.address);
+            await _cash.mint.sendTransaction(deposit.address, 10000 * 10 ** 18),
+            await _cash.approve.sendTransaction(deposit.address, 10000 * 10 ** 18)
         }
-    })
-    .then(() => {
-        if (deployDeposit) {
-            return Promise.all([cash.deployed(), deposit.deployed()]);
+
+        // transfer ownership to the bank (not exchanger) contract
+        if (deployBank) {
+            await _cash.transferOwnership(exchanger.address);
+            await _exchanger.claimOwnership()
         }
-    })
-    .then((_contracts) => {
-        if (deployDeposit) {
-            return Promise.all([
-                _contracts[0].mint.sendTransaction(deposit.address, 10000 * 10 ** 18),
-                _contracts[0].approve.sendTransaction(deposit.address, 10000 * 10 ** 18)
-            ]);
-        }
-    })
-    .then(() => {
-        if (deployBank && deployDAO) {
-            return exchanger.deployed();
-        }
-    })
-    .then((_exchanger) => {
-        if (deployBank && deployDAO) {
-            return _exchanger.transferOwnership(association.address)
-        }
-    })
-    .then(()=>{
-        return deployLoans ? deployer.deploy(loans,cash.address,exchanger.address) : null;
-    })
-    .then(() => {
+
+        if (deployBank && deployDAO)
+            await _exchanger.transferOwnership(association.address)
+
+        if (deployLoans)
+          await deployer.deploy(loans,cash.address,exchanger.address);
+
         writeContractData(cash);
         if (deployBank && deployDAO) {
             writeContractData(liberty);
@@ -147,26 +123,26 @@ module.exports = function(deployer, network) {
         }
         writeContractData(exchanger);
 
-        if (deployLoans) {
+        if (deployLoans)
             writeContractData(loans);
-        }
         
         oracles.forEach((oracle) => {
             writeContractData(oracle);
         });
-    })
-    .then(() => createMistLoader(
-        [
-            exchanger,
+
+        createMistLoader(
+            [
+                exchanger,
+                cash,
+                (deployBank && deployDAO) ? liberty : null,
+                (deployBank && deployDAO) ? association : null,
+                deployDeposit ? deposit : null,
+                deployLoans ? loans : null
+            ].concat(oracles),
             cash,
-            (deployBank && deployDAO) ? liberty : null,
-            (deployBank && deployDAO) ? association : null,
-            deployDeposit ? deposit : null,
-            deployLoans ? loans : null
-        ].concat(oracles),
-        cash,
-        (deployBank && deployDAO) ? liberty : null
-    ))
+            (deployBank && deployDAO) ? liberty : null
+        )
+    })
     .then(() => console.log("END DEPLOY"));
 }; // end module.exports
 
