@@ -80,6 +80,12 @@ contract Deposit is Ownable {
         plans[planId] = DepositPlan(period, percent, minAmount);
     }
 
+    function getPlan(uint256 planId) public view returns(uint256 period, uint256 percent, uint256 minAmount) {
+      period = plans[planId];
+      percent = plans[planId];
+      minAmount = plans[planId]
+    }
+
     function createDeposit(uint256 _amount, uint256 planId) public {
         _amount = (_amount <= needAmount) ? _amount : needAmount;
         DepositPlan memory plan = plans[planId];
