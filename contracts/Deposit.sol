@@ -126,9 +126,9 @@ contract Deposit is Ownable {
         DepositPlan memory plan = plans[_planId];
         uint256 margin = calcProfit(_amount, _planId);
         
+        require(_amount >= plan.minAmount && _amount.add(margin) <= availableTokens());
         lockedTokens = lockedTokens.add(margin);
         lockedTokens = lockedTokens.add(_amount);
-        require(_amount >= plan.minAmount && _amount.add(margin) <= availableTokens());
 
         libre.transferFrom(msg.sender, this, _amount);
         deposits[msg.sender].push(OwnDeposit(
