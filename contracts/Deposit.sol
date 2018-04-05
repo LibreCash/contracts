@@ -28,12 +28,14 @@ contract Deposit is Ownable {
         uint256 deadline;
         uint256 amount;
         uint256 margin;
+        string plan;
     }
 
     struct DepositPlan {
         uint256 period;
         uint256 percent;
         uint256 minAmount;
+        string description;
     }
 
     mapping(address=>OwnDeposit[]) public deposits;
@@ -47,13 +49,14 @@ contract Deposit is Ownable {
         needAmount = _amount;
     }
 
-    function myDeposit(uint256 id) public view returns(uint256, uint256, uint256, uint256) {
+    function myDeposit(uint256 id) public view returns(uint256, uint256, uint256, uint256, string) {
         OwnDeposit memory dep = deposits[msg.sender][id];
         return (
             dep.timestamp,
             dep.deadline,
             dep.amount,
-            dep.margin   
+            dep.margin,
+            dep.plan
         );
     }
 
@@ -66,18 +69,18 @@ contract Deposit is Ownable {
         ClaimDeposit(msg.sender, dep.amount, dep.margin);
     }
 
-    function createPlan(uint256 period, uint256 percent, uint256 minAmount) public onlyOwner {
+    function createPlan(uint256 period, uint256 percent, uint256 minAmount, string description) public onlyOwner {
         require(period > 0);
-        plans.push(DepositPlan(period, percent, minAmount));
+        plans.push(DepositPlan(period, percent, minAmount, description));
     }
 
     function deletePlan(uint256 planId) public onlyOwner {
         delete plans[planId];
     }
 
-    function changePlan(uint256 planId, uint256 period, uint256 percent, uint256 minAmount) public onlyOwner {
+    function changePlan(uint256 planId, uint256 period, uint256 percent, uint256 minAmount, string description) public onlyOwner {
         require(period > 0);
-        plans[planId] = DepositPlan(period, percent, minAmount);
+        plans[planId] = DepositPlan(period, percent, minAmount, description);
     }
 
     function createDeposit(uint256 _amount, uint256 planId) public {
@@ -95,7 +98,8 @@ contract Deposit is Ownable {
             now,
             now.add(plan.period),
             _amount,
-            margin
+            margin,
+            plan.description
         ));
 
         needAmount.sub(_amount);
