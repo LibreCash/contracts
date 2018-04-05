@@ -49,14 +49,15 @@ contract Deposit is Ownable {
         needAmount = _amount;
     }
 
-    function myDeposit(uint256 id) public view returns(uint256, uint256, uint256, uint256, string) {
+    function myDeposit(uint256 id) public view returns(uint256, uint256, uint256, uint256, string, uint256) {
         OwnDeposit memory dep = deposits[msg.sender][id];
         return (
             dep.timestamp,
             dep.deadline,
             dep.amount,
             dep.margin,
-            dep.plan
+            dep.plan,
+            deposits[msg.sender].length
         );
     }
 
@@ -117,5 +118,9 @@ contract Deposit is Ownable {
         // periodicProfit = yearlyProfitX100 * period / 365.25 days / 100
         uint256 periodicProfit = yearlyProfitX100.mul(plan.period).div(YEAR_SECONDS).div(REVERSE_PERCENT);
         return periodicProfit;
+    }
+
+    function plansCount() public view returns(uint256) {
+        return plans.length;
     }
 }
