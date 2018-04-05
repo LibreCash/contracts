@@ -48,7 +48,7 @@ contract Deposit is Ownable {
     }
 
     /**
-     * @dev Set amout the contract needs.
+     * @dev Set amount the contract needs.
      * @param _amount New amount.
      */
     function setAmount(uint256 _amount) public onlyOwner {
@@ -116,7 +116,7 @@ contract Deposit is Ownable {
     }
 
     /**
-     * @dev get deposit plan.
+     * @dev Get deposit plan.
      * @param planId Deposit plan ID.
      */
     function getPlan(uint256 planId) public view returns(uint256 period, uint256 percent, uint256 minAmount) {
@@ -136,8 +136,7 @@ contract Deposit is Ownable {
         uint256 margin = calcProfit(_amount, _planId);
         
         require(_amount >= plan.minAmount && _amount.add(margin) <= availableTokens());
-        lockedTokens = lockedTokens.add(margin);
-        lockedTokens = lockedTokens.add(_amount);
+        lockedTokens = lockedTokens.add(margin).add(_amount);
 
         libre.transferFrom(msg.sender, this, _amount);
         deposits[msg.sender].push(OwnDeposit(
