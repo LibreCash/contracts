@@ -57,17 +57,11 @@ contract Deposit is Ownable {
         needAmount = _amount;
     }
 
-
-    function myDeposit(uint256 _id) public view returns(uint256, uint256, uint256, uint256, string, uint256) {
-        OwnDeposit memory dep = deposits[msg.sender][_id];
-        return (
-            dep.timestamp,
-            dep.deadline,
-            dep.amount,
-            dep.margin,
-            dep.plan,
-            deposits[msg.sender].length
-        );
+    /**
+     * @dev Return count deposits.
+     */
+    function myDepositCount() public view returns(uint256) {
+      return deposits[msg.sender].length;
     }
 
     /**
