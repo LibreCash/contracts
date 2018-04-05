@@ -252,7 +252,7 @@ contract Loans is Ownable {
             msg.sender == loan.holder &&
             loan.status == Status.USED &&
             exchanger.getState() == ComplexExchanger.State.PROCESSING_ORDERS &&
-            (now > (loan.timestamp + loan.period * 1 minutes) || 
+            (now > (loan.timestamp + loan.period) || 
             calcPledgeEth(loan, marginCallPercent) > loan.pledge)
         );
 
@@ -284,7 +284,7 @@ contract Loans is Ownable {
             msg.sender == loan.holder &&
             loan.status == Status.USED &&
             exchanger.getState() == ComplexExchanger.State.PROCESSING_ORDERS &&
-            (now > (loan.timestamp + loan.period * 1 minutes) ||
+            (now > (loan.timestamp + loan.period) ||
             calcPledgeLibre(loan, marginCallPercent) > loan.pledge)
         );
 
