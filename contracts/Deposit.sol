@@ -28,12 +28,14 @@ contract Deposit is Ownable {
         uint256 deadline;
         uint256 amount;
         uint256 margin;
+        string plan;
     }
 
     struct DepositPlan {
         uint256 period;
         uint256 percent;
         uint256 minAmount;
+        string description;
     }
 
     mapping (address => OwnDeposit[]) public deposits;
@@ -55,17 +57,14 @@ contract Deposit is Ownable {
         needAmount = _amount;
     }
 
-    /**
-     * @dev View method with deposit information.
-     * @param _id Deposit ID.
-     */
-    function myDeposit(uint256 _id) public view returns(uint256, uint256, uint256, uint256) {
+    function myDeposit(uint256 _id) public view returns(uint256, uint256, uint256, uint256, string) {
         OwnDeposit memory dep = deposits[msg.sender][_id];
         return (
             dep.timestamp,
             dep.deadline,
             dep.amount,
-            dep.margin   
+            dep.margin,
+            dep.plan
         );
     }
 
@@ -89,10 +88,11 @@ contract Deposit is Ownable {
      * @param _period Deposit period (lifetime in seconds).
      * @param _percent Deposit percentage (annual).
      * @param _minAmount Minimum deposit amount.
+     * @param _description Plan description.
      */
-    function createPlan(uint256 _period, uint256 _percent, uint256 _minAmount) public onlyOwner {
+    function createPlan(uint256 _period, uint256 _percent, uint256 _minAmount, string _description) public onlyOwner {
         require(_period > 0);
-        plans.push(DepositPlan(_period, _percent, _minAmount));
+        plans.push(DepositPlan(_period, _percent, _minAmount, _description));
     }
 
     /**
@@ -109,10 +109,11 @@ contract Deposit is Ownable {
      * @param _period Deposit period (lifetime in seconds).
      * @param _percent Deposit percentage (annual).
      * @param _minAmount Minimum deposit amount.
+     * @param _description Plan description.
      */
-    function changePlan(uint256 _id, uint256 _period, uint256 _percent, uint256 _minAmount) public onlyOwner {
+    function changePlan(uint256 _id, uint256 _period, uint256 _percent, uint256 _minAmount, string _description) public onlyOwner {
         require(_period > 0);
-        plans[_id] = DepositPlan(_period, _percent, _minAmount);
+        plans[_id] = DepositPlan(_period, _percent, _minAmount, _description);
     }
 
     /**
@@ -143,7 +144,8 @@ contract Deposit is Ownable {
             now,
             now.add(plan.period),
             _amount,
-            margin
+            margin,
+            plan.description
         ));
 
         needAmount = needAmount.sub(_amount);
