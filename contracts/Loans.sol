@@ -216,8 +216,8 @@ contract Loans is Ownable {
         balance[owner] = balance[owner].add(needReturn - needSend);
         token.transfer(msg.sender, loan.pledge);
 
-        if (msg.value > needSend)
-            msg.sender.transfer(msg.value - needSend);
+        if (msg.value > needReturn)
+            msg.sender.transfer(msg.value - needReturn);
     }
 
     /**
