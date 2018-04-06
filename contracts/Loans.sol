@@ -464,7 +464,7 @@ contract Loans is Ownable {
 
         if (refund > 0)
             msg.sender.transfer(refund);
-        // LoanAccepted(id,msge.sender,pledge,loan.timestamp+loan.period minutes);
+        // LoanAccepted(id, msg.sender, pledge, loan.timestamp + loan.period);
     }
 
     /**
