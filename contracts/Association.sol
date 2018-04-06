@@ -255,7 +255,7 @@ contract Association is Ownable {
         Proposal storage p = proposals[proposalID];
 
         require(
-            p.status == p.ACTIVE && 
+            p.status == Status.ACTIVE && 
             now > p.votingDeadline
         );
 
