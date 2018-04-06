@@ -242,7 +242,7 @@ contract Loans is Ownable {
 
     /**
      * @dev Claim return debt
-     * @param id Шndex in loanEth
+     * @param id Index in loanEth
      */
     function claimEth(uint256 id) public {
         Loan memory loan = loansEth[id];
