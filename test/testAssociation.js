@@ -22,7 +22,7 @@ contract('Association', function(accounts) {
         liberty,
         association,
         minimumQuorum,
-        minDebatingPeriodInMinutes;
+        minDebatingPeriod;
 
     before("init var", async function() {
         bank = await ComplexBank.deployed();
@@ -30,7 +30,7 @@ contract('Association', function(accounts) {
         liberty = await Liberty.deployed();
         association = await Association.deployed();
         minimumQuorum = await association.minimumQuorum.call();
-        minDebatingPeriodInMinutes = await association.minDebatingPeriodInMinutes.call();
+        minDebatingPeriod = await association.minDebatingPeriod.call();
     });
 
     context("check links", function() {
@@ -49,9 +49,9 @@ contract('Association', function(accounts) {
 
         it("TransferOwnership", async function() {
             let id = +await association.proposalsLength.call();
-            await association.proposalTransferOwnership(owner,"Hello",minDebatingPeriodInMinutes);
+            await association.proposalTransferOwnership(owner,"Hello",minDebatingPeriod);
             await association.vote(id,true);
-            timeMachine.jump(minDebatingPeriodInMinutes +1);
+            timeMachine.jump(minDebatingPeriod +1);
             await association.executeProposal(id);
 
             assert(owner, await bank.owner.call(), "Proposal not set new owner!");

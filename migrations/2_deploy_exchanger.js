@@ -91,7 +91,7 @@ module.exports = function(deployer, network) {
                 exchanger.address,
                 cash.address,
                 /* minimumSharesToPassAVote: */ 1,
-                /* minMinutesForDebate: */ 1
+                /* minSecondsForDebate: */ 60
             );
         }
 
