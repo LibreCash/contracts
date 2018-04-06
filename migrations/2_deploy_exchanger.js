@@ -20,9 +20,9 @@ module.exports = function(deployer, network) {
             'oracles/OracleMockTest'
         ]
         },
-        deployBank = true,
-        deployDAO = true, // is actual when deployBank only
-        deployDeposit = true,
+        deployBank = false,
+        deployDAO = false, // is actual when deployBank only
+        deployDeposit = false,
         deployLoans = true,
         
         appendContract = (network == "mainnet" || network == "testnet") ? сontractsList.mainnet : сontractsList.local,
