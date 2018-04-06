@@ -81,7 +81,7 @@ contract Loans is Ownable {
      * @dev Returns loan in loansLibre
      * @param id index in loansLibre
      */
-    function getLoanLibre(uint256 id) public view returns(address,address,uint256[6],Status) {
+    function getLoanLibre(uint256 id) public view returns(address, address, uint256[6], Status) {
         return getLoan(Assets.LIBRE, loansLibre[id]);
     }
 
@@ -89,7 +89,7 @@ contract Loans is Ownable {
      * @dev Returns loans in loansEth
      * @param id index in loansEth
      */
-    function getLoanEth(uint256 id) public view returns(address,address,uint256[6],Status) {
+    function getLoanEth(uint256 id) public view returns(address, address, uint256[6], Status) {
         return getLoan(Assets.ETH, loansEth[id]);
     }
 
@@ -99,7 +99,7 @@ contract Loans is Ownable {
      * @param loan Loan struct element
      */
     function getLoan(Assets asset, Loan loan) internal view 
-        returns(address,address,uint256[6],Status)
+        returns(address, address, uint256[6], Status)
     {
         uint256[6] memory loanData = [
             loan.timestamp,
@@ -107,7 +107,7 @@ contract Loans is Ownable {
             loan.amount,
             loan.margin,
             refundAmount(loan),
-            calcPledge(asset,loan)
+            calcPledge(asset, loan)
         ];
 
         return (
@@ -123,7 +123,7 @@ contract Loans is Ownable {
      * @param asset select type array
      * @param loan Loan struct element
      */
-    function calcPledge(Assets asset,Loan loan) internal returns(uint256) {
+    function calcPledge(Assets asset, Loan loan) internal returns(uint256) {
         return asset == Assets.LIBRE ? calcPledgeLibre(loan, pledgePercent) :
                             calcPledgeEth(loan, pledgePercent);
     }
@@ -137,7 +137,7 @@ contract Loans is Ownable {
     function giveLibre(uint256 _period, uint256 _amount, uint256 _margin) public {
         require(_amount >= loanLimitLibre.min && _amount <= loanLimitLibre.max);
         
-        token.transferFrom(msg.sender,this,_amount);
+        token.transferFrom(msg.sender, this, _amount);
         Loan memory curLoan = Loan(msg.sender, 0x0, now, _period, _amount, _margin, feeLibre, 0, Status.ACTIVE);
         loansLibre.push(curLoan);
 
@@ -150,7 +150,7 @@ contract Loans is Ownable {
      * @param _amount amount Eth
      * @param _margin add Eth after period
      */
-    function giveEth(uint256 _period, uint256 _amount, uint256 _margin) payable public {
+    function giveEth(uint256 _period, uint256 _amount, uint256 _margin) public payable {
         require(_amount <= msg.value && _amount >= loanLimitEth.min && _amount <= loanLimitEth.max);
         
         uint256 refund = msg.value.sub(_amount);
@@ -161,9 +161,8 @@ contract Loans is Ownable {
         
         NewLoan(Assets.LIBRE, now, _period, _amount, _margin, Status.ACTIVE);
 
-        if(refund > 0)
+        if (refund > 0)
             msg.sender.transfer(refund);
-
     }
 
     /**
@@ -193,7 +192,7 @@ contract Loans is Ownable {
         );
 
         loansEth[id].status = Status.COMPLETED;
-        token.transfer(loan.holder,loan.amount);
+        token.transfer(loan.holder, loan.amount);
     }
 
     /**
@@ -205,7 +204,7 @@ contract Loans is Ownable {
         uint256 needSend = loan.amount.add(loan.margin);
         uint256 needReturn = refundAmount(loan);
 
-        require (
+        require(
             loan.status == Status.USED &&
             msg.sender == loan.recipient &&
             msg.value >= needReturn
@@ -229,7 +228,7 @@ contract Loans is Ownable {
         uint256 needSend = loan.amount.add(loan.margin);
         uint256 needReturn = refundAmount(loan);
 
-        require (
+        require(
             loan.status == Status.USED &&
             msg.sender == loan.recipient
         );
@@ -243,12 +242,12 @@ contract Loans is Ownable {
 
     /**
      * @dev Claim return debt
-     * @param id index in loanEth
+     * @param id Index in loanEth
      */
     function claimEth(uint256 id) public {
         Loan memory loan = loansEth[id];
 
-        require (
+        require(
             msg.sender == loan.holder &&
             loan.status == Status.USED &&
             exchanger.getState() == ComplexExchanger.State.PROCESSING_ORDERS &&
@@ -267,8 +266,8 @@ contract Loans is Ownable {
         uint256 sellTokens = needSend * rate / RATE_MULTIPLIER;
 
         loansEth[id].status = Status.COMPLETED;
-        token.approve(Exchanger,sellTokens);
-        exchanger.sellTokens(loan.holder,sellTokens);
+        token.approve(Exchanger, sellTokens);
+        exchanger.sellTokens(loan.holder, sellTokens);
         if (loan.pledge > sellTokens)
             token.transfer(owner, loan.pledge - sellTokens);
     }
@@ -280,7 +279,7 @@ contract Loans is Ownable {
     function claimLibre(uint256 id) public {
         Loan memory loan = loansLibre[id];
 
-        require (
+        require(
             msg.sender == loan.holder &&
             loan.status == Status.USED &&
             exchanger.getState() == ComplexExchanger.State.PROCESSING_ORDERS &&
@@ -293,7 +292,7 @@ contract Loans is Ownable {
         uint256 havePledge = loan.pledge * rate / RATE_MULTIPLIER;
 
         if (havePledge < needSend)
-          needSend = havePledge;
+            needSend = havePledge;
 
         require(token.balanceOf(Exchanger) >= needSend);
         uint256 buyTokens = needSend.mul(RATE_MULTIPLIER) / rate;
@@ -301,15 +300,14 @@ contract Loans is Ownable {
         loansLibre[id].status = Status.COMPLETED;
         exchanger.buyTokens.value(buyTokens)(loan.holder);
         if (loan.pledge > buyTokens)
-          balance[owner] = balance[owner].add(loan.pledge - buyTokens);
+            balance[owner] = balance[owner].add(loan.pledge - buyTokens);
     }
-
 
     /**
      * @dev Returns loans count (Libre, Eth)
      */
-    function loansCount() public view returns(uint256,uint256) {
-        return (loansLibre.length,loansEth.length);
+    function loansCount() public view returns(uint256, uint256) {
+        return (loansLibre.length, loansEth.length);
     }
 
     function getLoans(uint256[2] _pagination, uint8 _type, uint8 _statuses) public view returns (uint256[]) {
@@ -353,7 +351,7 @@ contract Loans is Ownable {
         return (orders);
     }
 
-    function getLoanCount(uint8 _type, uint8 _statuses) public view returns (uint256) {
+    function getLoanCount(uint8 _type, uint8 _statuses) public view returns(uint256) {
         // 1 - eth, 0 - libre (check?)
         Loan[] memory loans = (_type == 1) ? loansEth : loansLibre;
         // statuses:
@@ -385,7 +383,7 @@ contract Loans is Ownable {
     /**
      * @dev Return token balance
      */
-    function tokenBalance() public view  returns(uint256) {
+    function tokenBalance() public view returns(uint256) {
         return token.balanceOf(this);
     }
 
@@ -462,11 +460,11 @@ contract Loans is Ownable {
         loan.pledge = pledge;
         loansLibre[id] = loan;
 
-        token.transfer(msg.sender,loan.amount);
+        token.transfer(msg.sender, loan.amount);
 
-        if(refund > 0)
+        if (refund > 0)
             msg.sender.transfer(refund);
-        // LoanAccepted(id,msge.sender,pledge,loan.timestamp+loan.period minutes);
+        // LoanAccepted(id, msg.sender, pledge, loan.timestamp + loan.period);
     }
 
     /**
@@ -523,7 +521,7 @@ contract Loans is Ownable {
      * @param _amount amount to send
      */
     function claimBalance(uint256 _amount) public {
-        require (balance[msg.sender] > 0);
+        require(balance[msg.sender] > 0);
         
         _amount = (_amount == 0) ? balance[msg.sender] : _amount;
 
