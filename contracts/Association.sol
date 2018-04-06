@@ -30,7 +30,6 @@ contract Association is Ownable {
     event ChangeOfRules(uint newMinimumQuorum, uint newdebatingPeriod, address newSharesTokenAddress);
 
     enum TypeProposal {
-        CLEAN,
         UNIVERSAL,
         TRANSFER_OWNERSHIP,
         ATTACH_TOKEN,
@@ -49,6 +48,12 @@ contract Association is Ownable {
         CLAIM_OWNERSHIP
     }
 
+    enum Status {
+        ACTIVE,
+        FINISHED,
+        BLOCKED
+    }
+
     struct Proposal {
         TypeProposal tp;
         address recipient;
@@ -60,6 +65,7 @@ contract Association is Ownable {
         uint numberOfVotes;
         Vote[] votes;
         mapping (address => bool) voted;
+        Status status;
     }
 
     struct Vote {
@@ -120,21 +126,22 @@ contract Association is Ownable {
         return (yea, nay, p.voted[msg.sender], p.votingDeadline);
     }
 
-    function getProposal(uint256 proposalID) public view returns (TypeProposal, address, uint, uint, bytes, string) {
+    function getProposal(uint256 proposalID) public view returns (TypeProposal, address, uint, uint, bytes, string, Status) {
         return (
             proposals[proposalID].tp,
             proposals[proposalID].recipient,
             proposals[proposalID].amount,
             proposals[proposalID].buffer,
             proposals[proposalID].transactionBytecode,
-            proposals[proposalID].description
+            proposals[proposalID].description,
+            proposals[proposalID].status
         );
     }
 
     function blockingProposal(uint proposalID) public onlyOwner {
-        require(proposals[proposalID].tp != TypeProposal.CLEAN);
+        require(proposals[proposalID].status == Status.ACTIVE);
 
-        proposals[proposalID].tp = TypeProposal.CLEAN;
+        proposals[proposalID].status = Status.BLOCKED;
         numProposals = numProposals.sub(1);
         ProposalBlocking(proposalID, proposals[proposalID].recipient, proposals[proposalID].amount, proposals[proposalID].description);
     }
@@ -191,6 +198,7 @@ contract Association is Ownable {
         p.buffer = _buffer;
         p.transactionBytecode = transactionBytecode;
         p.description = jobDescription;
+        p.status = Status.ACTIVE;
         p.votingDeadline = now + ((debatingPeriod >= minDebatingPeriod) ? debatingPeriod : minDebatingPeriod);
         p.numberOfVotes = 0;
         numProposals = numProposals.add(1);
@@ -216,11 +224,21 @@ contract Association is Ownable {
         returns (uint voteID)
     {
         Proposal storage p = proposals[proposalID];
-        require(p.tp != TypeProposal.CLEAN && !p.voted[msg.sender] && p.votingDeadline > now);
+        
+        require(
+            p.status == Status.ACTIVE && 
+            !p.voted[msg.sender] && 
+            p.votingDeadline > now
+        );
 
         voteID = p.votes.length++;
-        p.votes[voteID] = Vote({inSupport: supportsProposal, voter: msg.sender});
+        p.votes[voteID] = Vote({
+            inSupport: supportsProposal, 
+            voter: msg.sender
+        });
+
         p.voted[msg.sender] = true;
+
         p.numberOfVotes = voteID + 1;
         Voted(proposalID, supportsProposal, msg.sender);
         return voteID;
@@ -237,7 +255,7 @@ contract Association is Ownable {
         Proposal storage p = proposals[proposalID];
 
         require(
-            p.tp != TypeProposal.CLEAN && 
+            p.status == p.ACTIVE && 
             now > p.votingDeadline
         );
 
@@ -289,7 +307,7 @@ contract Association is Ownable {
             }
         }
 
-        proposals[proposalID].tp = TypeProposal.CLEAN;
+        proposals[proposalID].status = Status.FINISHED;
         numProposals = numProposals.sub(1);
         // Fire Events
         ProposalTallied(proposalID, int(yea - nay), quorum);
