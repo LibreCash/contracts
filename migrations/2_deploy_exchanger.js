@@ -23,6 +23,7 @@ module.exports = function(deployer, network) {
         deployBank = true,
         deployDAO = true, // is actual when deployBank only
         deployDeposit = true,
+        deployFaucet = true,
         deployLoans = true,
         
         appendContract = (network == "mainnet" || network == "testnet") ? сontractsList.mainnet : сontractsList.local,
@@ -36,7 +37,8 @@ module.exports = function(deployer, network) {
         association = artifacts.require('./Association.sol'),
         exchanger = artifacts.require(`./Complex${deployBank ? 'Bank' : 'Exchanger'}.sol`),
         deposit = artifacts.require('./Deposit.sol'),
-        loans = deployLoans ? artifacts.require(`./Loans.sol`) : null;
+        loans = deployLoans ? artifacts.require(`./Loans.sol`) : null,
+        faucet = artifacts.require('./LBRSFaucet.sol');
   
         config = {
             buyFee: 250,
@@ -93,6 +95,18 @@ module.exports = function(deployer, network) {
                 /* minimumSharesToPassAVote: */ 1,
                 /* minSecondsForDebate: */ 60
             );
+        }
+
+        if (deployFaucet) {
+            await deployer.deploy(
+                faucet,
+                /* Constructor params */
+                liberty.address
+            );
+            await faucet.deployed();
+            await liberty.deployed();
+            console.log(`Faucet deployed at: ${faucet.address}`);
+            await liberty.transfer.sendTransaction(faucet.address, 1000000 * 10 ** 18);
         }
 
         if (deployDeposit) {
