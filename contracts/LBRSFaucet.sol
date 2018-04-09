@@ -30,7 +30,7 @@ contract LBRSFaucet is Ownable, Pausable {
     /**
      * @dev Implements method for getting testing LBRS tokens to DAO testing.
      */
-    function get() public {
+    function get() public whenNotPaused {
         require(!tokensSent[msg.sender]);
         tokensSent[msg.sender] = true;
         token.transfer(msg.sender, tokensToSend);
