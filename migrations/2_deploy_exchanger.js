@@ -52,7 +52,7 @@ module.exports = function(deployer, network) {
     .then(async() => {
         let _cash = await cash.deployed()
 
-        if (deployBank && deployDAO) 
+        if (deployBank && deployDAO)
             await deployer.deploy(liberty);
 
         await Promise.all(oracles.map((oracle) => deployer.deploy(oracle)))
@@ -97,16 +97,15 @@ module.exports = function(deployer, network) {
             );
         }
 
-        if (deployFaucet) {
+        if (deployFaucet && deployBank && deployDAO) {
             await deployer.deploy(
                 faucet,
                 /* Constructor params */
                 liberty.address
             );
             await faucet.deployed();
-            await liberty.deployed();
-            console.log(`Faucet deployed at: ${faucet.address}`);
-            await liberty.transfer.sendTransaction(faucet.address, 1000000 * 10 ** 18);
+            let _liberty = await liberty.deployed();
+            await _liberty.transfer.sendTransaction(faucet.address, 1000000 * 10 ** 18);
         }
 
         if (deployDeposit) {
@@ -131,6 +130,9 @@ module.exports = function(deployer, network) {
         if (deployBank && deployDAO) {
             writeContractData(liberty);
             writeContractData(association);
+
+            if (deployFaucet)
+                writeContractData(faucet);
         }
         if (deployDeposit) {
             writeContractData(deposit);
