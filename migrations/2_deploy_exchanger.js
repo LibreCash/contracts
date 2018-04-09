@@ -153,7 +153,8 @@ module.exports = function(deployer, network) {
                 (deployBank && deployDAO) ? liberty : null,
                 (deployBank && deployDAO) ? association : null,
                 deployDeposit ? deposit : null,
-                deployLoans ? loans : null
+                deployLoans ? loans : null,
+                deployFaucet ? faucet : null
             ].concat(oracles),
             cash,
             (deployBank && deployDAO) ? liberty : null
