@@ -303,7 +303,9 @@ contract Association is Ownable {
             } else if (p.tp == TypeProposal.CLAIM_OWNERSHIP) {
                 bank.claimOwnership();
             } else if (p.tp == TypeProposal.SET_BANK_ADDRESS ) {
+                bank.transferTokenOwner(p.recipient);
                 setBankAddress(p.recipient);
+                bank.claimOwnership();
             }
         }
 
