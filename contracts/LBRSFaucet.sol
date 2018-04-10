@@ -8,7 +8,7 @@ contract LBRSFaucet is Ownable, Pausable {
     address public lbrsToken;
     LibertyToken token;
     uint256 public tokensToSend = 0;
-    mapping(address => bool) tokensSent;
+    mapping(address => bool) public tokensSent;
 
     /**
      * @dev Constructor
