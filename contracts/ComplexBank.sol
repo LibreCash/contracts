@@ -26,8 +26,6 @@ contract ComplexBank is Pausable, BankI {
     uint256 public oracleActual = oracleTimeout + 5 minutes;
     // RATE_PERIOD should be greater than or equal to ORACLE_ACTUAL
     uint256 public ratePeriod = 15 minutes;
-    uint256 public reserveTokens = 0; // how many tokens (mint - burn) this bank
-
 
     enum State {
         LOCKED,
@@ -94,7 +92,6 @@ contract ComplexBank is Pausable, BankI {
         address recipient = _recipient == 0x0 ? msg.sender : _recipient;
 
         token.mint(recipient, tokensAmount);
-        reserveTokens = reserveTokens.add(tokensAmount);
         Buy(msg.sender, recipient, tokensAmount, buyRate);
     }
 
@@ -121,7 +118,6 @@ contract ComplexBank is Pausable, BankI {
 
         token.transferFrom(msg.sender, this, tokensCount);
         token.burn(tokensCount);
-        reserveTokens = reserveTokens.sub(tokensCount);
         address recipient = _recipient == 0x0 ? msg.sender : _recipient;
 
         Sell(msg.sender, recipient, cryptoAmount, sellRate);
@@ -394,19 +390,6 @@ contract ComplexBank is Pausable, BankI {
             }   
         }
         return requestCost;
-    }
-
-    /**
-     * @dev Gets bank reserve.
-     */
-    function getReservePercent() public view returns (uint256) {
-        uint256 reserve = 0;
-        uint256 curBalance = this.balance;
-        if ((curBalance != 0) && (sellRate != 0)) {
-            uint256 needCrypto = (reserveTokens * RATE_MULTIPLIER) / sellRate;
-            reserve = (curBalance * FEE_MULTIPLIER * 100) / needCrypto;
-        }
-        return reserve;
     }
 
     /**

@@ -13,7 +13,6 @@ interface BankI {
     function readyOracles() public view returns (uint256);
     function waitingOracles() public view returns (uint256);
     function getOracleData(address _address) public view returns (bytes32, bytes32, uint256, bool, bool, uint256, address);
-    function getReservePercent() public view returns (uint256);
 
     /* Constant setters */
     function attachToken(address _tokenAddress) public;

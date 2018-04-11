@@ -20,9 +20,10 @@ module.exports = function(deployer, network) {
             'oracles/OracleMockTest'
         ]
         },
-        deployBank = false,
-        deployDAO = false, // is actual when deployBank only
-        deployDeposit = false,
+        deployBank = true,
+        deployDAO = true, // is actual when deployBank only
+        deployDeposit = true,
+        deployFaucet = true,
         deployLoans = true,
         
         appendContract = (network == "mainnet" || network == "testnet") ? сontractsList.mainnet : сontractsList.local,
@@ -36,7 +37,8 @@ module.exports = function(deployer, network) {
         association = artifacts.require('./Association.sol'),
         exchanger = artifacts.require(`./Complex${deployBank ? 'Bank' : 'Exchanger'}.sol`),
         deposit = artifacts.require('./Deposit.sol'),
-        loans = deployLoans ? artifacts.require(`./Loans.sol`) : null;
+        loans = deployLoans ? artifacts.require(`./Loans.sol`) : null,
+        faucet = artifacts.require('./LBRSFaucet.sol');
   
         config = {
             buyFee: 250,
@@ -50,7 +52,7 @@ module.exports = function(deployer, network) {
     .then(async() => {
         let _cash = await cash.deployed()
 
-        if (deployBank && deployDAO) 
+        if (deployBank && deployDAO)
             await deployer.deploy(liberty);
 
         await Promise.all(oracles.map((oracle) => deployer.deploy(oracle)))
@@ -95,6 +97,17 @@ module.exports = function(deployer, network) {
             );
         }
 
+        if (deployFaucet && deployBank && deployDAO) {
+            await deployer.deploy(
+                faucet,
+                /* Constructor params */
+                liberty.address
+            );
+            await faucet.deployed();
+            let _liberty = await liberty.deployed();
+            await _liberty.transfer.sendTransaction(faucet.address, 1000000 * 10 ** 18);
+        }
+
         if (deployDeposit) {
             await deployer.deploy(deposit, cash.address);
             await _cash.mint.sendTransaction(deposit.address, 10000 * 10 ** 18),
@@ -117,6 +130,9 @@ module.exports = function(deployer, network) {
         if (deployBank && deployDAO) {
             writeContractData(liberty);
             writeContractData(association);
+
+            if (deployFaucet)
+                writeContractData(faucet);
         }
         if (deployDeposit) {
             writeContractData(deposit);
@@ -137,7 +153,8 @@ module.exports = function(deployer, network) {
                 (deployBank && deployDAO) ? liberty : null,
                 (deployBank && deployDAO) ? association : null,
                 deployDeposit ? deposit : null,
-                deployLoans ? loans : null
+                deployLoans ? loans : null,
+                deployFaucet ? faucet : null
             ].concat(oracles),
             cash,
             (deployBank && deployDAO) ? liberty : null
