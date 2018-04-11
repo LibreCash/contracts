@@ -1,6 +1,7 @@
 # Created by https://www.gitignore.io/api/node
 # Build Data Files
 build/data/*.txt
+bin/*
 # Visual Studio Code
 .vscode
 web3tests/data/*.js
