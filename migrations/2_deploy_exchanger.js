@@ -21,10 +21,11 @@ module.exports = function(deployer, network) {
         ]
         },
         deployBank = true,
-        deployDAO = true, // is actual when deployBank only
-        deployDeposit = true,
-        deployFaucet = true,
-        deployLoans = true,
+        deployDAO = false, // is actual when deployBank only
+        deployDeposit = false,
+        deployFaucet = false,
+        deployLoans = false,
+        deployAsBounty = true,
         
         appendContract = (network == "mainnet" || network == "testnet") ? сontractsList.mainnet : сontractsList.local,
         oracles = appendContract.map((oracle) => {
@@ -35,7 +36,8 @@ module.exports = function(deployer, network) {
         cash = artifacts.require('./LibreCash.sol'),
         liberty = artifacts.require('./LibertyToken.sol'),
         association = artifacts.require('./Association.sol'),
-        exchanger = artifacts.require(`./Complex${deployBank ? 'Bank' : 'Exchanger'}.sol`),
+        exchanger = artifacts.require(`./${deployAsBounty ? 'bounty/' : ''}Complex${deployBank ? 'Bank' : 'Exchanger'}${deployAsBounty ? 'Target' : ''}.sol`),
+        bounty = artifacts.require(`./Complex${deployBank ? 'Bank' : 'Exchanger'}Bounty.sol`),
         deposit = artifacts.require('./Deposit.sol'),
         loans = deployLoans ? artifacts.require(`./Loans.sol`) : null,
         faucet = artifacts.require('./LBRSFaucet.sol');
@@ -95,6 +97,10 @@ module.exports = function(deployer, network) {
                 /* minimumSharesToPassAVote: */ 1,
                 /* minSecondsForDebate: */ 60
             );
+        }
+
+        if (deployAsBounty) {
+            await deployer.deploy(bounty);
         }
 
         if (deployFaucet && deployBank && deployDAO) {
