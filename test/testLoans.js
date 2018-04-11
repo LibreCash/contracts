@@ -7,7 +7,31 @@ const
     MORE_THAN_COSTS = web3.toWei(5,'ether'),
     ComplexExchanger = artifacts.require("ComplexExchanger"),
     LibreCash = artifacts.require("LibreCash"),
-    Loans = artifacts.require("Loans");
+    Loans = artifacts.require("Loans"),
+    minutes = 60,
+    REVERSE_PERCENT = 100,
+    RATE_MULTIPLIER = 1000,
+    exConfig = {
+        buyFee:250,
+        sellFee:250,
+        MIN_RATE:100 * RATE_MULTIPLIER,
+        MAX_RATE:5000 * RATE_MULTIPLIER,
+        MIN_READY_ORACLES:2,
+        ORACLE_ACTUAL:15 * minutes,
+        ORACLE_TIMEOUT:10 * minutes,
+        RATE_PERIOD:15 * minutes
+    };
+
+var oracles = [];
+[
+    "OracleMockLiza",
+    "OracleMockSasha",
+    "OracleMockKlara",
+    "OracleMockTest",
+    //"OracleMockRandom"
+].forEach( (filename) => {
+    oracles.push(artifacts.require(filename));
+});
 
 function getLoanStruct(contractArray) {
     return {
@@ -18,7 +42,7 @@ function getLoanStruct(contractArray) {
         amount: +contractArray[2][2],
         margin: +contractArray[2][3],
         return: +contractArray[2][4],
-        pledge: +contractArray[2][5],
+        pledge: contractArray[2][5],
         status: +contractArray[3]
     }
 }
@@ -139,7 +163,7 @@ contract("Loans",function(accounts) {
             let loan = getLoanStruct(await loans.getLoanEth(0));
             await token.mint(acc1,loan.pledge);
             await token.approve(loans.address,loan.pledge,{from: acc1});
-
+            
             await loans.takeLoanEth(0,{from: acc1});
             await timeMachine.jump(period + 1);
 
@@ -172,7 +196,7 @@ contract("Loans",function(accounts) {
             await assertTx.fail(loans.claimEth(0),"Claim loan if not timeout!")
 
             await timeMachine.jump(period + 1);
-            await exchanger.refillBalance({value: loan.return * 2});
+            await exchanger.refillBalance({value: loan.return});
 
             let before = web3.eth.getBalance(owner);
             await loans.claimEth(0);
@@ -182,13 +206,120 @@ contract("Loans",function(accounts) {
             assert.equal(+giveEth.minus(give + margin).plus(utils.gasCost()), 0,
               "Don't return need value!")
         });
+
+        it("claim margin", async function() {
+            let period = exConfig.RATE_PERIOD * 2,
+                give = +web3.toWei(1,'ether'),
+                margin =  +web3.toWei(0.1,'ether');
+            await loans.giveEth(period, give, margin,{value: give})
+
+            await exchanger.requestRates({value: MORE_THAN_COSTS});
+            await exchanger.calcRates();
+            let loan = getLoanStruct(await loans.getLoanEth(0));
+            await token.mint(acc1,loan.pledge);
+            await token.approve(loans.address,loan.pledge,{from: acc1});
+            await loans.takeLoanEth(0,{from: acc1});
+            loan = getLoanStruct(await loans.getLoanEth(0));
+
+            await timeMachine.jump(period/2 + 1);
+            await exchanger.refillBalance({value: loan.return});
+
+            await exchanger.requestRates({value: MORE_THAN_COSTS});
+            let margincall = (+await loans.marginCallPercent()) / REVERSE_PERCENT / REVERSE_PERCENT;
+            let oracle = await oracles[0].deployed();
+            await oracle.setRate((+await exchanger.sellRate())* margincall)
+            await exchanger.calcRates();
+
+            let before = web3.eth.getBalance(owner);
+            await assertTx.success(loans.claimEth(0),"Don't work margincall!");
+            let after = web3.eth.getBalance(owner);
+            let giveEth = after.minus(before);
+
+            assert.equal(+giveEth.minus(give + margin).plus(utils.gasCost()),0,
+                "Don't return need value when margincall!")
+        });
     });
 
     context("loanLibre",function() {
-        it("create");
-        it("cancel");
-        it("take");
-        it("return");
-        it("claim");
+        before("init", async function() {
+            await token.mint(owner,1000 * tokenMultiplier);
+            await token.approve(loans.address,1000 * tokenMultiplier);
+            await reverter.snapshot(err => {
+                if (err) console.log(err);
+            });
+        });
+
+        afterEach("revert", reverter.revert);
+
+        it("create",async function() {
+            await loans.giveLibre(2,1,3);
+            let loan = getLoanStruct(await loans.getLoanLibre(0));
+
+            assert.equal(loan.amount,1,"Amount not equal!");
+            assert.equal(loan.margin,3,"Margin not equal!");
+            assert.equal(loan.period,2,"Period not equal!");
+        });
+
+        it("cancel",async function() {
+            await loans.giveLibre(1,1,1);
+
+            await assertTx.success(loans.cancelLibre(0),"Don't canceled loanLibre!")
+        });
+
+        it("take", async function() {
+            await loans.giveLibre(1,1000,100);
+
+            await exchanger.requestRates({value: MORE_THAN_COSTS});
+            await exchanger.calcRates();
+
+            let loan = getLoanStruct(await loans.getLoanLibre(0));
+            let before = await token.balanceOf(acc1);
+            await loans.takeLoanLibre(0,{value: loan.pledge, from: acc1});
+            let after = await token.balanceOf(acc1);
+
+            assert.equal(+after.minus(before).minus(loan.amount), 0,"Don't equal calc tokens balance!")
+        });
+
+        it("return", async function() {
+            let period = 1;
+            await loans.giveLibre(period,1000,100);
+
+            await exchanger.requestRates({value: MORE_THAN_COSTS});
+            await exchanger.calcRates();
+
+            let loan = getLoanStruct(await loans.getLoanLibre(0));
+            await loans.takeLoanLibre(0,{value: loan.pledge, from: acc1});
+
+            await assertTx.fail(loans.returnLibre(0),"Don't fail if not send Ether!")
+
+            await token.mint(acc1,loan.return);
+            await token.approve(loans.address,loan.return,{from: acc1});
+            let before = web3.eth.getBalance(acc1);
+            await loans.returnLibre(0,{from: acc1});
+            let after = web3.eth.getBalance(acc1);
+
+            assert.equal(after.minus(before).plus(utils.gasCost()),0,"Don't right amount pledge return!");
+        });
+
+        it("claim timeout", async function() {
+            let period = 1,
+                amount = +web3.toWei(1,'ether'),
+                margin = +web3.toWei(0.1,'ether');
+            await loans.giveLibre(period, amount, margin);
+
+            await exchanger.requestRates({value: MORE_THAN_COSTS});
+            await exchanger.calcRates();
+
+            let loan = getLoanStruct(await loans.getLoanLibre(0));
+            await loans.takeLoanLibre(0,{value: loan.pledge, from: acc1});
+            await timeMachine.jump(period + 1);
+
+            let before = await token.balanceOf(owner);
+            await loans.claimLibre(0);
+            let after = await token.balanceOf(owner);
+
+            assert.isTrue(+after.minus(before) >= (amount + margin),
+                "Don't right amount return when claim loan!");
+        });
     });
 });
