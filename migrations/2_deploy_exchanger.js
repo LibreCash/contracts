@@ -107,7 +107,7 @@ module.exports = function(deployer, network) {
         _cash.mint.sendTransaction(web3.eth.coinbase, 1000 * 10 ** 18);
 
         if (deployAsBounty) {
-            await deployer.deploy(bounty, contractsList.bounty);
+            await deployer.deploy(bounty, oraclesAddress);
         }
 
         if (!deployAsBounty) {
