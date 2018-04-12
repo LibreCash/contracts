@@ -55,7 +55,7 @@ const
         MIN_READY_ORACLES:2,
         ORACLE_ACTUAL:15 * minutes,
         ORACLE_TIMEOUT:10 * minutes,
-        RATE_PERIOD:10 * minutes
+        RATE_PERIOD:15 * minutes
     };
     
 
