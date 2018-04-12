@@ -10,35 +10,35 @@ import "../interfaces/I_Oracle.sol";
  */
 contract BountyOracle is Ownable {
 
-    bytes32 public oracleName = "Bounty Base Oracle";
-    bytes16 public oracleType = "Bounty Undefined";
-    mapping (address => uint256) public rates;
-    uint256 public mockRate;
+    bytes32 public oracleName = "Bounty Oracle";
+    bytes16 public oracleType = "Bounty";
+    mapping (address => uint256) private rates;
+    uint256 public mockRate = 280000;
     event PriceTicker(uint price);
 
-    mapping (address => uint256) public updateTimes;
-    mapping (address => uint256) public callbackTimes;
-    mapping (address => bool) public waitQuerys;
+    mapping (address => uint256) private updateTimes;
+    mapping (address => uint256) private callbackTimes;
+    mapping (address => bool) private waitQuerys;
     uint256 constant MOCK_REQUEST_PRICE = 10000000000;
-    mapping (address => uint256) public prices;
+    mapping (address => uint256) private prices;
     
-    function waitQuery() public returns (bool) {
+    function waitQuery() public view returns (bool) {
         return waitQuerys[msg.sender];
     }
 
-    function price() public returns (uint256) {
+    function price() public view returns (uint256) {
         return prices[msg.sender];
     }
     
-    function rate() public returns (uint256) {
+    function rate() public view returns (uint256) {
         return rates[msg.sender];
     }
     
-    function updateTime() public returns (uint256) {
+    function updateTime() public view returns (uint256) {
         return updateTimes[msg.sender];
     }
     
-    function callbackTime() public returns (uint256) {
+    function callbackTime() public view returns (uint256) {
         return callbackTimes[msg.sender];
     }
     
