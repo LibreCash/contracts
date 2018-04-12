@@ -8,7 +8,7 @@ import "../interfaces/I_Oracle.sol";
  *
  * @dev Base contract for oracles. Not abstract.
  */
-contract BountyOracle is Ownable {
+contract BountyOracleBase is Ownable {
 
     bytes32 public oracleName = "Bounty Oracle";
     bytes16 public oracleType = "Bounty";
@@ -41,18 +41,6 @@ contract BountyOracle is Ownable {
     function callbackTime() public view returns (uint256) {
         return callbackTimes[msg.sender];
     }
-    
-    modifier onlyBank() {
-        // allow everybody
-        _;
-    }
-
-    /**
-     * @dev Constructor.
-     */
-    function OracleBase(uint256 defaultMockRate) public {
-        rates[msg.sender] = defaultMockRate;
-    }
 
     /**
      * @dev oraclize getPrice.
@@ -64,7 +52,7 @@ contract BountyOracle is Ownable {
     /**
      * @dev Sends query to oraclize.
      */
-    function updateRate() external onlyBank returns (bool) {
+    function updateRate() external returns (bool) {
         updateTimes[msg.sender] = now;
         callbackTimes[msg.sender] = now;
         rates[msg.sender] = mockRate;
