@@ -27,12 +27,7 @@ contract Bounty is PullPayment, Destructible {
    * msg.sender as a researcher
    * @return A target contract
    */
-  function createTarget(address _token, uint256 _buyFee, uint256 _sellFee, address[] _oracles) public returns(Target) {
-    Target target = Target(deployContract(_token, _buyFee, _sellFee, _oracles));
-    researchers[target] = msg.sender;
-    TargetCreated(target);
-    return target;
-  }
+  function createTarget(address _token, uint256 _buyFee, uint256 _sellFee) public returns(Target);
 
   /**
    * @dev Sends the contract funds to the researcher that proved the contract is broken.
