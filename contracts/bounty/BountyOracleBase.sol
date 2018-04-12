@@ -67,6 +67,14 @@ contract BountyOracleBase is Ownable {
     function setWaitQuery(bool waiting) external {
         waitQuerys[msg.sender] = waiting;
     }
+
+    /**
+     * @dev Sets bank address.
+     * @param _bankAddress Description.
+     */
+    function setBank(address _bankAddress) public onlyOwner {
+        // nothing, for compatibility in deploy script
+    }
     
     function setRate(uint newRate) external {
         rates[msg.sender] = newRate;

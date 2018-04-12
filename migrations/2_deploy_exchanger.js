@@ -4,21 +4,26 @@ const
 
 module.exports = function(deployer, network) {
     let
-        сontractsList = {
-        mainnet:[
-            'oracles/OracleBitfinex',
-            'oracles/OracleBitstamp',
-            'oracles/OracleWEX',
-            'oracles/OracleGDAX',
-            'oracles/OracleGemini',
-            'oracles/OracleKraken',
-        ],
-        local:[
-            'oracles/mock/OracleMockLiza',
-            'oracles/mock/OracleMockSasha',
-            'oracles/mock/OracleMockKlara',
-            'oracles/OracleMockTest'
-        ]
+        contractsList = {
+            mainnet:[
+                'oracles/OracleBitfinex',
+                'oracles/OracleBitstamp',
+                'oracles/OracleWEX',
+                'oracles/OracleGDAX',
+                'oracles/OracleGemini',
+                'oracles/OracleKraken',
+            ],
+            local:[
+                'oracles/mock/OracleMockLiza',
+                'oracles/mock/OracleMockSasha',
+                'oracles/mock/OracleMockKlara',
+                'oracles/OracleMockTest'
+            ],
+            bounty:[
+                'bounty/BountyOracle1',
+                'bounty/BountyOracle2',
+                'bounty/BountyOracle3'
+            ]
         },
         deployBank = true,
         deployDAO = false, // is actual when deployBank only
@@ -27,7 +32,8 @@ module.exports = function(deployer, network) {
         deployLoans = false,
         deployAsBounty = true,
         
-        appendContract = (network == "mainnet" || network == "testnet") ? сontractsList.mainnet : сontractsList.local,
+        appendContract = deployAsBounty ? contractsList.bounty :
+                    ((network == "mainnet" || network == "testnet") ? contractsList.mainnet : contractsList.local),
         oracles = appendContract.map((oracle) => {
             name = path.posix.basename(oracle);
             return artifacts.require(`./${name}.sol`);
@@ -64,89 +70,96 @@ module.exports = function(deployer, network) {
         console.log("Contract configuration");
         console.log(config);
 
-        let args = [
-            exchanger,
-            /*Constructor params*/
-            cash.address, // Token address
-            config.buyFee, // Buy Fee
-            config.sellFee, // Sell Fee,
-            oraclesAddress,// oracles (array of address)
-        ];
+        if (!deployAsBounty) {
+            let args = [
+                exchanger,
+                /*Constructor params*/
+                cash.address, // Token address
+                config.buyFee, // Buy Fee
+                config.sellFee, // Sell Fee,
+                oraclesAddress,// oracles (array of address)
+            ];
 
-        if (!deployBank)
-            args = args.concat([config.deadline, config.withdrawWallet]);
+            if (!deployBank)
+                args = args.concat([config.deadline, config.withdrawWallet]);
 
-        await deployer.deploy(...args);
-        let _exchanger = await exchanger.deployed()
+            await deployer.deploy(...args);
+            let _exchanger = deployAsBounty ? null : await exchanger.deployed();
+            await Promise.all(_oracles.map((oracle) => oracle.setBank(exchanger.address)));
+            if (!deployBank)
+                await _cash.mint.sendTransaction(exchanger.address, 100 * 10 ** 18);
 
-        await Promise.all(_oracles.map((oracle) => oracle.setBank(exchanger.address)))
+            if (deployBank && deployDAO) {
+                await deployer.deploy(
+                    association,
+                    /* Constructor params */
+                    liberty.address,
+                    exchanger.address,
+                    cash.address,
+                    /* minimumSharesToPassAVote: */ 1,
+                    /* minSecondsForDebate: */ 60
+                );
+            }
+        }
+
 
         // mint tokens to me for tests :)
         _cash.mint.sendTransaction(web3.eth.coinbase, 1000 * 10 ** 18);
 
-        if (!deployBank)
-            await _cash.mint.sendTransaction(exchanger.address, 100 * 10 ** 18);
-
-        if (deployBank && deployDAO) {
-            await deployer.deploy(
-                association,
-                /* Constructor params */
-                liberty.address,
-                exchanger.address,
-                cash.address,
-                /* minimumSharesToPassAVote: */ 1,
-                /* minSecondsForDebate: */ 60
-            );
-        }
-
         if (deployAsBounty) {
-            await deployer.deploy(bounty);
+            await deployer.deploy(bounty, contractsList.bounty);
         }
 
-        if (deployFaucet && deployBank && deployDAO) {
-            await deployer.deploy(
-                faucet,
-                /* Constructor params */
-                liberty.address
-            );
-            await faucet.deployed();
-            let _liberty = await liberty.deployed();
-            await _liberty.transfer.sendTransaction(faucet.address, 1000000 * 10 ** 18);
+        if (!deployAsBounty) {
+            if (deployFaucet && deployBank && deployDAO) {
+                await deployer.deploy(
+                    faucet,
+                    /* Constructor params */
+                    liberty.address
+                );
+                await faucet.deployed();
+                let _liberty = await liberty.deployed();
+                await _liberty.transfer.sendTransaction(faucet.address, 1000000 * 10 ** 18);
+            }
+
+            if (deployDeposit) {
+                await deployer.deploy(deposit, cash.address);
+                await _cash.mint.sendTransaction(deposit.address, 10000 * 10 ** 18),
+                await _cash.approve.sendTransaction(deposit.address, 10000 * 10 ** 18)
+            }
+
+            // transfer ownership to the bank (not exchanger) contract
+            if (deployBank) {
+                await _cash.transferOwnership(exchanger.address);
+                await _exchanger.claimOwnership()
+            }
+
+            if (deployBank && deployDAO)
+                await _exchanger.transferOwnership(association.address)
+
+            if (deployLoans)
+            await deployer.deploy(loans, cash.address, exchanger.address);
         }
-
-        if (deployDeposit) {
-            await deployer.deploy(deposit, cash.address);
-            await _cash.mint.sendTransaction(deposit.address, 10000 * 10 ** 18),
-            await _cash.approve.sendTransaction(deposit.address, 10000 * 10 ** 18)
-        }
-
-        // transfer ownership to the bank (not exchanger) contract
-        if (deployBank) {
-            await _cash.transferOwnership(exchanger.address);
-            await _exchanger.claimOwnership()
-        }
-
-        if (deployBank && deployDAO)
-            await _exchanger.transferOwnership(association.address)
-
-        if (deployLoans)
-          await deployer.deploy(loans,cash.address,exchanger.address);
-
         writeContractData(cash);
-        if (deployBank && deployDAO) {
-            writeContractData(liberty);
-            writeContractData(association);
 
-            if (deployFaucet)
-                writeContractData(faucet);
-        }
-        if (deployDeposit) {
-            writeContractData(deposit);
-        }
-        writeContractData(exchanger);
+        if (!deployAsBounty) {
+            if (deployBank && deployDAO) {
+                writeContractData(liberty);
+                writeContractData(association);
+    
+                if (deployFaucet) {
+                    writeContractData(faucet);
+                }
+            }
+            if (deployDeposit) {
+                writeContractData(deposit);
+            }
+            writeContractData(exchanger);
 
-        if (deployLoans)
-            writeContractData(loans);
+            if (deployLoans) {
+                writeContractData(loans);
+            }
+        }
         
         oracles.forEach((oracle) => {
             writeContractData(oracle);
@@ -154,17 +167,17 @@ module.exports = function(deployer, network) {
 
         createMistLoader(
             [
-                exchanger,
+                deployAsBounty ? null : exchanger,
                 cash,
-                (deployBank && deployDAO) ? liberty : null,
-                (deployBank && deployDAO) ? association : null,
-                deployDeposit ? deposit : null,
-                deployLoans ? loans : null,
+                (deployBank && deployDAO && !deployAsBounty) ? liberty : null,
+                (deployBank && deployDAO && !deployAsBounty) ? association : null,
+                (deployDeposit && !deployAsBounty) ? deposit : null,
+                (deployLoans && !deployAsBounty) ? loans : null,
                 deployFaucet ? faucet : null,
                 deployAsBounty ? bounty : null
             ].concat(oracles),
             cash,
-            (deployBank && deployDAO) ? liberty : null
+            (deployBank && deployDAO && !deployAsBounty) ? liberty : null
         )
     })
     .then(() => console.log("END DEPLOY"));
