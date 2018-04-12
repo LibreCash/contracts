@@ -14,4 +14,8 @@ contract ComplexBankBounty is Bounty {
   function deployContract(address _token, uint256 _buyFee, uint256 _sellFee, address[] _oracles) internal returns(address) {
     return new ComplexBankTarget(_token, _buyFee, _sellFee, _oracles);
   }
+
+  function eraseClaim() public {
+      claimed = false;
+  }
 }
