@@ -97,7 +97,6 @@ contract('ComplexExchanger', function(accounts) {
             assert.equal(requestTime.toNumber(), 0, "the requestTime fee must be 0");
             assert.equal(requestPrice.toNumber(), 0, "the initial oracle queries price must be 0");
             assert.isAbove(oracleCount.toNumber(),exConfig.MIN_READY_ORACLES, `the initial oracle count must be more than, ${exConfig.MIN_READY_ORACLES}`);
-            assert.equal(tokenBalance.toNumber(), 0, "the initial token balance must be 0");
             assert.equal(readyOracles.toNumber(), 0, "the initial ready oracle count must be 0");
             assert.equal(waitingOracles.toNumber(), 0, "the initial waiting oracle count must be 0");
             assert.isAbove(deadline.toNumber(), parseInt(new Date().getTime()/1000), "the deadline must be more then now");
@@ -300,9 +299,10 @@ contract('ComplexExchanger', function(accounts) {
                 "unsuccessful refill of exchanger balance");
 // MINT 20
             var sumToMint = 20 * tokenMultiplier;
+            let before = await token.balanceOf(owner);
             await assertTx.success(token.mint(owner, sumToMint), "mint tx failed");
             var tokens = await token.balanceOf.call(owner);
-            assert.equal(+tokens, sumToMint, "tokens were not minted");
+            assert.equal(+tokens.minus(before), sumToMint, "tokens were not minted");
         });
 
         it("(1-sell) try to sell more than allowance", async function() {
@@ -377,25 +377,25 @@ contract('ComplexExchanger', function(accounts) {
             var buyFee = await exchanger.buyFee.call(),
                 sellFee = await exchanger.sellFee.call(),
                 tokenBalance = await exchanger.tokenBalance.call(),
-                buyRate = (await exchanger.buyRate.call()) / 1000;
+                buyRate = (await exchanger.buyRate.call()) / 1000,
+                accBalance = await token.balanceOf(owner);
 
             assert.isAbove(+tokenBalance, 0, "the exchanger token balance must not be 0 now");  
             var tokensToBuy = +tokenBalance * 2;
 
             var weiToSend = tokensToBuy / buyRate,
                 ethToSend = web3.fromWei(weiToSend, 'ether'),
-                balanceBefore = web3.eth.getBalance(owner).toNumber();
+                balanceBefore = web3.eth.getBalance(owner);
 
-            await assertTx.success(exchanger.buyTokens(owner, { from: owner, value: weiToSend }), 
+            await assertTx.success(exchanger.buyTokens(owner, {value: weiToSend }), 
                 "buyTokens tx failed");
-            var weiUsedForGas = utils.gasCost();
-            var balanceDelta = balanceBefore - +web3.eth.getBalance(owner);
-            var balanceDeltaNet = balanceDelta - weiUsedForGas;
+            var balanceDelta = balanceBefore.minus(web3.eth.getBalance(owner));
+            var balanceDeltaNet = balanceDelta.minus(utils.gasCost());
 
             assert.isAbove(balanceDelta, 0, "balance delta must be positive - very strange if ever thrown");
-            var boughtTokens = await token.balanceOf.call(owner);
+            var boughtTokens = await token.balanceOf(owner);
 
-            assert.isBelow(Math.abs(balanceDeltaNet * buyRate - +boughtTokens), 10000000, "token count doesn't match sent ether multiplied by rate");
+            assert.isBelow(boughtTokens.minus(balanceDeltaNet * buyRate).minus(accBalance), 10000000, "token count doesn't match sent ether multiplied by rate");
         });
 
         it("(4-buy) buy all tokens from exchanger", async function() {
@@ -452,7 +452,7 @@ contract('ComplexExchanger', function(accounts) {
             var buyFee = await exchanger.buyFee.call(),
                 sellFee = await exchanger.sellFee.call(),
                 buyRate = (await exchanger.buyRate.call()) / 1000;
-            var accTokensBefore = (await token.balanceOf.call(owner)) / tokenMultiplier;
+            var accTokensBefore = await token.balanceOf.call(owner);
 
             var tokenBalance = await exchanger.tokenBalance.call();
             assert.isAbove(+tokenBalance, 0, "the exchanger token balance must be above 0 now");
@@ -466,9 +466,9 @@ contract('ComplexExchanger', function(accounts) {
             var zeroBalance = balanceBefore - +web3.eth.getBalance(owner) - weiToSend - utils.gasCost();
             assert.isBelow(Math.abs(zeroBalance), 100000, "ether sent doesn't fit the balance changed");
 
-            var accTokensAfter = (await token.balanceOf.call(owner)) / tokenMultiplier;
+            var accTokensAfter = await token.balanceOf.call(owner);
 
-            assert.equal(ethToSend * buyRate, accTokensAfter - accTokensBefore, "token count doesn't match sent ether multiplied by rate");
+            assert.equal(ethToSend * buyRate, accTokensAfter.minus(accTokensBefore)/tokenMultiplier, "token count doesn't match sent ether multiplied by rate");
         });
     });
 

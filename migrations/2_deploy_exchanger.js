@@ -22,9 +22,9 @@ module.exports = function(deployer, network) {
         },
         deployBank = false,
         deployDAO = false, // is actual when deployBank only
-        deployDeposit = true,
+        deployDeposit = false,
         deployFaucet = false,
-        deployLoans = true,
+        deployLoans = false,
         
         appendContract = (network == "mainnet" || network == "testnet") ? сontractsList.mainnet : сontractsList.local,
         oracles = appendContract.map((oracle) => {
