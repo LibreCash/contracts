@@ -20,7 +20,7 @@ module.exports = function(deployer, network) {
             'oracles/OracleMockTest'
         ]
         },
-        deployBank = false,
+        deployBank = true,
         deployDAO = false, // is actual when deployBank only
         deployDeposit = false,
         deployFaucet = false,
@@ -47,6 +47,27 @@ module.exports = function(deployer, network) {
             withdrawWallet: web3.eth.coinbase,
         };
     // end let block
+
+    if (network == "testBank") {
+        deployBank = true
+        deployDAO = false
+        deployDeposit = false
+        deployFaucet = false
+        deployLoans = false
+    } else if (network == "testDAO") {
+        deployBank = true
+        deployDAO = true
+        deployDeposit = false
+        deployFaucet = false
+        deployLoans = false
+    } else if (network == "testExchanger") {
+        deployBank = false
+        deployDAO = false
+        deployDeposit = true
+        deployFaucet = false
+        deployLoans = true
+    }
+    exchanger = artifacts.require(`./Complex${deployBank ? 'Bank' : 'Exchanger'}.sol`)
 
     deployer.deploy(cash)
     .then(async() => {
