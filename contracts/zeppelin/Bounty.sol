@@ -13,7 +13,7 @@ contract Bounty is PullPayment, Destructible {
   bool public claimed;
   mapping(address => address) public researchers;
 
-  event TargetCreated(address createdAddress);
+  event TargetCreated(string description, address researcher, address createdAddress);
 
   /**
    * @dev Fallback function allowing the contract to receive funds, if they haven't already been claimed.
@@ -27,7 +27,7 @@ contract Bounty is PullPayment, Destructible {
    * msg.sender as a researcher
    * @return A target contract
    */
-  function createTarget(address _token, uint256 _buyFee, uint256 _sellFee) public returns(Target);
+  function createTargets(uint256 _buyFee, uint256 _sellFee) public returns(Target[]);
 
   /**
    * @dev Sends the contract funds to the researcher that proved the contract is broken.
@@ -46,7 +46,7 @@ contract Bounty is PullPayment, Destructible {
    * @dev Internal function to deploy the target contract.
    * @return A target contract address
    */
-  function deployContract(address _token, uint256 _buyFee, uint256 _sellFee, address[] _oracles) internal returns(address);
+  function deployContracts(uint256 _buyFee, uint256 _sellFee, address[] _oracles) internal returns(address, address);
 
 }
 

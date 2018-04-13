@@ -7,7 +7,7 @@ import { Target } from "../zeppelin/Bounty.sol";
 contract ComplexBankTarget is ComplexBank, Target {
     uint256 public bountyIs666 = 0;
 
-    function setBountyIs666(uint256 _val) {
+    function setBountyIs666(uint256 _val) public {
         bountyIs666 = _val;
     }
 
