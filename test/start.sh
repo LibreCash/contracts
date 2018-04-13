@@ -18,7 +18,7 @@ sleep 5 > /dev/null
 echo "truffle test Exchanger..."
 truffle test test/testLoans.js test/testComplexExchanger.js test/testDeposit.js --network testExchanger
 
-kill -9 $ganache_pid
+kill -9 $ganache_pid > /dev/null
 
 ganache-cli -i test > /dev/null &
 ganache_pid=$!

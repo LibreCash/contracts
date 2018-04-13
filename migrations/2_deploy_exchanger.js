@@ -68,6 +68,7 @@ module.exports = function(deployer, network) {
         deployLoans = true
     }
     exchanger = artifacts.require(`./Complex${deployBank ? 'Bank' : 'Exchanger'}.sol`)
+    loans = deployLoans ? artifacts.require(`./Loans.sol`) : null
 
     deployer.deploy(cash)
     .then(async() => {
