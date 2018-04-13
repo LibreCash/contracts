@@ -37,7 +37,7 @@ contract Bounty is PullPayment, Destructible {
     address researcher = researchers[target];
     require(researcher != 0);
     // Check Target contract invariants
-    require(!target.checkInvariant());
+    require(!target.checkInvariant(researcher));
     asyncSend(researcher, this.balance);
     claimed = true;
   }
@@ -60,7 +60,18 @@ contract Bounty is PullPayment, Destructible {
  * @title Target
  * @dev Your main contract should inherit from this class and implement the checkInvariant method.
  */
-contract Target is Ownable {
+contract Target {
+  address bounty;
+
+  function Target() public {
+    // owner can be changed^ so we need to fix bounty - the contract we were deployed by
+    bounty = msg.sender;
+  }
+
+  modifier onlyBounty() {
+    require(msg.sender == bounty);
+    _;
+  }
 
    /**
     * @dev Checks all values a contract assumes to be true all the time. If this function returns
@@ -68,9 +79,9 @@ contract Target is Ownable {
     * In order to win the bounty, security researchers will try to cause this broken state.
     * @return True if all invariant values are correct, false otherwise.
     */
-  function checkInvariant() public view returns(bool);
+  function checkInvariant(address _researcher) public view returns(bool);
 
-  function _suicide(address _beneficiar) public onlyOwner /* this is only bounty */ {
+  function _suicide(address _beneficiar) public onlyBounty {
     selfdestruct(_beneficiar);
   }
 }
