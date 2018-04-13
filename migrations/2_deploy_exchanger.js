@@ -2,7 +2,7 @@ const
   fs = require('fs'),
   path = require('path');
 
-module.exports = function(deployer, network) {
+module.exports = async function(deployer, network) {
     let
         contractsList = {
             mainnet:[
@@ -56,131 +56,129 @@ module.exports = function(deployer, network) {
         };
     // end let block
 
-    deployer.deploy(cash)
-    .then(async() => {
+    await Promise.all(oracles.map((oracle) => deployer.deploy(oracle)))
+    let _oracles = await Promise.all(oracles.map((oracle) => oracle.deployed()))
+
+    let oraclesAddress = oracles.map((oracle) => oracle.address);
+    console.log("Contract configuration");
+    console.log(config);
+
+    if (!deployAsBounty) {
+        await deployer.deploy(cash);
         let _cash = await cash.deployed()
-
-        if (deployBank && deployDAO)
+    
+        if (deployBank && deployDAO) {
             await deployer.deploy(liberty);
-
-        await Promise.all(oracles.map((oracle) => deployer.deploy(oracle)))
-        let _oracles = await Promise.all(oracles.map((oracle) => oracle.deployed()))
-
-        let oraclesAddress = oracles.map((oracle) => oracle.address);
-        console.log("Contract configuration");
-        console.log(config);
-
-        if (!deployAsBounty) {
-            let args = [
-                exchanger,
-                /*Constructor params*/
-                cash.address, // Token address
-                config.buyFee, // Buy Fee
-                config.sellFee, // Sell Fee,
-                oraclesAddress,// oracles (array of address)
-            ];
-
-            if (!deployBank)
-                args = args.concat([config.deadline, config.withdrawWallet]);
-
-            await deployer.deploy(...args);
-            let _exchanger = deployAsBounty ? null : await exchanger.deployed();
-            await Promise.all(_oracles.map((oracle) => oracle.setBank(exchanger.address)));
-            if (!deployBank)
-                await _cash.mint.sendTransaction(exchanger.address, 100 * 10 ** 18);
-
-            if (deployBank && deployDAO) {
-                await deployer.deploy(
-                    association,
-                    /* Constructor params */
-                    liberty.address,
-                    exchanger.address,
-                    cash.address,
-                    /* minimumSharesToPassAVote: */ 1,
-                    /* minSecondsForDebate: */ 60
-                );
-            }
         }
 
+        let args = [
+            exchanger,
+            /*Constructor params*/
+            cash.address, // Token address
+            config.buyFee, // Buy Fee
+            config.sellFee, // Sell Fee,
+            oraclesAddress,// oracles (array of address)
+        ];
+
+        if (!deployBank) {
+            args = args.concat([config.deadline, config.withdrawWallet]);
+        }
+
+        await deployer.deploy(...args);
+        let _exchanger = deployAsBounty ? null : await exchanger.deployed();
+        await Promise.all(_oracles.map((oracle) => oracle.setBank(exchanger.address)));
+        if (!deployBank)
+            await _cash.mint.sendTransaction(exchanger.address, 100 * 10 ** 18);
+
+        if (deployBank && deployDAO) {
+            await deployer.deploy(
+                association,
+                /* Constructor params */
+                liberty.address,
+                exchanger.address,
+                cash.address,
+                /* minimumSharesToPassAVote: */ 1,
+                /* minSecondsForDebate: */ 60
+            );
+        }
 
         // mint tokens to me for tests :)
         _cash.mint.sendTransaction(web3.eth.coinbase, 1000 * 10 ** 18);
 
-        if (deployAsBounty) {
-            await deployer.deploy(bounty, oraclesAddress);
+        if (deployFaucet && deployBank && deployDAO) {
+            await deployer.deploy(
+                faucet,
+                /* Constructor params */
+                liberty.address
+            );
+            await faucet.deployed();
+            let _liberty = await liberty.deployed();
+            await _liberty.transfer.sendTransaction(faucet.address, 1000000 * 10 ** 18);
         }
 
-        if (!deployAsBounty) {
-            if (deployFaucet && deployBank && deployDAO) {
-                await deployer.deploy(
-                    faucet,
-                    /* Constructor params */
-                    liberty.address
-                );
-                await faucet.deployed();
-                let _liberty = await liberty.deployed();
-                await _liberty.transfer.sendTransaction(faucet.address, 1000000 * 10 ** 18);
-            }
-
-            if (deployDeposit) {
-                await deployer.deploy(deposit, cash.address);
-                await _cash.mint.sendTransaction(deposit.address, 10000 * 10 ** 18),
-                await _cash.approve.sendTransaction(deposit.address, 10000 * 10 ** 18)
-            }
-
-            // transfer ownership to the bank (not exchanger) contract
-            if (deployBank) {
-                await _cash.transferOwnership(exchanger.address);
-                await _exchanger.claimOwnership()
-            }
-
-            if (deployBank && deployDAO)
-                await _exchanger.transferOwnership(association.address)
-
-            if (deployLoans)
-            await deployer.deploy(loans, cash.address, exchanger.address);
+        if (deployDeposit) {
+            await deployer.deploy(deposit, cash.address);
+            await _cash.mint.sendTransaction(deposit.address, 10000 * 10 ** 18),
+            await _cash.approve.sendTransaction(deposit.address, 10000 * 10 ** 18)
         }
+
+        // transfer ownership to the bank (not exchanger) contract
+        if (deployBank) {
+            await _cash.transferOwnership(exchanger.address);
+            await _exchanger.claimOwnership()
+        }
+
+        if (deployBank && deployDAO)
+            await _exchanger.transferOwnership(association.address)
+
+        if (deployLoans)
+        await deployer.deploy(loans, cash.address, exchanger.address);
+
         writeContractData(cash);
-
-        if (!deployAsBounty) {
-            if (deployBank && deployDAO) {
-                writeContractData(liberty);
-                writeContractData(association);
-    
-                if (deployFaucet) {
-                    writeContractData(faucet);
-                }
-            }
-            if (deployDeposit) {
-                writeContractData(deposit);
-            }
-            writeContractData(exchanger);
-
-            if (deployLoans) {
-                writeContractData(loans);
-            }
+        writeContractData(exchanger);
+        if (deployBank && deployDAO) {
+            writeContractData(liberty);
+            writeContractData(association);
         }
-        
-        oracles.forEach((oracle) => {
-            writeContractData(oracle);
-        });
+        if (deployFaucet) {
+            writeContractData(faucet);
+        }
+        if (deployDeposit) {
+            writeContractData(deposit);
+        }
+        if (deployLoans) {
+            writeContractData(loans);
+        }
+    } else { // if (deployAsBounty)
+        await deployer.deploy(bounty, oraclesAddress);
+        writeContractData(bounty);
+    }
+    
+    oracles.forEach((oracle) => {
+        writeContractData(oracle);
+    });
 
-        createMistLoader(
-            [
-                deployAsBounty ? null : exchanger,
-                cash,
-                (deployBank && deployDAO && !deployAsBounty) ? liberty : null,
-                (deployBank && deployDAO && !deployAsBounty) ? association : null,
-                (deployDeposit && !deployAsBounty) ? deposit : null,
-                (deployLoans && !deployAsBounty) ? loans : null,
-                deployFaucet ? faucet : null,
-                deployAsBounty ? bounty : null
-            ].concat(oracles),
+    let mistContracts = deployAsBounty ?
+        [
+            bounty
+        ] :
+        [
+            exchanger,
             cash,
-            (deployBank && deployDAO && !deployAsBounty) ? liberty : null
-        )
-    })
-    .then(() => console.log("END DEPLOY"));
+            (deployBank && deployDAO) ? liberty : null,
+            (deployBank && deployDAO) ? association : null,
+            deployDeposit ? deposit : null,
+            deployLoans ? loans : null,
+            deployFaucet ? faucet : null            
+        ];
+
+    createMistLoader(
+        mistContracts.concat(oracles),
+        !deployAsBounty ? cash : null,
+        (deployBank && deployDAO && !deployAsBounty) ? liberty : null
+    )
+
+    console.log("END DEPLOY");
 }; // end module.exports
 
 function writeContractData(artifact) {
