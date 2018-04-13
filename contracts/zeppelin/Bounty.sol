@@ -9,7 +9,7 @@ import "./lifecycle/Destructible.sol";
  * @title Bounty
  * @dev This bounty will pay out to a researcher if they break invariant logic of the contract.
  */
-contract Bounty is PullPayment, Destructible {
+contract Bounty is PullPayment {
   bool public claimed;
   mapping(address => address) public researchers;
 
