@@ -150,7 +150,7 @@ module.exports = async function(deployer, network) {
             writeContractData(loans);
         }
     } else { // if (deployAsBounty)
-        await deployer.deploy(bounty, oraclesAddress);
+        await deployer.deploy(bounty, getTimestamp(+5), oraclesAddress);
         writeContractData(bounty);
     }
     

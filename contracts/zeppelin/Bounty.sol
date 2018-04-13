@@ -1,8 +1,6 @@
 pragma solidity ^0.4.18;
 
-
 import "./payment/PullPayment.sol";
-import "./lifecycle/Destructible.sol";
 
 
 /**
@@ -11,9 +9,14 @@ import "./lifecycle/Destructible.sol";
  */
 contract Bounty is PullPayment {
   bool public claimed;
+  uint256 public deadline;
   mapping(address => address) public researchers;
 
   event TargetCreated(string description, address researcher, address createdAddress);
+
+  function Bounty(uint256 _deadline) {
+    deadline = _deadline;
+  }
 
   /**
    * @dev Fallback function allowing the contract to receive funds, if they haven't already been claimed.
@@ -23,17 +26,11 @@ contract Bounty is PullPayment {
   }
 
   /**
-   * @dev Create and deploy the target contract (extension of Target contract), and sets the
-   * msg.sender as a researcher
-   * @return A target contract
-   */
-  function createTargets(uint256 _buyFee, uint256 _sellFee) public returns(Target[]);
-
-  /**
    * @dev Sends the contract funds to the researcher that proved the contract is broken.
    * @param target contract
    */
   function claim(Target target) public {
+    require(now <= deadline);
     address researcher = researchers[target];
     require(researcher != 0);
     // Check Target contract invariants
@@ -46,13 +43,6 @@ contract Bounty is PullPayment {
     require(researchers[_target] == msg.sender);
     Target(_target)._suicide(msg.sender);
   }
-
-  /**
-   * @dev Internal function to deploy the target contract.
-   * @return A target contract address
-   */
-  function deployContracts(uint256 _buyFee, uint256 _sellFee, address[] _oracles) internal returns(address, address);
-
 }
 
 

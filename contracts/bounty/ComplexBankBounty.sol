@@ -7,7 +7,7 @@ import { Bounty, Target } from "../zeppelin/Bounty.sol";
 contract ComplexBankBounty is Bounty {
     address[] public oracles;
 
-    function ComplexBankBounty(address[] _oracles) {
+    function ComplexBankBounty(uint256 _deadline, address[] _oracles) Bounty(_deadline) {
         oracles = _oracles;
     }
 
