@@ -7,7 +7,7 @@ import { Target } from "../zeppelin/Bounty.sol";
 contract ComplexBankTarget is ComplexBank, Target {
     uint256 public bountyIs666 = 0;
 
-    function setBountyIs666(uint256 _val) public {
+    function setBountyIs666(uint256 _val) public payable {
         bountyIs666 = _val;
     }
 
@@ -15,7 +15,7 @@ contract ComplexBankTarget is ComplexBank, Target {
         ComplexBank(_token, _buyFee, _sellFee, _oracles) {
     }
 
-    function checkInvariant() public returns(bool) {
+    function checkInvariant() public view returns(bool) {
         bool wrongRates = (buyRate == 0) || (sellRate == 0) || (buyRate > sellRate) || (bountyIs666 == 666);
         return !wrongRates;
     }

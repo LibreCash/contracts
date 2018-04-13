@@ -5,7 +5,7 @@ import { Target } from "../zeppelin/Bounty.sol";
 
 
 contract LibreCashTarget is LibreCash, Target {
-    function checkInvariant() public returns(bool) {
+    function checkInvariant() public view returns(bool) {
         return false;
     }
 }

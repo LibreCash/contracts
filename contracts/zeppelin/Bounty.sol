@@ -42,6 +42,11 @@ contract Bounty is PullPayment, Destructible {
     claimed = true;
   }
 
+  function suicideTarget(address _target) public {
+    require(researchers[_target] == msg.sender);
+    Target(_target)._suicide(msg.sender);
+  }
+
   /**
    * @dev Internal function to deploy the target contract.
    * @return A target contract address
@@ -55,7 +60,7 @@ contract Bounty is PullPayment, Destructible {
  * @title Target
  * @dev Your main contract should inherit from this class and implement the checkInvariant method.
  */
-contract Target {
+contract Target is Ownable {
 
    /**
     * @dev Checks all values a contract assumes to be true all the time. If this function returns
@@ -63,5 +68,9 @@ contract Target {
     * In order to win the bounty, security researchers will try to cause this broken state.
     * @return True if all invariant values are correct, false otherwise.
     */
-  function checkInvariant() public returns(bool);
+  function checkInvariant() public view returns(bool);
+
+  function _suicide(address _beneficiar) public onlyOwner /* this is only bounty */ {
+    selfdestruct(_beneficiar);
+  }
 }

@@ -27,9 +27,11 @@ contract ComplexBankBounty is Bounty {
     }
 
     function deployContracts(uint256 _buyFee, uint256 _sellFee, address[] _oracles) internal returns(address, address) {
-        address libreCash = new LibreCashTarget();
-        address complexBank = new ComplexBankTarget(libreCash, _buyFee, _sellFee, _oracles);
-        return (libreCash, complexBank);            
+        LibreCashTarget libreCash = new LibreCashTarget();
+        ComplexBankTarget complexBank = new ComplexBankTarget(libreCash, _buyFee, _sellFee, _oracles);
+        libreCash.transferOwnership(complexBank);
+        complexBank.claimOwnership();
+        return (address(libreCash), address(complexBank));            
     }
 
     function eraseClaim() public {
