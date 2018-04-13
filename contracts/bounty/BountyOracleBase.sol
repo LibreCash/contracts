@@ -19,7 +19,7 @@ contract BountyOracleBase is Ownable {
     mapping (address => uint256) private updateTimes;
     mapping (address => uint256) private callbackTimes;
     mapping (address => bool) private waitQuerys;
-    uint256 constant MOCK_REQUEST_PRICE = 10000000000;
+    uint256 constant MOCK_REQUEST_PRICE = 1000;
     mapping (address => uint256) private prices;
     
     function waitQuery() public view returns (bool) {
