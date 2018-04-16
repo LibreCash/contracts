@@ -25,7 +25,7 @@ module.exports = async function(deployer, network) {
                 'bounty/BountyOracle3'
             ]
         },
-        deployBank = true,
+        deployBank = false,
         deployDAO = false, // is actual when deployBank only
         deployDeposit = false,
         deployFaucet = false,
@@ -42,7 +42,7 @@ module.exports = async function(deployer, network) {
         cash = artifacts.require('./LibreCash.sol'),
         liberty = artifacts.require('./LibertyToken.sol'),
         association = artifacts.require('./Association.sol'),
-        exchanger = artifacts.require(`./${deployAsBounty ? 'bounty/' : ''}Complex${deployBank ? 'Bank' : 'Exchanger'}${deployAsBounty ? 'Target' : ''}.sol`),
+        exchanger = artifacts.require(`./Complex${deployBank ? 'Bank' : 'Exchanger'}.sol`),
         bounty = artifacts.require(`./Complex${deployBank ? 'Bank' : 'Exchanger'}Bounty.sol`),
         deposit = artifacts.require('./Deposit.sol'),
         loans = deployLoans ? artifacts.require(`./Loans.sol`) : null,

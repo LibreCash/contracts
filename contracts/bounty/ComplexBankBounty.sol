@@ -11,10 +11,10 @@ contract ComplexBankBounty is Bounty {
         oracles = _oracles;
     }
 
-    function createTargets(uint256 _buyFee, uint256 _sellFee) public beforeDeadline returns(Target[]) {
+    function createBankTargets(uint256 _buyFee, uint256 _sellFee) public beforeDeadline returns(Target[]) {
         address libreCash;
         address complexBank;
-        (libreCash, complexBank) = deployContracts(_buyFee, _sellFee, oracles);
+        (libreCash, complexBank) = deployBankContracts(_buyFee, _sellFee, oracles);
         researchers[libreCash] = msg.sender;
         researchers[complexBank] = msg.sender;
         TargetCreated("LibreCash", msg.sender, libreCash);
@@ -26,7 +26,7 @@ contract ComplexBankBounty is Bounty {
         return targets;
     }
 
-    function deployContracts(uint256 _buyFee, uint256 _sellFee, address[] _oracles) internal returns(address, address) {
+    function deployBankContracts(uint256 _buyFee, uint256 _sellFee, address[] _oracles) internal returns(address, address) {
         LibreCashTarget libreCash = new LibreCashTarget();
         ComplexBankTarget complexBank = new ComplexBankTarget(libreCash, _buyFee, _sellFee, _oracles);
         libreCash.transferOwnership(complexBank);
