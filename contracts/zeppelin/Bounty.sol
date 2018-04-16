@@ -1,13 +1,14 @@
 pragma solidity ^0.4.18;
 
 import "./payment/PullPayment.sol";
+import "./ownership/Ownable.sol";
 
 
 /**
  * @title Bounty
  * @dev This bounty will pay out to a researcher if they break invariant logic of the contract.
  */
-contract Bounty is PullPayment {
+contract Bounty is PullPayment, Ownable {
   bool public claimed;
   uint256 public deadline;
   mapping(address => address) public researchers;
@@ -16,6 +17,11 @@ contract Bounty is PullPayment {
 
   modifier beforeDeadline() {
     require(now <= deadline);
+    _;
+  }
+
+  modifier afterDeadline() {
+    require(now > deadline);
     _;
   }
 
@@ -28,6 +34,10 @@ contract Bounty is PullPayment {
    */
   function() external payable {
     require(!claimed);
+  }
+
+  function ownerWithdraw() public afterDeadline onlyOwner {
+    owner.transfer(address(this).balance);
   }
 
   /**
