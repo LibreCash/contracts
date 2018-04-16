@@ -45,7 +45,8 @@ contract Association is Ownable {
         SET_ORACLE_ACTUAL,
         SET_RATE_PERIOD,
         SET_PAUSED,
-        CLAIM_OWNERSHIP
+        CLAIM_OWNERSHIP,
+        CHANGE_ARBITRATOR
     }
 
     enum Status {
@@ -302,10 +303,12 @@ contract Association is Ownable {
                 (p.amount > 0) ? bank.pause() : bank.unpause();
             } else if (p.tp == TypeProposal.CLAIM_OWNERSHIP) {
                 bank.claimOwnership();
-            } else if (p.tp == TypeProposal.SET_BANK_ADDRESS ) {
+            } else if (p.tp == TypeProposal.SET_BANK_ADDRESS) {
                 bank.transferTokenOwner(p.recipient);
                 setBankAddress(p.recipient);
                 bank.claimOwnership();
+            } else if (p.tp == TypeProposal.CHANGE_ARBITRATOR) {
+                transferOwnership(p.recipient);
             }
         }
 
@@ -445,10 +448,17 @@ contract Association is Ownable {
                             jobDescription, debatingPeriod, "0");
     }
     
-    function setBankAddress(address _bank)  internal {
+    function prChangeArbitrator(address newArbitrator, string jobDescription, uint debatingPeriod) 
+        public onlyShareholders returns (uint proposalID) 
+    {
+        return newProposal(TypeProposal.CHANGE_ARBITRATOR, newArbitrator, 0, 0, 
+                            jobDescription, debatingPeriod, "0");
+    }
+
+    function setBankAddress(address _bank) internal {
         bank = ComplexBank(_bank);
     }
 
-    function() payable public {}
+    function() public payable {}
 }
 
