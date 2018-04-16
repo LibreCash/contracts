@@ -11,7 +11,7 @@ contract ComplexBankBounty is Bounty {
         oracles = _oracles;
     }
 
-    function createTargets(uint256 _buyFee, uint256 _sellFee) public returns(Target[]) {
+    function createTargets(uint256 _buyFee, uint256 _sellFee) public beforeDeadline returns(Target[]) {
         address libreCash;
         address complexBank;
         (libreCash, complexBank) = deployContracts(_buyFee, _sellFee, oracles);

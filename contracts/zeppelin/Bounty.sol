@@ -14,6 +14,11 @@ contract Bounty is PullPayment {
 
   event TargetCreated(string description, address researcher, address createdAddress);
 
+  modifier beforeDeadline() {
+    require(now <= deadline);
+    _;
+  }
+
   function Bounty(uint256 _deadline) {
     deadline = _deadline;
   }
@@ -29,8 +34,7 @@ contract Bounty is PullPayment {
    * @dev Sends the contract funds to the researcher that proved the contract is broken.
    * @param target contract
    */
-  function claim(Target target) public {
-    require(now <= deadline);
+  function claim(Target target) public beforeDeadline {
     address researcher = researchers[target];
     require(researcher != 0);
     // Check Target contract invariants
