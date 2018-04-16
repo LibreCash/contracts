@@ -20,11 +20,11 @@ module.exports = function(deployer, network) {
             'oracles/OracleMockTest'
         ]
         },
-        deployBank = true,
-        deployDAO = true, // is actual when deployBank only
-        deployDeposit = true,
-        deployFaucet = true,
-        deployLoans = true,
+        deployBank = false,
+        deployDAO = false, // is actual when deployBank only
+        deployDeposit = false,
+        deployFaucet = false,
+        deployLoans = false,
         
         appendContract = (network == "mainnet" || network == "testnet") ? сontractsList.mainnet : сontractsList.local,
         oracles = appendContract.map((oracle) => {
@@ -110,7 +110,7 @@ module.exports = function(deployer, network) {
 
         if (deployDeposit) {
             await deployer.deploy(deposit, cash.address);
-            await _cash.mint.sendTransaction(deposit.address, 10000 * 10 ** 18),
+            await _cash.mint.sendTransaction(deposit.address, 10000 * 10 ** 18)
             await _cash.approve.sendTransaction(deposit.address, 10000 * 10 ** 18)
         }
 

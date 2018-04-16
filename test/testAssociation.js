@@ -48,8 +48,8 @@ contract('Association', function(accounts) {
         afterEach("revert", reverter.revert);
 
         it("TransferOwnership", async function() {
-            let id = +await association.proposalsLength.call();
-            await association.proposalTransferOwnership(owner,"Hello",minDebatingPeriod);
+            let id = +await association.prsLength();
+            await association.prTransferOwnership(owner,"Hello",minDebatingPeriod);
             await association.vote(id,true);
             timeMachine.jump(minDebatingPeriod +1);
             await association.executeProposal(id);

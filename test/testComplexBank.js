@@ -53,9 +53,9 @@ const
         MIN_RATE:100 * RATE_MULTIPLIER,
         MAX_RATE:5000 * RATE_MULTIPLIER,
         MIN_READY_ORACLES:2,
-        ORACLE_ACTUAL:10 * minutes,
+        ORACLE_ACTUAL:15 * minutes,
         ORACLE_TIMEOUT:10 * minutes,
-        RATE_PERIOD:10 * minutes
+        RATE_PERIOD:15 * minutes
     };
     
 
@@ -230,13 +230,15 @@ contract('ComplexBank', function(accounts) {
         it("buy value", async function() {
             await assertTx.fail(bank.buyTokens(owner, {value: 1}),
               "Tx need to fail if send 0 Tokens");
+
+            let before = await token.balanceOf(owner);
             await assertTx.success(bank.buyTokens(owner, {value: 1000}),
               "Tx need to success if send 1 ether");
 
-            let buyRate = +await bank.buyRate.call(),
-                balance = +await token.balanceOf(owner);
+            let after = await token.balanceOf(owner),
+                buyRate = +await bank.buyRate();
 
-            assert.equal(buyRate, balance, "Buy and get tokens not equal!");
+            assert.equal(+after.minus(before),buyRate, "Buy and get tokens not equal!");
         });
 
         it("when paused", async function() {
@@ -247,17 +249,19 @@ contract('ComplexBank', function(accounts) {
         });
 
         it("another recipient", async function() {
+            let before = await token.balanceOf(owner);
             await bank.buyTokens(0, {value: 1000});
 
             let buyRate = +await bank.buyRate.call(),
-                balance = +await token.balanceOf(owner);
+                after = await token.balanceOf(owner);
 
-            assert.equal(buyRate, balance, "Buy and get tokens not equal if recipient = 0!");
+            assert.equal(+after.minus(before), buyRate, "Buy and get tokens not equal if recipient = 0!");
 
+            before = await token.balanceOf(acc1);
             await bank.buyTokens(acc1, {value: 1000});
-            balance = +await token.balanceOf(acc1);
+            after = await token.balanceOf(acc1);
 
-            assert.equal(buyRate, balance, "Buy and get tokens not equal for acc1!");
+            assert.equal(+after.minus(before), buyRate, "Buy and get tokens not equal for acc1!");
         });
     });
 
@@ -281,13 +285,13 @@ contract('ComplexBank', function(accounts) {
         });
 
         it("count tokens", async function() {
-            let balance = +await token.balanceOf(owner);
+            let balance = await token.balanceOf(owner);
             await assertTx.fail(bank.sellTokens(owner,1),
               "Not allowance, tx don't fail!");
             await token.approve(bank.address, balance);
             await assertTx.success(bank.sellTokens(owner,balance/2));
 
-            balance = +await token.balanceOf(owner);
+            balance = await token.balanceOf(owner);
             await token.burn(balance)
 
             await assertTx.fail(bank.sellTokens(owner,balance),
@@ -296,6 +300,7 @@ contract('ComplexBank', function(accounts) {
 
         it("balance < need", async function() {
             timeMachine.jump(exConfig.RATE_PERIOD + 1);
+            await bank.requestRates({value: MORE_THAN_COSTS});
 
             for (let i = 0; i < oracles.length; i++) {
               let oracle = await oracles[i].deployed(),
