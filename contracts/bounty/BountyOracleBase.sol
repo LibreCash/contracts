@@ -14,7 +14,7 @@ contract BountyOracleBase is Ownable {
     bytes16 public oracleType = "Bounty";
     mapping (address => uint256) private rates;
     uint256 public mockRate = 280000;
-    event PriceTicker(uint price);
+    event PriceTicker(address bank, uint price);
 
     mapping (address => uint256) private updateTimes;
     mapping (address => uint256) private callbackTimes;
@@ -60,7 +60,7 @@ contract BountyOracleBase is Ownable {
         if (prices[msg.sender] == 0) 
             prices[msg.sender] = MOCK_REQUEST_PRICE;
 
-        PriceTicker(rates[msg.sender]);
+        PriceTicker(msg.sender, rates[msg.sender]);
         return true;
     }
 
