@@ -3,6 +3,7 @@ pragma solidity ^0.4.18;
 import "../zeppelin/ownership/Ownable.sol";
 import "../interfaces/I_Oracle.sol";
 
+
 /**
  * @title Base contract for mocked oracles for testing in private nodes.
  *
@@ -22,28 +23,43 @@ contract BountyOracleBase is Ownable {
     uint256 constant MOCK_REQUEST_PRICE = 1000;
     mapping (address => uint256) private prices;
     
+    /**
+     * @dev waitQuery getter for msg.sender.
+     */
     function waitQuery() public view returns (bool) {
         return waitQuerys[msg.sender];
     }
 
+    /**
+     * @dev Price getter for msg.sender.
+     */
     function price() public view returns (uint256) {
         return prices[msg.sender];
     }
     
+    /**
+     * @dev Rate getter for msg.sender.
+     */
     function rate() public view returns (uint256) {
         return rates[msg.sender];
     }
     
+    /**
+     * @dev updateTime getter for msg.sender.
+     */
     function updateTime() public view returns (uint256) {
         return updateTimes[msg.sender];
     }
     
+    /**
+     * @dev callbackTime getter for msg.sender.
+     */
     function callbackTime() public view returns (uint256) {
         return callbackTimes[msg.sender];
     }
 
     /**
-     * @dev oraclize getPrice.
+     * @dev Oraclize getPrice.
      */
     function getPrice() public view returns (uint) {
         return prices[msg.sender];
@@ -62,14 +78,6 @@ contract BountyOracleBase is Ownable {
 
         PriceTicker(msg.sender, rates[msg.sender]);
         return true;
-    }
-
-    function setWaitQuery(bool waiting) external {
-        waitQuerys[msg.sender] = waiting;
-    }
-  
-    function setRate(uint newRate) external {
-        rates[msg.sender] = newRate;
     }
 
     /**
