@@ -15,6 +15,7 @@ contract Bounty is PullPayment, Ownable {
   mapping(address => address[]) private targets;
 
   event TargetCreated(string description, address researcher, address createdAddress);
+  event TargetDestroyed(address researcher, address destroyedAddress);
 
   modifier beforeDeadline() {
     require(now <= deadline);
@@ -40,6 +41,7 @@ contract Bounty is PullPayment, Ownable {
   }
 
   function deleteTarget(uint256 _id) internal {
+    TargetDestroyed(msg.sender, targets[msg.sender][_id]);
     targets[msg.sender][_id] = targets[msg.sender][targets[msg.sender].length - 1];
     targets[msg.sender].length--;
   }

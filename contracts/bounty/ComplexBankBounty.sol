@@ -18,9 +18,9 @@ contract ComplexBankBounty is Bounty {
         researchers[libreCash] = msg.sender;
         researchers[complexBank] = msg.sender;
         TargetCreated("LibreCash", msg.sender, libreCash);
-        addTarget(libreCash);
+        addTarget(libreCash, "LibreCash");
         TargetCreated("ComplexBank", msg.sender, complexBank);
-        addTarget(complexBank);
+        addTarget(complexBank, "ComplexBank");
         address[] memory targets = new address[](2);
         targets[0] = libreCash;
         targets[1] = complexBank;
