@@ -11,6 +11,25 @@ var ComplexBank = artifacts.require("ComplexBank"),
     Association = artifacts.require("Association"),
     Liberty = artifacts.require("LibertyToken");
 
+var TypeProposal = {
+    'UNIVERSAL': 0,
+    'TRANSFER_OWNERSHIP': 1,
+    'ATTACH_TOKEN': 2,
+    'SET_BANK_ADDRESS': 3,
+    'SET_FEES': 4,
+    'ADD_ORACLE': 5,
+    'DISABLE_ORACLE': 6,
+    'ENABLE_ORACLE': 7,
+    'DELETE_ORACLE': 8,
+    'SET_SCHEDULER': 9,
+    'WITHDRAW_BALANCE': 10,
+    'SET_ORACLE_TIMEOUT': 11,
+    'SET_ORACLE_ACTUAL': 12,
+    'SET_RATE_PERIOD': 13,
+    'SET_PAUSED': 14,
+    'CLAIM_OWNERSHIP': 15,
+    'CHANGE_ARBITRATOR': 16
+}
 
 const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
 
@@ -29,8 +48,8 @@ contract('Association', function(accounts) {
         token = await LibreCash.deployed();
         liberty = await Liberty.deployed();
         association = await Association.deployed();
-        minimumQuorum = await association.minimumQuorum.call();
-        minDebatingPeriod = await association.minDebatingPeriod.call();
+        minimumQuorum = await association.minimumQuorum();
+        minDebatingPeriod = await association.minDebatingPeriod();
     });
 
     context("check links", function() {
@@ -49,7 +68,8 @@ contract('Association', function(accounts) {
 
         it("TransferOwnership", async function() {
             let id = +await association.prsLength();
-            await association.prTransferOwnership(owner,"Hello",minDebatingPeriod);
+            await association.newProposal(TypeProposal.TRANSFER_OWNERSHIP, owner,0,0,"Hello",0,0)
+            //await association.prTransferOwnership(owner,"Hello",minDebatingPeriod);
             await association.vote(id,true);
             timeMachine.jump(minDebatingPeriod +1);
             await association.executeProposal(id);

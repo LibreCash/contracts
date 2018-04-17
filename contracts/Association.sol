@@ -173,37 +173,49 @@ contract Association is Ownable {
      *
      * Propose to send `weiAmount / 1e18` ether to `beneficiary` for `jobDescription`. `transactionBytecode ? Contains : Does not contain` code.
      *
-     * @param beneficiary who to send the ether to
-     * @param weiAmount amount of ether to send, in wei
-     * @param jobDescription Description of job
-     * @param transactionBytecode bytecode of transaction
+     * @param _beneficiary who to send the ether to
+     * @param _weiAmount amount of ether to send, in wei
+     * @param _jobDescription Description of job
+     * @param _transactionBytecode bytecode of transaction
      */
     function newProposal(
         TypeProposal tp,
-        address beneficiary,
-        uint weiAmount,
+        address _beneficiary,
+        uint _weiAmount,
         uint _buffer,
-        string jobDescription,
-        uint debatingPeriod,
-        bytes transactionBytecode
+        string _jobDescription,
+        uint _debatingPeriod,
+        bytes _transactionBytecode
     )
         public
         onlyShareholders
         returns (uint proposalID)
     {
+        if (tp == TypeProposal.UNIVERSAL ||
+            tp == TypeProposal.TRANSFER_OWNERSHIP ||
+            tp == TypeProposal.ATTACH_TOKEN ||
+            tp == TypeProposal.ADD_ORACLE ||
+            tp == TypeProposal.DISABLE_ORACLE ||
+            tp == TypeProposal.ENABLE_ORACLE ||
+            tp == TypeProposal.DELETE_ORACLE ||
+            tp == TypeProposal.SET_SCHEDULER ||
+            tp == TypeProposal.SET_BANK_ADDRESS ||
+            tp == TypeProposal.CHANGE_ARBITRATOR)
+          require (_beneficiary != address(0));
+
         proposalID = proposals.length++; 
         Proposal storage p = proposals[proposalID];
         p.tp = tp;
-        p.recipient = beneficiary;
-        p.amount = weiAmount;
+        p.recipient = _beneficiary;
+        p.amount = _weiAmount;
         p.buffer = _buffer;
-        p.bytecode = transactionBytecode;
-        p.description = jobDescription;
+        p.bytecode = _transactionBytecode;
+        p.description = _jobDescription;
         p.status = Status.ACTIVE;
-        p.votingDeadline = now + ((debatingPeriod >= minDebatingPeriod) ? debatingPeriod : minDebatingPeriod);
+        p.votingDeadline = now + ((_debatingPeriod >= minDebatingPeriod) ? _debatingPeriod : minDebatingPeriod);
         p.numberOfVotes = 0;
         numProposals = numProposals.add(1);
-        ProposalAdded(proposalID, beneficiary, weiAmount, _buffer, jobDescription, p.votingDeadline);
+        ProposalAdded(proposalID, _beneficiary, _weiAmount, _buffer, _jobDescription, p.votingDeadline);
 
         return proposalID;
     }
