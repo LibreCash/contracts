@@ -31,12 +31,11 @@ contract Bounty is PullPayment, Ownable {
     deadline = _deadline;
   }
 
-  function getMyTargets() public view returns(uint256, address[]) {
-    address[] memory _targets = targets[msg.sender];
-    return (_targets.length, _targets);
+  function getMyTargets() public view returns(address[]) {
+    return targets[msg.sender];
   }
 
-  function addTarget(address _target) internal {
+  function addTarget(address _target, string _description) internal {
     targets[msg.sender].push(_target);
   }
 
