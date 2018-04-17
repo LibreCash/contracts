@@ -44,6 +44,8 @@ module.exports = async function(deployer, network) {
         association = artifacts.require('./Association.sol'),
         exchanger = artifacts.require(`./Complex${deployBank ? 'Bank' : 'Exchanger'}.sol`),
         bounty = artifacts.require(`./Complex${deployBank ? 'Bank' : 'Exchanger'}Bounty.sol`),
+        bountyBank = artifacts.require(`./ComplexBankBounty.sol`),
+        bountyExchanger = artifacts.require(`./ComplexExchangerBounty.sol`),
         deposit = artifacts.require('./Deposit.sol'),
         loans = deployLoans ? artifacts.require(`./Loans.sol`) : null,
         faucet = artifacts.require('./LBRSFaucet.sol');
@@ -150,8 +152,10 @@ module.exports = async function(deployer, network) {
             writeContractData(loans);
         }
     } else { // if (deployAsBounty)
-        await deployer.deploy(bounty, getTimestamp(+5), oraclesAddress);
-        writeContractData(bounty);
+        await deployer.deploy(bountyBank, getTimestamp(+5), oraclesAddress);
+        await deployer.deploy(bountyExchanger, getTimestamp(+5), oraclesAddress);
+        writeContractData(bountyBank);
+        writeContractData(bountyExchanger);
     }
     
     oracles.forEach((oracle) => {
@@ -160,7 +164,8 @@ module.exports = async function(deployer, network) {
 
     let mistContracts = deployAsBounty ?
         [
-            bounty
+            bountyBank,
+            bountyExchanger
         ] :
         [
             exchanger,
