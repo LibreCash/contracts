@@ -12,6 +12,24 @@ module.exports = {
       host: "localhost",
       port: 8545,
       gas: 6000000 // чтобы деплоилось - править когда gas limit ему не нравится (дефолт вроде как 4712388, и с ним ошибка)
+    },
+    testBank: {
+      host: "localhost",
+      port: 8545,
+      network_id: "dev",
+      gas: 6000000
+    },
+    testExchanger: {
+      host: "localhost",
+      port: 8545,
+      network_id: "dev",
+      gas: 6000000
+    },
+    testDAO: {
+      host: "localhost",
+      port: 8545,
+      network_id: "dev",
+      gas: 6000000
     }
   },
    
