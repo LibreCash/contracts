@@ -9,7 +9,6 @@ contract OracleI {
     uint256 public callbackTime;
     function getPrice() view public returns (uint);
     function setBank(address _bankAddress) public;
-    function setPriceLimit(uint256 _limit) public;
     function setGasPrice(uint256 _price) public;
     function setGasLimit(uint256 _limit) public;
     function updateRate() external returns (bool);
