@@ -11,7 +11,7 @@ contract ComplexBankBounty is Bounty {
         oracles = _oracles;
     }
 
-    function createBankTargets(uint256 _buyFee, uint256 _sellFee) public beforeDeadline returns(Target[]) {
+    function createBankTargets(uint256 _buyFee, uint256 _sellFee) public beforeDeadline returns(address[]) {
         address libreCash;
         address complexBank;
         (libreCash, complexBank) = deployBankContracts(_buyFee, _sellFee, oracles);
@@ -19,10 +19,9 @@ contract ComplexBankBounty is Bounty {
         researchers[complexBank] = msg.sender;
         TargetCreated("LibreCash", msg.sender, libreCash);
         TargetCreated("ComplexBank", msg.sender, complexBank);
-        Target[] memory targets = new Target[](2);
-        // just to verify it fits the interface
-        targets[0] = Target(libreCash);
-        targets[1] = Target(complexBank);
+        address[] memory targets = new address[](2);
+        targets[0] = libreCash;
+        targets[1] = complexBank;
         return targets;
     }
 

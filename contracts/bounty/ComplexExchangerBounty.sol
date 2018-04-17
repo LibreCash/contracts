@@ -14,15 +14,14 @@ contract ComplexExchangerBounty is Bounty {
     function createExchangerTargets(uint256 _buyFee, uint256 _sellFee, uint256 _deadline, address _withdrawWallet)
         public
         beforeDeadline
-        returns(Target)
+        returns(address)
     {
         address libreCash;
         address complexExchanger;
         (libreCash, complexExchanger) = deployExchangerContracts(_buyFee, _sellFee, oracles, _deadline, _withdrawWallet);
         researchers[complexExchanger] = msg.sender;
         TargetCreated("ComplexExchanger", msg.sender, complexExchanger);
-        // just to verify it fits the interface
-        return Target(complexExchanger);
+        return complexExchanger;
     }
 
     function deployExchangerContracts(
