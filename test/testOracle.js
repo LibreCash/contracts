@@ -4,8 +4,7 @@ var oracles = [];
     "OracleMockLiza",
     "OracleMockSasha",
     "OracleMockKlara",
-    "OracleMockTest",
-    //"OracleMockRandom"
+    "OracleMockTest"
 ].forEach( (filename) => {
     oracles.push(artifacts.require(filename));
 });
