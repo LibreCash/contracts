@@ -21,6 +21,7 @@ contract ComplexExchangerBounty is Bounty {
         (libreCash, complexExchanger) = deployExchangerContracts(_buyFee, _sellFee, oracles, _deadline, _withdrawWallet);
         researchers[complexExchanger] = msg.sender;
         TargetCreated("ComplexExchanger", msg.sender, complexExchanger);
+        addTarget(complexExchanger);
         return complexExchanger;
     }
 

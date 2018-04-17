@@ -12,6 +12,7 @@ contract Bounty is PullPayment, Ownable {
   bool public claimed;
   uint256 public deadline;
   mapping(address => address) public researchers;
+  mapping(address => address[]) private targets;
 
   event TargetCreated(string description, address researcher, address createdAddress);
 
@@ -27,6 +28,20 @@ contract Bounty is PullPayment, Ownable {
 
   function Bounty(uint256 _deadline) {
     deadline = _deadline;
+  }
+
+  function getMyTargets() public view returns(uint256, address[]) {
+    address[] memory _targets = targets[msg.sender];
+    return (_targets.length, _targets);
+  }
+
+  function addTarget(address _target) internal {
+    targets[msg.sender].push(_target);
+  }
+
+  function deleteTarget(uint256 _id) internal {
+    targets[msg.sender][_id] = targets[msg.sender][targets[msg.sender].length - 1];
+    targets[msg.sender].length--;
   }
 
   /**
@@ -53,9 +68,10 @@ contract Bounty is PullPayment, Ownable {
     claimed = true;
   }
 
-  function suicideTarget(address _target) public {
-    require(researchers[_target] == msg.sender);
-    Target(_target)._suicide(msg.sender);
+  function suicideTarget(uint256 _id) public {
+    require(targets[msg.sender][_id] != 0);
+    Target(targets[msg.sender][_id])._suicide(msg.sender);
+    deleteTarget(_id);
   }
 }
 
