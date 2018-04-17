@@ -62,7 +62,7 @@ contract Association is Ownable {
         uint buffer;
         string description;
         uint votingDeadline;
-        bytes transactionBytecode;
+        bytes bytecode;
         uint numberOfVotes;
         Vote[] votes;
         mapping (address => bool) voted;
@@ -133,7 +133,7 @@ contract Association is Ownable {
             proposals[proposalID].recipient,
             proposals[proposalID].amount,
             proposals[proposalID].buffer,
-            proposals[proposalID].transactionBytecode,
+            proposals[proposalID].bytecode,
             proposals[proposalID].description,
             proposals[proposalID].status
         );
@@ -197,7 +197,7 @@ contract Association is Ownable {
         p.recipient = beneficiary;
         p.amount = weiAmount;
         p.buffer = _buffer;
-        p.transactionBytecode = transactionBytecode;
+        p.bytecode = transactionBytecode;
         p.description = jobDescription;
         p.status = Status.ACTIVE;
         p.votingDeadline = now + ((debatingPeriod >= minDebatingPeriod) ? debatingPeriod : minDebatingPeriod);
@@ -274,7 +274,7 @@ contract Association is Ownable {
 
         if (yea > nay) {
             if (p.tp == TypeProposal.UNIVERSAL)
-                require(p.recipient.call.value(p.amount)(p.transactionBytecode));
+                require(p.recipient.call.value(p.amount)(p.bytecode));
             else if (p.tp == TypeProposal.TRANSFER_OWNERSHIP) {
                 bank.transferOwnership(p.recipient);
             } else if (p.tp == TypeProposal.ATTACH_TOKEN) {
@@ -316,143 +316,6 @@ contract Association is Ownable {
         numProposals = numProposals.sub(1);
         // Fire Events
         ProposalTallied(proposalID, int(yea - nay), quorum);
-    }
-
-    function prUniversal(address beneficiary, uint weiAmount, 
-                                string jobDescription, uint debatingPeriod, bytes transactionBytecode) 
-        public onlyShareholders returns (uint proposalID) 
-    {
-        require(beneficiary != address(0x0));
-        return newProposal(TypeProposal.UNIVERSAL, beneficiary, weiAmount, 0, 
-                            jobDescription, debatingPeriod, transactionBytecode);
-    }
-
-    function prUniversalInEther(address beneficiary, uint etherAmount, 
-                                string jobDescription, uint debatingPeriod, bytes transactionBytecode) 
-        public onlyShareholders returns (uint proposalID) 
-    {
-        require(beneficiary != address(0x0));
-        return newProposal(TypeProposal.UNIVERSAL, beneficiary, etherAmount * 1 ether, 0, 
-                            jobDescription, debatingPeriod, transactionBytecode);
-    }
-
-    function prTransferOwnership(address newOwner, string jobDescription, uint debatingPeriod) 
-        public onlyShareholders returns (uint proposalID) 
-    {
-        return newProposal(TypeProposal.TRANSFER_OWNERSHIP, newOwner, 0, 0, 
-                            jobDescription, debatingPeriod, "0");
-    }
-
-    function prAttachToken(address _tokenAddress, string jobDescription, uint debatingPeriod) 
-        public onlyShareholders returns (uint proposalID) 
-    {
-        require(_tokenAddress != address(0x0));
-        return newProposal(TypeProposal.ATTACH_TOKEN, _tokenAddress, 0, 0, 
-                            jobDescription, debatingPeriod, "0");
-    }
-
-    function prFees(uint256 _buyFee, uint256 _sellFee, string jobDescription, uint debatingPeriod) 
-        public onlyShareholders returns (uint proposalID) 
-    {
-        return newProposal(TypeProposal.SET_FEES, address(0), _buyFee, _sellFee, 
-                            jobDescription, debatingPeriod, "0");
-    }
-
-    function prAddOracle(address _address, string jobDescription, uint debatingPeriod) 
-        public onlyShareholders returns (uint proposalID) 
-    {
-        require(_address != address(0x0));
-        return newProposal(TypeProposal.ADD_ORACLE, _address, 0, 0, 
-                            jobDescription, debatingPeriod, "0");
-    }
-
-    function prDisableOracle(address _address, string jobDescription, uint debatingPeriod) 
-        public onlyShareholders returns (uint proposalID) 
-    {
-        require(_address != address(0x0));
-        return newProposal(TypeProposal.DISABLE_ORACLE, _address, 0, 0, 
-                            jobDescription, debatingPeriod, "0");
-    }
-
-    function prEnableOracle(address _address, string jobDescription, uint debatingPeriod) 
-        public onlyShareholders returns (uint proposalID) 
-    {
-        require(_address != address(0x0));
-        return newProposal(TypeProposal.ENABLE_ORACLE, _address, 0, 0, 
-                            jobDescription, debatingPeriod, "0");
-    }
-
-    function prDeleteOracle(address _address, string jobDescription, uint debatingPeriod) 
-        public onlyShareholders returns (uint proposalID) 
-    {
-        require(_address != address(0x0));
-        return newProposal(TypeProposal.DELETE_ORACLE, _address, 0, 0, 
-                            jobDescription, debatingPeriod, "0");
-    }
-
-    function prScheduler(address _scheduler, string jobDescription, uint debatingPeriod) 
-        public onlyShareholders returns (uint proposalID) 
-    {
-        require(_scheduler != address(0x0));
-        return newProposal(TypeProposal.SET_SCHEDULER, _scheduler, 0, 0, 
-                            jobDescription, debatingPeriod, "0");
-    }
-
-    function prWithdrawBalance(string jobDescription, uint debatingPeriod) 
-        public onlyShareholders returns (uint proposalID) 
-    {
-        return newProposal(TypeProposal.WITHDRAW_BALANCE, address(0), 0, 0, 
-                            jobDescription, debatingPeriod, "0");
-    }
-
-    function prBankAddress(address _bankAddress, string jobDescription, uint debatingPeriod) 
-        public onlyShareholders returns (uint proposalID) 
-    {
-        require(_bankAddress != address(0x0));
-        return newProposal(TypeProposal.SET_BANK_ADDRESS, _bankAddress, 0, 0, 
-                            jobDescription, debatingPeriod, "0");
-    }
-
-    function prOracleTimeout(uint256 _period, string jobDescription, uint debatingPeriod) 
-        public onlyShareholders returns (uint proposalID) 
-    {
-        return newProposal(TypeProposal.SET_ORACLE_TIMEOUT, address(0), _period, 0, 
-                            jobDescription, debatingPeriod, "0");
-    }
-
-    function prOracleActual(uint256 _period, string jobDescription, uint debatingPeriod) 
-        public onlyShareholders returns (uint proposalID) 
-    {
-        return newProposal(TypeProposal.SET_ORACLE_ACTUAL, address(0), _period, 0, 
-                            jobDescription, debatingPeriod, "0");
-    }
-
-    function prRatePeriod(uint256 _period, string jobDescription, uint debatingPeriod) 
-        public onlyShareholders returns (uint proposalID) 
-    {
-        return newProposal(TypeProposal.SET_RATE_PERIOD, address(0), _period, 0, 
-                            jobDescription, debatingPeriod, "0");
-    }
-
-    function prPause(uint256 paused, string jobDescription, uint debatingPeriod) 
-        public onlyShareholders returns (uint proposalID) 
-    {
-        return newProposal(TypeProposal.SET_PAUSED, address(0), paused, 0, 
-                            jobDescription, debatingPeriod, "0");
-    }
-
-    function prClaimOwnership(string jobDescription, uint debatingPeriod) 
-        public onlyShareholders returns (uint proposalID) 
-    {
-        return newProposal(TypeProposal.CLAIM_OWNERSHIP, address(this), 0, 0, 
-                            jobDescription, debatingPeriod, "0");
-    }
-    
-    function prChangeArbitrator(address newArbitrator, string jobDescription, uint debatingPeriod) 
-        public onlyShareholders returns (uint proposalID) 
-    {
-        return newProposal(TypeProposal.CHANGE_ARBITRATOR, newArbitrator, 0, 0, 
-                            jobDescription, debatingPeriod, "0");
     }
 
     function setBankAddress(address _bank) internal {
