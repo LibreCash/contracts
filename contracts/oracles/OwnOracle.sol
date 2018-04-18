@@ -29,12 +29,6 @@ contract OwnOracle is Ownable {
     }
 
     /**
-     * @dev Constructor.
-     */
-    function OwnOracle() {
-    }
-
-    /**
      * @dev Sets bank address.
      * @param bank Address of the bank contract.
      */
