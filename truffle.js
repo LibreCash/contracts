@@ -4,7 +4,7 @@ module.exports = {
       host: "localhost",
       port: 8545,
       network_id: "dev", // local
-      gas: 6000000 // https://github.com/trufflesuite/truffle/issues/271
+      gas: 6000000
     },
     mainnet: {
       network_id: "mainnet", // rinkeby, ropsten, main network, etc.
@@ -12,31 +12,27 @@ module.exports = {
       port: 8545,
       gas: 6000000
     },
+    // Network used to detect necessery dependencies for testing purposes
     testBank: {
       host: "localhost",
       port: 8545,
       network_id: "dev",
       gas: 6000000
     },
+    // Network used to detect necessery dependencies for testing purposes
     testExchanger: {
       host: "localhost",
       port: 8545,
       network_id: "dev",
       gas: 6000000
     },
+    // Network used to detect necessery dependencies for testing purposes
+    
     testDAO: {
       host: "localhost",
       port: 8545,
       network_id: "dev",
       gas: 6000000
-    }
-  },
-   
-  // add a section for mocha defaults
-  mocha: {
-    reporter: "spec",
-    reporterOptions: {
-      mochaFile: 'TEST-truffle.xml'
     }
   },
   // enables SOLC compiler optimization (reduce gas usage)

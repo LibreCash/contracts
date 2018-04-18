@@ -1,10 +1,10 @@
 #!/usr/bin/sh
 
 function restart_ganache() {
-  echo "Restart ganache-cli..."
+  echo "Start ganache-cli..."
   if [ $ganache_pid ]
   then
-    echo "kill old ganache..."
+    echo "Kill old ganache-cli instance..."
     kill -9 $ganache_pid
   fi
 
@@ -16,17 +16,14 @@ function restart_ganache() {
 
 restart_ganache
 
-echo "truffle test Bank..."
-truffle test test/testComplexBank.js test/token/* test/testOracle.js --network testBank
+echo "[Truffle-test] Running tests of tokens LibreCash & LBRS"
+truffle test test/token/* --network testBank
+echo "[Truffle-test] Running tests of Oraclize-like oracles"
+truffle test test/testOracle.js --network testBank
 
 restart_ganache
 
-echo "truffle test Exchanger..."
-truffle test test/testLoans.js test/testComplexExchanger.js test/testDeposit.js --network testExchanger
-
-restart_ganache
-
-echo "truffle test DAO..."
-truffle test test/testAssociation.js --network testDAO
+echo "[Truffle-test] Running tests of ComplexExchanger (LibreCash Exchanger)"
+truffle test test/testComplexExchanger.js --network testExchanger
 
 kill -9 $ganache_pid
