@@ -8,7 +8,7 @@
   },
   "scripts": {
     "deploy": "truffle migrate",
-    "test": "./tests/start.sh"
+    "test": "./test/start.sh"
   },
   "repository": {
     "type": "git",
