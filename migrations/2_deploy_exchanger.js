@@ -31,15 +31,15 @@ module.exports = function(deployer, network) {
             name = path.posix.basename(oracle);
             return artifacts.require(`./${name}.sol`);
         }),
-
+        
         cash = artifacts.require('./LibreCash.sol'),
         liberty = artifacts.require('./LibertyToken.sol'),
-        association = artifacts.require('./Association.sol'),
+        association = deployDAO ? artifacts.require('./Association.sol') : null,
         exchanger = artifacts.require(`./Complex${deployBank ? 'Bank' : 'Exchanger'}.sol`),
-        deposit = artifacts.require('./Deposit.sol'),
+        deposit = deployDeposit ? artifacts.require('./Deposit.sol') : null,
         loans = deployLoans ? artifacts.require(`./Loans.sol`) : null,
-        faucet = artifacts.require('./LBRSFaucet.sol');
-  
+        faucet = deployLoans ? artifacts.require('./LBRSFaucet.sol') : null;
+
         config = {
             buyFee: 250,
             sellFee: 250,
