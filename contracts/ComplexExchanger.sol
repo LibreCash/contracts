@@ -49,7 +49,7 @@ contract ComplexExchanger is ExchangerI {
         REQUEST_RATES
     }
 
-    function() payable {
+    function() payable public {
         buyTokens(msg.sender);
     }
 
