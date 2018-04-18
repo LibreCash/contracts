@@ -25,20 +25,40 @@ module.exports = function(deployer, network) {
         deployDeposit = false,
         deployFaucet = false,
         deployLoans = false,
-        
         appendContract = (network == "mainnet" || network == "testnet") ? сontractsList.mainnet : сontractsList.local,
         oracles = appendContract.map((oracle) => {
             name = path.posix.basename(oracle);
             return artifacts.require(`./${name}.sol`);
-        }),
+        });
 
+        if (network == "testBank") {
+            deployBank = true
+            deployDAO = false
+            deployDeposit = false
+            deployFaucet = false
+            deployLoans = false
+        } else if (network == "testDAO") {
+            deployBank = true
+            deployDAO = true
+            deployDeposit = false
+            deployFaucet = false
+            deployLoans = false
+        } else if (network == "testExchanger") {
+            deployBank = false
+            deployDAO = false
+            deployDeposit = true
+            deployFaucet = false
+            deployLoans = false
+        }
+
+    let
         cash = artifacts.require('./LibreCash.sol'),
         liberty = artifacts.require('./LibertyToken.sol'),
-        association = artifacts.require('./Association.sol'),
+        association = deployDAO ? artifacts.require('./Association.sol') : null,
         exchanger = artifacts.require(`./Complex${deployBank ? 'Bank' : 'Exchanger'}.sol`),
-        deposit = artifacts.require('./Deposit.sol'),
+        deposit = deployDeposit ? artifacts.require('./Deposit.sol') : null,
         loans = deployLoans ? artifacts.require(`./Loans.sol`) : null,
-        faucet = artifacts.require('./LBRSFaucet.sol');
+        faucet = deployFaucet ? artifacts.require('./LBRSFaucet.sol') : null;
   
         config = {
             buyFee: 250,
@@ -47,26 +67,6 @@ module.exports = function(deployer, network) {
             withdrawWallet: web3.eth.coinbase,
         };
     // end let block
-
-    if (network == "testBank") {
-        deployBank = true
-        deployDAO = false
-        deployDeposit = false
-        deployFaucet = false
-        deployLoans = false
-    } else if (network == "testDAO") {
-        deployBank = true
-        deployDAO = true
-        deployDeposit = false
-        deployFaucet = false
-        deployLoans = false
-    } else if (network == "testExchanger") {
-        deployBank = false
-        deployDAO = false
-        deployDeposit = true
-        deployFaucet = false
-        deployLoans = true
-    }
     exchanger = artifacts.require(`./Complex${deployBank ? 'Bank' : 'Exchanger'}.sol`)
     loans = deployLoans ? artifacts.require(`./Loans.sol`) : null
 
