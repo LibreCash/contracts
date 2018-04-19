@@ -4,6 +4,7 @@ import "./ComplexBankTarget.sol";
 import "./LibreCashTarget.sol";
 import { Bounty, Target } from "../zeppelin/Bounty.sol";
 
+
 contract ComplexBankBounty is Bounty {
     address[] public oracles;
 
@@ -11,7 +12,7 @@ contract ComplexBankBounty is Bounty {
         oracles = _oracles;
     }
 
-    function createBankTargets(uint256 _buyFee, uint256 _sellFee) public beforeDeadline returns(address[]) {
+    function createBankTargets(uint256 _buyFee, uint256 _sellFee) public beforeDeadline returns(address, address) {
         address libreCash;
         address complexBank;
         (libreCash, complexBank) = deployBankContracts(_buyFee, _sellFee, oracles);
@@ -21,10 +22,7 @@ contract ComplexBankBounty is Bounty {
         addTarget(libreCash, "LibreCash");
         TargetCreated("ComplexBank", msg.sender, complexBank);
         addTarget(complexBank, "ComplexBank");
-        address[] memory targets = new address[](2);
-        targets[0] = libreCash;
-        targets[1] = complexBank;
-        return targets;
+        return (libreCash, complexBank);
     }
 
     function deployBankContracts(uint256 _buyFee, uint256 _sellFee, address[] _oracles) internal returns(address, address) {

@@ -43,6 +43,8 @@ contract ComplexBank is Pausable, BankI {
     function ComplexBank(address _token, uint256 _buyFee, uint256 _sellFee, address[] _oracles) 
         public
     {
+        require(_buyFee <= MAX_FEE);
+        require(_sellFee <= MAX_FEE);
         tokenAddress = _token;
         token = LibreCash(tokenAddress);
         buyFee = _buyFee;
