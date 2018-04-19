@@ -6,10 +6,10 @@ import { Target } from "../zeppelin/Bounty.sol";
 
 contract ComplexExchangerTarget is ComplexExchanger, Target {
     string public targetName = "ComplexExchanger";
-    uint256 public bountyIs666 = 0;
+    bool public tempHacked = false;
 
-    function setBountyIs666(uint256 _val) public payable {
-        bountyIs666 = _val;
+    function tempHack(bool _val) public payable {
+        tempHacked = _val;
     }
 
     function ComplexExchangerTarget(
@@ -27,7 +27,7 @@ contract ComplexExchangerTarget is ComplexExchanger, Target {
     }
 
     function checkInvariant(address _researcher) public view returns(bool) {
-        bool wrongRates = (buyRate == 0) || (sellRate == 0) || (buyRate > sellRate) || (bountyIs666 == 666);
+        bool wrongRates = (buyRate == 0) || (sellRate == 0) || (buyRate > sellRate) || tempHacked;
         return !wrongRates;
     }
 }
