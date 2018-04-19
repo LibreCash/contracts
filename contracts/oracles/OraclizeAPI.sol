@@ -24,14 +24,14 @@ pragma solidity ^0.4.0;
 
 contract OraclizeI {
     address public cbAddress;
-    function query_withGasLimit(uint _timestamp, string _datasource, string _arg, uint _gaslimit) payable returns (bytes32 _id);
-    function getPrice(string _datasource, uint gaslimit) returns (uint _dsprice);
-    function setProofType(byte _proofType);
-    function setCustomGasPrice(uint _gasPrice);
+    function query_withGasLimit(uint _timestamp, string _datasource, string _arg, uint _gaslimit) payable public returns (bytes32 _id);
+    function getPrice(string _datasource, uint gaslimit) public returns (uint _dsprice);
+    function setProofType(byte _proofType) public;
+    function setCustomGasPrice(uint _gasPrice) public;
 }
 
 contract OraclizeAddrResolverI {
-    function getAddress() returns (address _addr);
+    function getAddress() view public returns (address _addr);
 }
 
 contract usingOraclize {

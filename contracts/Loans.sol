@@ -191,7 +191,7 @@ contract Loans is Ownable {
             loan.status == Status.ACTIVE
         );
 
-        loansEth[id].status = Status.COMPLETED;
+        loansLibre[id].status = Status.COMPLETED;
         token.transfer(loan.holder, loan.amount);
     }
 
@@ -215,8 +215,8 @@ contract Loans is Ownable {
         balance[owner] = balance[owner].add(needReturn - needSend);
         token.transfer(msg.sender, loan.pledge);
 
-        if (msg.value > needSend)
-            msg.sender.transfer(msg.value - needSend);
+        if (msg.value > needReturn)
+            msg.sender.transfer(msg.value - needReturn);
     }
 
     /**
@@ -265,6 +265,9 @@ contract Loans is Ownable {
         require(Exchanger.balance >= needSend);
         uint256 sellTokens = needSend * rate / RATE_MULTIPLIER;
 
+        if ((sellTokens * RATE_MULTIPLIER / rate) < needSend)
+            sellTokens++;
+
         loansEth[id].status = Status.COMPLETED;
         token.approve(Exchanger, sellTokens);
         exchanger.sellTokens(loan.holder, sellTokens);
@@ -296,6 +299,9 @@ contract Loans is Ownable {
 
         require(token.balanceOf(Exchanger) >= needSend);
         uint256 buyTokens = needSend.mul(RATE_MULTIPLIER) / rate;
+
+        if ( (buyTokens * rate / RATE_MULTIPLIER) < needSend)
+            buyTokens++;
 
         loansLibre[id].status = Status.COMPLETED;
         exchanger.buyTokens.value(buyTokens)(loan.holder);
@@ -427,7 +433,7 @@ contract Loans is Ownable {
      * @param percent for calc
      */
     function calcPledgeLibre(Loan loan, uint256 percent) internal view returns(uint256) {
-        return exchanger.buyRate() == 0 ? 0 : refundAmount(loan).mul(RATE_MULTIPLIER) * percent / exchanger.buyRate() / PERCENT_MULTIPLIER / 100;
+        return exchanger.buyRate() == 0 ? 0 : refundAmount(loan).mul(RATE_MULTIPLIER) * percent / exchanger.buyRate() / PERCENT_MULTIPLIER / 100 + 1;
     }
 
     /**
@@ -436,7 +442,7 @@ contract Loans is Ownable {
      * @param percent for calc
      */
     function calcPledgeEth(Loan loan, uint256 percent) internal view returns(uint256) {
-        return refundAmount(loan).mul(exchanger.sellRate()) * percent / RATE_MULTIPLIER / PERCENT_MULTIPLIER / 100;
+        return refundAmount(loan).mul(exchanger.sellRate()) * percent / RATE_MULTIPLIER / PERCENT_MULTIPLIER / 100 + 1;
     }
 
     /**
