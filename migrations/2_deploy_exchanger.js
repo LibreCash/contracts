@@ -114,8 +114,8 @@ module.exports = function(deployer, network) {
                 liberty.address,
                 exchanger.address,
                 cash.address,
-                /* minimumSharesToPassAVote: */ 1,
-                /* minSecondsForDebate: */ 60
+                /* minimumSharesToPassAVote: */ 10000 * 10**18,
+                /* minSecondsForDebate: */ 6 * 60 * 60
             );
         }
 

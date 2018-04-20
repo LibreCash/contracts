@@ -21,7 +21,7 @@ contract Association is Ownable {
     ComplexBank public bank;
     LibreCash public cash;
 
-    uint constant MINIMAL_VOTE_BALANCE = 0;
+    uint constant MINIMAL_VOTE_BALANCE = 2000 * 10 ** 18;
 
     event ProposalAdded(uint proposalID, address recipient, uint amount, uint buffer, string description, uint deadLine);
     event Voted(uint proposalID, bool position, address voter);
