@@ -38,7 +38,7 @@ module.exports = function(deployer, network) {
         exchanger = artifacts.require(`./Complex${deployBank ? 'Bank' : 'Exchanger'}.sol`),
         deposit = deployDeposit ? artifacts.require('./Deposit.sol') : null,
         loans = deployLoans ? artifacts.require(`./Loans.sol`) : null,
-        faucet = deployLoans ? artifacts.require('./LBRSFaucet.sol') : null;
+        faucet = deployFaucet ? artifacts.require('./LBRSFaucet.sol') : null;
 
         config = {
             buyFee: 250,
