@@ -9,9 +9,9 @@ module.exports = function(deployer, network) {
             'oracles/OracleBitfinex',
             'oracles/OracleBitstamp',
             'oracles/OracleWEX',
-            'oracles/OracleGDAX',
-            'oracles/OracleGemini',
-            'oracles/OracleKraken',
+            //'oracles/OracleGDAX',
+            //'oracles/OracleGemini',
+            //'oracles/OracleKraken',
         ],
         local:[
             'oracles/mock/OracleMockLiza',
@@ -21,9 +21,9 @@ module.exports = function(deployer, network) {
         ]
         },
         deployBank = true,
-        deployDAO = false, // is actual when deployBank only
+        deployDAO = true, // is actual when deployBank only
         deployDeposit = false,
-        deployFaucet = false,
+        deployFaucet = true,
         deployLoans = false,
         
         appendContract = (network == "mainnet" || network == "testnet") ? сontractsList.mainnet : сontractsList.local,
@@ -81,6 +81,9 @@ module.exports = function(deployer, network) {
         let _oracles = await Promise.all(oracles.map((oracle) => oracle.deployed()))
 
         let oraclesAddress = oracles.map((oracle) => oracle.address);
+        oraclesAddress.push("0x4FB9C6535f08279fab53BefB33dBa8FA6A26BF76");
+        oraclesAddress.push("0x93d6F2E6DC8ADe171243b804dd7a296fAC81676F");
+        
         console.log("Contract configuration");
         console.log(config);
 
@@ -114,8 +117,8 @@ module.exports = function(deployer, network) {
                 liberty.address,
                 exchanger.address,
                 cash.address,
-                /* minimumSharesToPassAVote: */ 1,
-                /* minSecondsForDebate: */ 60
+                /* minimumSharesToPassAVote: */ 10000 * 10**18,
+                /* minSecondsForDebate: */ 6 * 60 * 60
             );
         }
 

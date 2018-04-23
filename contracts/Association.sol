@@ -27,7 +27,7 @@ contract Association  {
     ComplexBank public bank;
     LibreCash public cash;
 
-    uint constant MINIMAL_VOTE_BALANCE = 0;
+    uint constant MINIMAL_VOTE_BALANCE = 2000 * 10 ** 18;
 
     event ProposalAdded(uint proposalID, address recipient, uint amount, uint buffer, string description, uint deadLine);
     event Voted(uint proposalID, bool position, address voter);
@@ -92,8 +92,8 @@ contract Association  {
      * First time setup
      */
     function Association(ERC20 sharesAddress, ComplexBank _bank, LibreCash _cash, uint minShares, uint minDebatePeriod) public {
-        changeVotingRules(sharesAddress, _bank, _cash, minShares, minDebatePeriod);
         owner = msg.sender;
+        changeVotingRules(sharesAddress, _bank, _cash, minShares, minDebatePeriod);
     }
 
     function getTokenBalance() public view returns(uint256) {
