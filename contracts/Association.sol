@@ -82,7 +82,7 @@ contract Association  {
 
     // Modifier that allows only shareholders to vote and create new proposals
     modifier onlyShareholders {
-        require(sharesTokenAddress.balanceOf(msg.sender) > MINIMAL_VOTE_BALANCE);
+        require(sharesTokenAddress.balanceOf(msg.sender) >= MINIMAL_VOTE_BALANCE);
         _;
     }
 
