@@ -28,7 +28,7 @@ module.exports = async function(deployer, network) {
         deployBank = false,
         deployDAO = false, // is actual when deployBank only
         deployDeposit = false,
-        deployFaucet = false,
+        deployFaucet = true,
         deployLoans = false,
         deployAsBounty = true,
         
@@ -119,8 +119,8 @@ module.exports = async function(deployer, network) {
                 liberty.address,
                 exchanger.address,
                 cash.address,
-                /* minimumSharesToPassAVote: */ 1,
-                /* minSecondsForDebate: */ 60
+                /* minimumSharesToPassAVote: */ 10000 * 10**18,
+                /* minSecondsForDebate: */ 6 * 60 * 60
             );
         }
 

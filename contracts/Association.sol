@@ -1,6 +1,5 @@
 pragma solidity ^0.4.18;
 
-import "./zeppelin/ownership/Ownable.sol";
 import "./zeppelin/token/ERC20.sol";
 import "./zeppelin/math/Math.sol";
 import "./token/LibreCash.sol";
@@ -9,7 +8,14 @@ import "./ComplexBank.sol";
 /**
  * The shareholder association contract itself
  */
-contract Association is Ownable {
+contract Association  {
+
+    modifier onlyArbitrator() {
+        require(msg.sender == owner);
+        _;
+    }
+
+    address owner;
     using SafeMath for uint256;
 
     uint public minimumQuorum;
@@ -21,7 +27,7 @@ contract Association is Ownable {
     ComplexBank public bank;
     LibreCash public cash;
 
-    uint constant MINIMAL_VOTE_BALANCE = 0;
+    uint constant MINIMAL_VOTE_BALANCE = 2000 * 10 ** 18;
 
     event ProposalAdded(uint proposalID, address recipient, uint amount, uint buffer, string description, uint deadLine);
     event Voted(uint proposalID, bool position, address voter);
@@ -76,7 +82,7 @@ contract Association is Ownable {
 
     // Modifier that allows only shareholders to vote and create new proposals
     modifier onlyShareholders {
-        require(sharesTokenAddress.balanceOf(msg.sender) > MINIMAL_VOTE_BALANCE);
+        require(sharesTokenAddress.balanceOf(msg.sender) >= MINIMAL_VOTE_BALANCE);
         _;
     }
 
@@ -86,6 +92,7 @@ contract Association is Ownable {
      * First time setup
      */
     function Association(ERC20 sharesAddress, ComplexBank _bank, LibreCash _cash, uint minShares, uint minDebatePeriod) public {
+        owner = msg.sender;
         changeVotingRules(sharesAddress, _bank, _cash, minShares, minDebatePeriod);
     }
 
@@ -139,7 +146,7 @@ contract Association is Ownable {
         );
     }
 
-    function blockingProposal(uint proposalID) public onlyOwner {
+    function blockingProposal(uint proposalID) public onlyArbitrator {
         require(proposals[proposalID].status == Status.ACTIVE);
 
         proposals[proposalID].status = Status.BLOCKED;
@@ -157,7 +164,7 @@ contract Association is Ownable {
      * @param minimumSharesToPassAVote proposal can vote only if the sum of shares held by all voters exceed this number
      * @param minSecondsForDebate the minimum amount of delay between when a proposal is made and when it can be executed
      */
-    function changeVotingRules(ERC20 sharesAddress, ComplexBank _bank, LibreCash _cash, uint minimumSharesToPassAVote, uint minSecondsForDebate) public onlyOwner {
+    function changeVotingRules(ERC20 sharesAddress, ComplexBank _bank, LibreCash _cash, uint minimumSharesToPassAVote, uint minSecondsForDebate) public onlyArbitrator {
         sharesTokenAddress = ERC20(sharesAddress);
         bank = ComplexBank(_bank);
         cash = LibreCash(_cash);
@@ -320,7 +327,7 @@ contract Association is Ownable {
                 setBankAddress(p.recipient);
                 bank.claimOwnership();
             } else if (p.tp == TypeProposal.CHANGE_ARBITRATOR) {
-                transferOwnership(p.recipient);
+                changeArbitrator(p.recipient);
             }
         }
 
@@ -332,6 +339,11 @@ contract Association is Ownable {
 
     function setBankAddress(address _bank) internal {
         bank = ComplexBank(_bank);
+    }
+
+    function changeArbitrator(address newArbitrator) internal {
+        require(msg.sender == address(this));
+        owner = newArbitrator;
     }
 
     function() public payable {}
