@@ -1,5 +1,5 @@
 <h1 align="center">
-	<img width="400" src="http://librebank.com/img/logo-black.svg" alt="Awesome">
+	<img width="400" src="https://librebank.com/img/logo-libre.png" alt="LibreBank logo">
 	<br>
 	<br>
 </h1>
