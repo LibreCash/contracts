@@ -158,7 +158,7 @@ contract ComplexBank is Pausable, BankI {
     }
 
     mapping (address => OracleData) oracles;
-    uint256 public countOracles;
+    uint256 public oracleCount;
     uint256 public numEnabledOracles;
     address public firstOracle = 0x0;
 
@@ -305,7 +305,7 @@ contract ComplexBank is Pausable, BankI {
             oracles[cur].next = _address;
         }
 
-        countOracles++;
+        oracleCount++;
         numEnabledOracles++;
         OracleAdded(_address, oracleName);
     }
@@ -347,7 +347,7 @@ contract ComplexBank is Pausable, BankI {
             oracles[prev].next = oracles[_address].next;
         }
         
-        countOracles--;
+        oracleCount--;
         if (oracles[_address].enabled)
             numEnabledOracles--;
         delete oracles[_address];
