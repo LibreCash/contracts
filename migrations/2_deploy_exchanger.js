@@ -21,9 +21,9 @@ module.exports = function(deployer, network) {
         ]
         },
         deployBank = true,
-        deployDAO = true, // is actual when deployBank only
+        deployDAO = false, // is actual when deployBank only
         deployDeposit = false,
-        deployFaucet = true,
+        deployFaucet = false,
         deployLoans = false,
         
         appendContract = (network == "mainnet" || network == "testnet") ? сontractsList.mainnet : сontractsList.local,
@@ -34,11 +34,11 @@ module.exports = function(deployer, network) {
         
         cash = artifacts.require('./LibreCash.sol'),
         liberty = artifacts.require('./LibertyToken.sol'),
-        association = deployDAO ? artifacts.require('./Association.sol') : null,
+        association = artifacts.require('./Association.sol'),
         exchanger = artifacts.require(`./Complex${deployBank ? 'Bank' : 'Exchanger'}.sol`),
-        deposit = deployDeposit ? artifacts.require('./Deposit.sol') : null,
-        loans = deployLoans ? artifacts.require(`./Loans.sol`) : null,
-        faucet = deployFaucet ? artifacts.require('./LBRSFaucet.sol') : null;
+        deposit = artifacts.require('./Deposit.sol'),
+        loans = artifacts.require(`./Loans.sol`),
+        faucet = artifacts.require('./LBRSFaucet.sol');
 
         config = {
             buyFee: 250,
@@ -77,12 +77,12 @@ module.exports = function(deployer, network) {
         if (deployBank && deployDAO)
             await deployer.deploy(liberty);
 
-        await Promise.all(oracles.map((oracle) => deployer.deploy(oracle)))
+        await Promise.all(oracles.map((oracle) => deployer.deploy(oracle,0)))
         let _oracles = await Promise.all(oracles.map((oracle) => oracle.deployed()))
 
         let oraclesAddress = oracles.map((oracle) => oracle.address);
-        oraclesAddress.push("0x4FB9C6535f08279fab53BefB33dBa8FA6A26BF76");
-        oraclesAddress.push("0x93d6F2E6DC8ADe171243b804dd7a296fAC81676F");
+        //oraclesAddress.push("0x4FB9C6535f08279fab53BefB33dBa8FA6A26BF76");
+        //oraclesAddress.push("0x93d6F2E6DC8ADe171243b804dd7a296fAC81676F");
         
         console.log("Contract configuration");
         console.log(config);
@@ -179,7 +179,7 @@ module.exports = function(deployer, network) {
                 (deployBank && deployDAO) ? association : null,
                 deployDeposit ? deposit : null,
                 deployLoans ? loans : null,
-                deployFaucet ? faucet : null
+                deployFaucet && deployDAO && deployBank ? faucet : null
             ].concat(oracles),
             cash,
             (deployBank && deployDAO) ? liberty : null

@@ -14,6 +14,7 @@ function restart_ganache() {
   sleep 5
 }
 
+truffle compile
 restart_ganache
 
 echo "truffle test Bank..."

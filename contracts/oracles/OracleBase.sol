@@ -53,7 +53,8 @@ contract OracleBase is Ownable, usingOraclize, OracleI {
     /**
      * @dev Constructor.
      */
-    function OracleBase() public {
+    function OracleBase(address bank) public {
+        bankAddress = bank;
         oraclize_setProof(proofType_TLSNotary | proofStorage_IPFS);
     }
 
@@ -154,5 +155,4 @@ contract OracleBase is Ownable, usingOraclize, OracleI {
         require(ComplexBank(bankAddress).tokenAddress() == address(0));
         selfdestruct(owner);
     }
-    
 }

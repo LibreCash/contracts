@@ -17,7 +17,7 @@ contract OracleBitstamp is OracleBase {
     /**
      * @dev Constructor.
      */
-    function OracleBitstamp() public {
+    function OracleBitstamp(address bank) OracleBase(bank) public {
         oracleName = ORACLE_NAME;
         oracleType = ORACLE_TYPE;
         oracleConfig = OracleConfig({datasource: ORACLE_DATASOURCE, arguments: ORACLE_ARGUMENTS});
