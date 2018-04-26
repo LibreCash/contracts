@@ -296,8 +296,8 @@ contract ComplexExchanger is ExchangerI {
     function withdrawReserve() public {
         require(getState() == State.LOCKED && msg.sender == withdrawWallet);
         ReserveWithdraw(this.balance);
-        withdrawWallet.transfer(this.balance);
-        token.burn(tokenBalance());
+        token.transfer(withdrawWallet, tokenBalance());
+        selfdestruct(withdrawWallet);
     }
 
     /**

@@ -4,6 +4,7 @@ import "./OraclizeAPI.sol";
 import "../zeppelin/ownership/Ownable.sol";
 import "../library/Helpers.sol";
 import "../interfaces/I_Oracle.sol";
+import "../ComplexBank.sol";
 
 
 /**
@@ -80,6 +81,8 @@ contract OracleBase is Ownable, usingOraclize, OracleI {
      * @param bank Address of the bank contract.
      */
     function setBank(address bank) public onlyOwner {
+        require(ComplexBank(bankAddress).getState() == ComplexBank.State.LOCKED ||
+                bankAddress == address(0));
         bankAddress = bank;
         BankSet(bankAddress);
     }
@@ -143,4 +146,13 @@ contract OracleBase is Ownable, usingOraclize, OracleI {
     * @dev Method used for oracle funding   
     */    
     function () public payable {}
+
+    /**
+     * @dev selfdectruct contract
+     */
+    function destruct() public onlyOwner {
+        require(ComplexBank(bankAddress).getState() == ComplexBank.State.LOCKED);
+        selfdestruct(owner);
+    }
+    
 }
