@@ -81,7 +81,7 @@ contract OracleBase is Ownable, usingOraclize, OracleI {
      * @param bank Address of the bank contract.
      */
     function setBank(address bank) public onlyOwner {
-        require(ComplexBank(bankAddress).getState() == ComplexBank.State.LOCKED ||
+        require(ComplexBank(bankAddress).tokenAddress() == address(0) ||
                 bankAddress == address(0));
         bankAddress = bank;
         BankSet(bankAddress);
@@ -151,7 +151,7 @@ contract OracleBase is Ownable, usingOraclize, OracleI {
      * @dev selfdectruct contract
      */
     function destruct() public onlyOwner {
-        require(ComplexBank(bankAddress).getState() == ComplexBank.State.LOCKED);
+        require(ComplexBank(bankAddress).tokenAddress() == address(0));
         selfdestruct(owner);
     }
     
