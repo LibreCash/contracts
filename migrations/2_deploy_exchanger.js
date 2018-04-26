@@ -2,51 +2,42 @@ const
   fs = require('fs'),
   path = require('path');
 
-module.exports = function(deployer, network) {
+module.exports = async function(deployer, network) {
     let
-        сontractsList = {
-        mainnet:[
-            'oracles/OracleBitfinex',
-            'oracles/OracleBitstamp',
-            'oracles/OracleWEX',
-            //'oracles/OracleGDAX',
-            //'oracles/OracleGemini',
-            //'oracles/OracleKraken',
-        ],
-        local:[
-            'oracles/mock/OracleMockLiza',
-            'oracles/mock/OracleMockSasha',
-            'oracles/mock/OracleMockKlara',
-            'oracles/OracleMockTest'
-        ]
+        contractsList = {
+            mainnet:[
+                'oracles/OracleBitfinex',
+                'oracles/OracleBitstamp',
+                'oracles/OracleWEX',
+                'oracles/OracleGDAX',
+                'oracles/OracleGemini',
+                'oracles/OracleKraken',
+            ],
+            local:[
+                'oracles/mock/OracleMockLiza',
+                'oracles/mock/OracleMockSasha',
+                'oracles/mock/OracleMockKlara',
+                'oracles/OracleMockTest'
+            ],
+            bounty:[
+                'bounty/BountyOracle1',
+                'bounty/BountyOracle2',
+                'bounty/BountyOracle3'
+            ]
         },
-        deployBank = true,
-        deployDAO = true, // is actual when deployBank only
+        deployBank = false,
+        deployDAO = false, // is actual when deployBank only
         deployDeposit = false,
         deployFaucet = true,
         deployLoans = false,
+        deployAsBounty = true,
         
-        appendContract = (network == "mainnet" || network == "testnet") ? сontractsList.mainnet : сontractsList.local,
+        appendContract = deployAsBounty ? contractsList.bounty :
+                    ((network == "mainnet" || network == "testnet") ? contractsList.mainnet : contractsList.local),
         oracles = appendContract.map((oracle) => {
             name = path.posix.basename(oracle);
             return artifacts.require(`./${name}.sol`);
-        }),
-        
-        cash = artifacts.require('./LibreCash.sol'),
-        liberty = artifacts.require('./LibertyToken.sol'),
-        association = deployDAO ? artifacts.require('./Association.sol') : null,
-        exchanger = artifacts.require(`./Complex${deployBank ? 'Bank' : 'Exchanger'}.sol`),
-        deposit = deployDeposit ? artifacts.require('./Deposit.sol') : null,
-        loans = deployLoans ? artifacts.require(`./Loans.sol`) : null,
-        faucet = deployFaucet ? artifacts.require('./LBRSFaucet.sol') : null;
-
-        config = {
-            buyFee: 250,
-            sellFee: 250,
-            deadline: getTimestamp(+5),
-            withdrawWallet: web3.eth.coinbase,
-        };
-    // end let block
+        });
 
     if (network == "testBank") {
         deployBank = true
@@ -67,25 +58,40 @@ module.exports = function(deployer, network) {
         deployFaucet = false
         deployLoans = true
     }
-    exchanger = artifacts.require(`./Complex${deployBank ? 'Bank' : 'Exchanger'}.sol`)
-    loans = deployLoans ? artifacts.require(`./Loans.sol`) : null
-
-    deployer.deploy(cash)
-    .then(async() => {
-        let _cash = await cash.deployed()
-
-        if (deployBank && deployDAO)
-            await deployer.deploy(liberty);
-
-        await Promise.all(oracles.map((oracle) => deployer.deploy(oracle)))
-        let _oracles = await Promise.all(oracles.map((oracle) => oracle.deployed()))
-
-        let oraclesAddress = oracles.map((oracle) => oracle.address);
-        oraclesAddress.push("0x4FB9C6535f08279fab53BefB33dBa8FA6A26BF76");
-        oraclesAddress.push("0x93d6F2E6DC8ADe171243b804dd7a296fAC81676F");
         
-        console.log("Contract configuration");
-        console.log(config);
+    let
+        cash = artifacts.require('./LibreCash.sol'),
+        liberty = artifacts.require('./LibertyToken.sol'),
+        association = deployDAO ? artifacts.require('./Association.sol') : null,
+        exchanger = artifacts.require(`./Complex${deployBank ? 'Bank' : 'Exchanger'}.sol`),
+        bountyBank = artifacts.require(`./ComplexBankBounty.sol`),
+        bountyExchanger = artifacts.require(`./ComplexExchangerBounty.sol`),
+        deposit = deployDeposit ? artifacts.require('./Deposit.sol') : null,
+        loans = deployLoans ? artifacts.require(`./Loans.sol`) : null,
+        faucet = deployLoans ? artifacts.require('./LBRSFaucet.sol') : null;
+
+        config = {
+            buyFee: 250,
+            sellFee: 250,
+            deadline: getTimestamp(+5),
+            withdrawWallet: web3.eth.coinbase,
+        };
+    // end let block
+
+    await Promise.all(oracles.map((oracle) => deployer.deploy(oracle)))
+    let _oracles = await Promise.all(oracles.map((oracle) => oracle.deployed()))
+
+    let oraclesAddress = oracles.map((oracle) => oracle.address);
+    console.log("Contract configuration");
+    console.log(config);
+
+    if (!deployAsBounty) {
+        await deployer.deploy(cash);
+        let _cash = await cash.deployed()
+    
+        if (deployBank && deployDAO) {
+            await deployer.deploy(liberty);
+        }
 
         let args = [
             exchanger,
@@ -96,17 +102,13 @@ module.exports = function(deployer, network) {
             oraclesAddress,// oracles (array of address)
         ];
 
-        if (!deployBank)
+        if (!deployBank) {
             args = args.concat([config.deadline, config.withdrawWallet]);
+        }
 
         await deployer.deploy(...args);
-        let _exchanger = await exchanger.deployed()
-
-        await Promise.all(_oracles.map((oracle) => oracle.setBank(exchanger.address)))
-
-        // mint tokens to me for tests :)
-        _cash.mint.sendTransaction(web3.eth.coinbase, 1000 * 10 ** 18);
-
+        let _exchanger = deployAsBounty ? null : await exchanger.deployed();
+        await Promise.all(_oracles.map((oracle) => oracle.setBank(exchanger.address)));
         if (!deployBank)
             await _cash.mint.sendTransaction(exchanger.address, 100 * 10 ** 18);
 
@@ -121,6 +123,9 @@ module.exports = function(deployer, network) {
                 /* minSecondsForDebate: */ 6 * 60 * 60
             );
         }
+
+        // mint tokens to me for tests :)
+        _cash.mint.sendTransaction(web3.eth.coinbase, 1000 * 10 ** 18);
 
         if (deployFaucet && deployBank && deployDAO) {
             await deployer.deploy(
@@ -149,43 +154,56 @@ module.exports = function(deployer, network) {
             await _exchanger.transferOwnership(association.address)
 
         if (deployLoans)
-          await deployer.deploy(loans,cash.address,exchanger.address);
+        await deployer.deploy(loans, cash.address, exchanger.address);
 
         writeContractData(cash);
+        writeContractData(exchanger);
         if (deployBank && deployDAO) {
             writeContractData(liberty);
             writeContractData(association);
-
-            if (deployFaucet)
-                writeContractData(faucet);
+        }
+        if (deployFaucet) {
+            writeContractData(faucet);
         }
         if (deployDeposit) {
             writeContractData(deposit);
         }
-        writeContractData(exchanger);
-
-        if (deployLoans)
+        if (deployLoans) {
             writeContractData(loans);
-        
-        oracles.forEach((oracle) => {
-            writeContractData(oracle);
-        });
+        }
+    } else { // if (deployAsBounty)
+        await deployer.deploy(bountyBank, getTimestamp(+5), oraclesAddress);
+        await deployer.deploy(bountyExchanger, getTimestamp(+5), oraclesAddress);
+        writeContractData(bountyBank);
+        writeContractData(bountyExchanger);
+    }
+    
+    oracles.forEach((oracle) => {
+        writeContractData(oracle);
+    });
 
-        createMistLoader(
-            [
-                exchanger,
-                cash,
-                (deployBank && deployDAO) ? liberty : null,
-                (deployBank && deployDAO) ? association : null,
-                deployDeposit ? deposit : null,
-                deployLoans ? loans : null,
-                deployFaucet ? faucet : null
-            ].concat(oracles),
+    let mistContracts = deployAsBounty ?
+        [
+            bountyBank,
+            bountyExchanger
+        ] :
+        [
+            exchanger,
             cash,
-            (deployBank && deployDAO) ? liberty : null
-        )
-    })
-    .then(() => console.log("END DEPLOY"));
+            (deployBank && deployDAO) ? liberty : null,
+            (deployBank && deployDAO) ? association : null,
+            deployDeposit ? deposit : null,
+            deployLoans ? loans : null,
+            deployFaucet ? faucet : null            
+        ];
+
+    createMistLoader(
+        mistContracts.concat(oracles),
+        !deployAsBounty ? cash : null,
+        (deployBank && deployDAO && !deployAsBounty) ? liberty : null
+    )
+
+    console.log("END DEPLOY");
 }; // end module.exports
 
 function writeContractData(artifact) {

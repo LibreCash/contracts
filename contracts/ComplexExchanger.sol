@@ -33,6 +33,7 @@ contract ComplexExchanger is ExchangerI {
     uint256 constant RATE_MULTIPLIER = 1000;
     uint256 constant MAX_RATE = 5000 * RATE_MULTIPLIER;
     uint256 constant MIN_RATE = 100 * RATE_MULTIPLIER;
+    uint256 constant MAX_FEE = 70 * FEE_MULTIPLIER; // 70%
     
     event InvalidRate(uint256 rate, address oracle);
     event OracleRequest(address oracle);
@@ -66,7 +67,9 @@ contract ComplexExchanger is ExchangerI {
             _withdrawWallet != address(0x0) &&
             _token != address(0x0) &&
             _deadline > now &&
-            _oracles.length >= MIN_READY_ORACLES
+            _oracles.length >= MIN_READY_ORACLES &&
+            _buyFee <= MAX_FEE &&
+            _sellFee <= MAX_FEE
         );
 
         tokenAddress = _token;
