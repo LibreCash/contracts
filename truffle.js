@@ -1,23 +1,10 @@
-const _default = {
-    host: "localhost",
-    port: 8545,
-    network_id: "dev",
-    gas: 6000000
-}
+const profiles = require("./migrations/profiles.js")
+      networks = {};
+
+Object.keys(profiles).forEach(network => networks[network] = profiles[network].network)
 
 module.exports = {
-  networks: {
-    development: _default,
-    mainnet: {
-      network_id: "mainnet", // rinkeby, ropsten, main network, etc.
-      host: "localhost",
-      port: 8545,
-      gas: 6000000 // чтобы деплоилось - править когда gas limit ему не нравится (дефолт вроде как 4712388, и с ним ошибка)
-    },
-    testBank: _default,
-    testExchanger: _default,
-    testDAO: _default
-  },
+  networks,
    
   // add a section for mocha defaults
   mocha: {
@@ -33,4 +20,4 @@ module.exports = {
      runs: 200
    }
  }
-}
+};

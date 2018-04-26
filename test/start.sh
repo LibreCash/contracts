@@ -14,6 +14,7 @@ function restart_ganache() {
   sleep 5
 }
 
+echo "truffle compile..."
 truffle compile
 restart_ganache
 
