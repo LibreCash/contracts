@@ -469,4 +469,12 @@ contract ComplexBank is Pausable, BankI {
     function withdrawBalance() public onlyOwner {
         owner.transfer(this.balance);
     }
+
+    /**
+     * @dev selfdectruct contract
+     */
+    function destruct() public onlyOwner {
+        require(getState() == State.LOCKED);
+        selfdestruct(owner);
+    }
 }

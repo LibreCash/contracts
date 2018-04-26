@@ -2,6 +2,7 @@ pragma solidity ^0.4.18;
 
 import "../../zeppelin/ownership/Ownable.sol";
 import "../../interfaces/I_Oracle.sol";
+import "../../ComplexBank.sol";
 
 /**
  * @title Base contract for mocked oracles for testing in private nodes.
@@ -32,8 +33,8 @@ contract OracleMockBase is Ownable {
     /**
      * @dev Constructor.
      */
-    function OracleBase(uint256 defaultMockRate) public {
-        rate = defaultMockRate;
+    function OracleMockBase(address bank) public {
+        bankAddress = bank;
     }
 
     /**
@@ -78,4 +79,12 @@ contract OracleMockBase is Ownable {
     * @dev Method used for oracle funding   
     */    
     function () public payable {}
+
+    /**
+     * @dev selfdectruct contract
+     */
+    function destruct() public onlyOwner {
+        require(ComplexBank(bankAddress).tokenAddress() == address(0));
+        selfdestruct(owner);
+    }
 }

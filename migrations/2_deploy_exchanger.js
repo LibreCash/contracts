@@ -28,7 +28,7 @@ module.exports = async function(deployer, network) {
         deployBank = false,
         deployDAO = false, // is actual when deployBank only
         deployDeposit = false,
-        deployFaucet = true,
+        deployFaucet = false,
         deployLoans = false,
         deployAsBounty = true,
         
@@ -194,7 +194,7 @@ module.exports = async function(deployer, network) {
             (deployBank && deployDAO) ? association : null,
             deployDeposit ? deposit : null,
             deployLoans ? loans : null,
-            deployFaucet ? faucet : null            
+            deployFaucet && deployBank && deployDAO ? faucet : null
         ];
 
     createMistLoader(

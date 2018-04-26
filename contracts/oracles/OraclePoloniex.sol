@@ -14,7 +14,7 @@ contract OraclePoloniex is OracleBase {
     string constant ORACLE_DATASOURCE = "URL";
     string constant ORACLE_ARGUMENTS = "json(https://poloniex.com/public?command=returnTicker).USDT_ETH.last";
     
-    function OraclePoloniex() public {
+    function OraclePoloniex(address bank) OracleBase(bank) public {
         oracleName = ORACLE_NAME;
         oracleType = ORACLE_TYPE;
         oracleConfig = OracleConfig({datasource: ORACLE_DATASOURCE, arguments: ORACLE_ARGUMENTS});
