@@ -1,7 +1,7 @@
 const bankDeploy = require('./bank.js');
 
 module.exports = async function(deployer, contracts, config) {
-    let [cash, bank, association, ...oracles] = contracts;
+    let [cash, bank, association, liberty, ...oracles] = contracts;
 
     await deployer.deploy(liberty);
     await bankDeploy(deployer, [cash, bank, ...oracles], config);
