@@ -2,7 +2,7 @@ const
     fs = require('fs'),
     path = require('path'),
     profiles = require("./profiles.js"),
-    config = {
+    default_config = {
         buyFee: 250,
         sellFee: 250,
         deadline: getTimestamp(+5),
@@ -13,6 +13,7 @@ module.exports = async function(deployer, network) {
     const deploy = require(`./${network}.js`);
 
     let contracts = profiles[network].contracts.map((name) => artifacts.require(`./${name}.sol`));
+    let config = profiles[network].config ? profiles[network].config : default_config;
 
     await deploy(deployer, contracts, config);
 
@@ -43,12 +44,22 @@ function createMistLoader(contracts, cash, liberty) {
         Tokens.find().fetch().map((m) => {if (m.name.indexOf('_') == 0) Tokens.remove(m._id)});`;
     for (let i = 0; i < contracts.length; i++) {
         if (contracts[i] == null) continue;
-        data += `
-        CustomContracts.insert({
-            address: "${contracts[i].address}",
-            name: "_${contracts[i].contractName}",
-            jsonInterface: ${JSON.stringify(contracts[i]._json.abi)}
-        });`;
+
+        if (['LibreCash','LibertyToken'].includes(contracts[i].contractName))
+            data += `
+            Tokens.insert({
+                address: "${cash.address}",
+                decimals: 18,
+                name: "_${contracts[i].contractName}",
+                symbol: "_${contracts[i].contractName == 'LibreCash' ? 'Libre' : 'LBRS'}"
+            });`
+        else
+            data += `
+            CustomContracts.insert({
+                address: "${contracts[i].address}",
+                name: "_${contracts[i].contractName}",
+                jsonInterface: ${JSON.stringify(contracts[i]._json.abi)}
+            });`;
     }
     if (cash != null) {
         data += `

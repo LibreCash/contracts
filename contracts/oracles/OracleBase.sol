@@ -36,14 +36,13 @@ contract OracleBase is Ownable, usingOraclize, OracleI {
     OracleConfig public oracleConfig;
 
     
-    uint256 public gasPrice = 20 * 10**9;
+    uint256 public gasPrice = 3 * 10**9;
     uint256 public gasLimit = 100000;
 
-    uint256 constant MIN_GAS_PRICE = 1 * 10**9; // Min gas price limit
-    uint256 constant MAX_GAS_PRICE = 100 * 10**9; // Max gas limit pric
+    uint256 constant MIN_GAS_PRICE = 2 * 10**9; // Min gas price limit
+    uint256 constant MAX_GAS_PRICE = 15 * 10**9; // Max gas limit pric
     uint256 constant MIN_GAS_LIMIT = 95000; 
-    uint256 constant MAX_GAS_LIMIT = 1000000;
-    uint256 constant MIN_REQUEST_PRICE = 0.001118 ether;
+    uint256 constant MAX_GAS_LIMIT = 500000;
 
     modifier onlyBank() {
         require(msg.sender == bankAddress);
@@ -82,8 +81,10 @@ contract OracleBase is Ownable, usingOraclize, OracleI {
      * @param bank Address of the bank contract.
      */
     function setBank(address bank) public onlyOwner {
-        require(ComplexBank(bankAddress).tokenAddress() == address(0) ||
-                bankAddress == address(0));
+        require(
+            ComplexBank(bankAddress).tokenAddress() == address(0) ||
+            bankAddress == address(0)
+        );
         bankAddress = bank;
         BankSet(bankAddress);
     }
