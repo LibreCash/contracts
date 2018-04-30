@@ -96,14 +96,25 @@ contract Association  {
         changeVotingRules(sharesAddress, _bank, _cash, minShares, minDebatePeriod);
     }
 
+    /**
+     * Get a balance of tokens
+     */
     function getTokenBalance() public view returns(uint256) {
         return sharesTokenAddress.balanceOf(msg.sender);
     }
 
+    /**
+     * Get a length of proposals
+     */
     function prsLength() public view returns (uint) {
         return proposals.length;
     }
-    // Change to internal after testing
+
+    /**
+     * Get vote yea and nay for proposal
+     * @param proposalID is id proposal
+     */
+    // Change to internal after testing why
     function calcVotes(uint256 proposalID) public view returns(uint256, uint256) {
         Vote[] memory votes = proposals[proposalID].votes;
 
@@ -121,6 +132,10 @@ contract Association  {
         return(yea, nay);
     }
 
+    /**
+     * Get data about proposal
+     * @param proposalID is id proposal
+     */
     function getVotingData(uint256 proposalID) public view returns (
         uint256,
         uint256,
@@ -134,6 +149,10 @@ contract Association  {
         return (yea, nay, p.voted[msg.sender], p.votingDeadline);
     }
 
+    /**
+     * Get proposal fields
+     * @param proposalID is id proposal
+     */
     function getProposal(uint256 proposalID) public view returns (TypeProposal, address, uint, uint, bytes, string, Status) {
         return (
             proposals[proposalID].tp,
@@ -146,6 +165,10 @@ contract Association  {
         );
     }
 
+    /**
+     * Blocking proposal
+     * @param proposalID is id proposal
+     */
     function blockingProposal(uint proposalID) public onlyArbitrator {
         require(proposals[proposalID].status == Status.ACTIVE);
 
@@ -337,10 +360,18 @@ contract Association  {
         ProposalTallied(proposalID, int(yea - nay), quorum);
     }
 
+    /**
+     * Set address of bank contract
+     * @param _bank new address bank
+     */
     function setBankAddress(address _bank) internal {
         bank = ComplexBank(_bank);
     }
 
+    /**
+     * Change arbitrator
+     * @param newArbitrator new arbitrator address
+     */
     function changeArbitrator(address newArbitrator) internal {
         require(msg.sender == address(this));
         owner = newArbitrator;
