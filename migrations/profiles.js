@@ -1,8 +1,9 @@
 const network_default = {
         host: "localhost",
         port: 8545,
-        network_id: "dev",
-        gas: 6000000
+        network_id: "*",
+        gas: 6000000,
+        gasPrice: 5000000000
     },
     mainnet = [
         'OracleBitfinex',
@@ -34,7 +35,9 @@ module.exports = {
             network_id: "mainnet", // rinkeby, ropsten, main network, etc.
             host: "localhost",
             port: 8545,
-            gas: 6000000
+            gas: 6000000,
+            gasPrice: 3000000000
+
         },
         contracts: [...mainnet]
     },

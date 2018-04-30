@@ -82,8 +82,8 @@ contract OracleBase is Ownable, usingOraclize, OracleI {
      */
     function setBank(address bank) public onlyOwner {
         require(
-            ComplexBank(bankAddress).tokenAddress() == address(0) ||
-            bankAddress == address(0)
+            bankAddress == address(0) ||
+            ComplexBank(bankAddress).tokenAddress() == address(0)
         );
         bankAddress = bank;
         BankSet(bankAddress);

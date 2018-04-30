@@ -37,7 +37,7 @@ function writeContractData(artifact) {
     fs.writeFileSync(`${directory}${artifact.contractName}.js`, data);
 }
 
-function createMistLoader(contracts, cash, liberty) {
+function createMistLoader(contracts) {
     let loader = `${__dirname}/../build/data/loader.js`;
     var data = `        // paste the script to mist developer console to autoimport all deployed contracts and tokens
         CustomContracts.find().fetch().map((m) => {if (m.name.indexOf('_') == 0) CustomContracts.remove(m._id)});
@@ -48,36 +48,18 @@ function createMistLoader(contracts, cash, liberty) {
         if (['LibreCash','LibertyToken'].includes(contracts[i].contractName))
             data += `
             Tokens.insert({
-                address: "${cash.address}",
+                address: "${contracts[i].address}",
                 decimals: 18,
                 name: "_${contracts[i].contractName}",
                 symbol: "_${contracts[i].contractName == 'LibreCash' ? 'Libre' : 'LBRS'}"
             });`
-        else
-            data += `
+
+        data += `
             CustomContracts.insert({
                 address: "${contracts[i].address}",
                 name: "_${contracts[i].contractName}",
                 jsonInterface: ${JSON.stringify(contracts[i]._json.abi)}
             });`;
-    }
-    if (cash != null) {
-        data += `
-        Tokens.insert({
-            address: "${cash.address}",
-            decimals: 18,
-            name: "_LibreCash",
-            symbol: "_Libre"
-        });`
-    }
-    if (liberty != null) {
-        data += `
-        Tokens.insert({
-            address: "${liberty.address}",
-            decimals: 18,
-            name: "_Liberty",
-            symbol: "_LBRS"
-        });`
     }
     fs.writeFileSync(loader, data);
 }

@@ -1,7 +1,9 @@
+const oraclesDeploy = require('./oracles.js');
+
 module.exports = async function(deployer, contracts, config) {
     let [cash, exchanger, ...oracles] = contracts;
 
-    await Promise.all(oracles.map((oracle) => deployer.deploy(oracle)))
+    await oraclesDeploy(deployer, oracles);
     let _oracles = await Promise.all(oracles.map((oracle) => oracle.deployed()))
     let oraclesAddress = oracles.map((oracle) => oracle.address);
 
