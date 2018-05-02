@@ -1,4 +1,6 @@
-const bankDeploy = require('./bank.js');
+const 
+    bankDeploy = require('./bank.js'),
+    contractConfig = require('./config.json');
 
 module.exports = async function(deployer, contracts, config) {
     let [cash, bank, association, liberty, loans, deposit, faucet, ...oracles] = contracts;
@@ -12,8 +14,8 @@ module.exports = async function(deployer, contracts, config) {
         liberty.address,
         bank.address,
         cash.address,
-        /* minimumSharesToPassAVote: */ 10000 * 10**18,
-        /* minSecondsForDebate: */ 6 * 60 * 60
+        contractConfig["Association"].minimumSharesToPassAVote,
+        contractConfig["Association"].minSecondsForDebate
     );
 
     let _bank = await bank.deployed();
@@ -21,12 +23,13 @@ module.exports = async function(deployer, contracts, config) {
 
     await deployer.deploy(deposit, cash.address);
     let _cash = await cash.deployed();
-    await _cash.mint.sendTransaction(deposit.address, 10000 * 10 ** 18)
-    await _cash.approve.sendTransaction(deposit.address, 10000 * 10 ** 18)
+    
+    await _cash.mint.sendTransaction(deposit.address, contractConfig["Deposit"].mintAmount)
+    await _cash.approve.sendTransaction(deposit.address, contractConfig["Deposit"].approveAmount)
 
     await deployer.deploy(loans, cash.address, bank.address);
 
     await deployer.deploy(faucet, liberty.address);
     let _liberty = await liberty.deployed();
-    await _liberty.transfer.sendTransaction(faucet.address, 1000000 * 10 ** 18);
+    await _liberty.transfer.sendTransaction(faucet.address,contractConfig["Faucet"].libretyAmount);
 }

@@ -1,4 +1,6 @@
-const daoDeploy = require('./dao.js');
+const 
+    daoDeploy = require('./dao.js'),
+    contractConfig = require('./config.json');
 
 module.exports = async function(deployer, contracts, config) {
     let [cash, bank, association, liberty, faucet, ...oracles] = contracts;
@@ -7,5 +9,5 @@ module.exports = async function(deployer, contracts, config) {
     await deployer.deploy(faucet, liberty.address);
 
     let _liberty = await liberty.deployed();
-    await _liberty.transfer.sendTransaction(faucet.address, 1000000 * 10 ** 18);
+    await _liberty.transfer.sendTransaction(faucet.address,contractConfig["Faucet"].libretyAmount);
 }

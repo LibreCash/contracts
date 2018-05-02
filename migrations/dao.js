@@ -12,8 +12,8 @@ module.exports = async function(deployer, contracts, config) {
         liberty.address,
         bank.address,
         cash.address,
-        /* minimumSharesToPassAVote: */ 10000 * 10**18,
-        /* minSecondsForDebate: */ 6 * 60 * 60
+        consig["Association"].minimumSharesToPassAVote,
+        consig["Association"].minSecondsForDebate
     );
 
     let _bank = await bank.deployed();

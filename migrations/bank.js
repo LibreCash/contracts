@@ -1,4 +1,6 @@
-const oraclesDeploy = require('./oracles.js');
+const 
+    oraclesDeploy = require('./oracles.js'),
+    contractConfig = require('./config.json');
 
 module.exports = async function(deployer, contracts, config) {
     let [cash, bank, ...oracles] = contracts;
@@ -22,7 +24,7 @@ module.exports = async function(deployer, contracts, config) {
 
     await Promise.all(_oracles.map((oracle) => oracle.setBank(bank.address)));
 
-    await _cash.mint.sendTransaction(config.withdrawWallet, 1000 * 10 ** 18);
+    if(contractConfig["main"].isDebug) await _cash.mint.sendTransaction(config.withdrawWallet,contractConfig["main"].cashMinting);
 
     await _cash.transferOwnership(bank.address);
     await _bank.claimOwnership()

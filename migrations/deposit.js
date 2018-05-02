@@ -1,4 +1,7 @@
-const exchangerDeploy = require('./exchanger.js');
+const 
+    exchangerDeploy = require('./exchanger.js'),
+    contractConfig = require('./config.json');
+
 
 module.exports = async function(deployer, contracts, config) {
     let [cash, exchanger, deposit, ...oracles] = contracts;
@@ -8,6 +11,6 @@ module.exports = async function(deployer, contracts, config) {
 
     await deployer.deploy(deposit, cash.address);
     
-    await _cash.mint.sendTransaction(deposit.address, 10000 * 10 ** 18)
-    await _cash.approve.sendTransaction(deposit.address, 10000 * 10 ** 18)
+    await _cash.mint.sendTransaction(deposit.address, contractConfig["Deposit"].mintAmount)
+    await _cash.approve.sendTransaction(deposit.address, contractConfig["Deposit"].approveAmount)
 }
