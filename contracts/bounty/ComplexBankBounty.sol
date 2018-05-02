@@ -8,7 +8,7 @@ import { Bounty, Target } from "../zeppelin/Bounty.sol";
 contract ComplexBankBounty is Bounty {
     address[] public oracles;
 
-    function ComplexBankBounty(uint256 _deadline, address[] _oracles) Bounty(_deadline) {
+    function ComplexBankBounty(uint256 _deadline, address[] _oracles) Bounty(_deadline) public {
         oracles = _oracles;
     }
 
@@ -31,9 +31,5 @@ contract ComplexBankBounty is Bounty {
         libreCash.transferOwnership(complexBank);
         complexBank.claimOwnership();
         return (address(libreCash), address(complexBank));            
-    }
-
-    function eraseClaim() public {
-        claimed = false;
     }
 }

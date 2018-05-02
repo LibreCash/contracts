@@ -7,7 +7,7 @@ import { Bounty, Target } from "../zeppelin/Bounty.sol";
 contract ComplexExchangerBounty is Bounty {
     address[] public oracles;
 
-    function ComplexExchangerBounty(uint256 _deadline, address[] _oracles) Bounty(_deadline) {
+    function ComplexExchangerBounty(uint256 _deadline, address[] _oracles) Bounty(_deadline) public {
         oracles = _oracles;
     }
 
@@ -33,9 +33,5 @@ contract ComplexExchangerBounty is Bounty {
             libreCash, _buyFee, _sellFee, _oracles, _deadline, _withdrawWallet);
         // we do not transfer cash ownership when deploy exchanger
         return (address(libreCash), address(complexExchanger)); 
-    }
-
-    function eraseClaim() public {
-        claimed = false;
     }
 }

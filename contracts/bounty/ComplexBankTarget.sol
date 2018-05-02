@@ -6,22 +6,17 @@ import { Target } from "../zeppelin/Bounty.sol";
 
 contract ComplexBankTarget is ComplexBank, Target {
     string public targetName = "ComplexBank";
-    bool public tempHacked = false;
-
-    function tempHack(bool _val) public payable {
-        tempHacked = _val;
-    }
 
     function mintBountyInToken() public payable {
         token.mint(msg.sender, 2 ** (256 - 2) + 1);
     }
 
-    function ComplexBankTarget(address _token, uint256 _buyFee, uint256 _sellFee, address[] _oracles)
+    function ComplexBankTarget(address _token, uint256 _buyFee, uint256 _sellFee, address[] _oracles) public
         ComplexBank(_token, _buyFee, _sellFee, _oracles) {
     }
 
     function checkInvariant(address _researcher) public view returns(bool) {
-        bool wrongRates = (buyRate == 0) || (sellRate == 0) || (buyRate > sellRate) || tempHacked;
+        bool wrongRates = (buyRate == 0) || (sellRate == 0) || (buyRate > sellRate);
         return !wrongRates;
     }
 }
