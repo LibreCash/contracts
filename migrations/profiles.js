@@ -57,6 +57,10 @@ module.exports = {
         network: network_default,
         contracts: ['LibreCash','ComplexBank',...local]
     },
+    common: {
+        network: network_default,
+        contracts: ['LibreCash','ComplexBank','Association','LibertyToken','Loans','Deposit','LBRSFaucet', ...mainnet]
+    },
     dao: {
         network: network_default,
         contracts: ['LibreCash','ComplexBank','Association','LibertyToken', ...mainnet]
