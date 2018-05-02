@@ -8,14 +8,14 @@ import "./ComplexBank.sol";
 /**
  * The shareholder association contract itself
  */
-contract Association  {
+contract Association {
 
     modifier onlyArbitrator() {
         require(msg.sender == owner);
         _;
     }
 
-    address owner;
+    address public owner;
     using SafeMath for uint256;
 
     uint public minimumQuorum;
