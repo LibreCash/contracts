@@ -1,6 +1,6 @@
 const 
     daoDeploy = require('./dao.js'),
-    contractConfig = require('./config.json');
+    contractConfig = require('./config.js');
 
 module.exports = async function(deployer, contracts, config) {
     let [cash, bank, association, liberty, faucet, ...oracles] = contracts;

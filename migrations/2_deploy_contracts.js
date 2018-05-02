@@ -1,7 +1,8 @@
 const 
     fs = require('fs'),
     path = require('path'),
-    profiles = require("./profiles.js"),
+    profiles = require("./profiles.js"),   
+    configContract = require("./config.js"),
     default_config = {
         buyFee: 250,
         sellFee: 250,

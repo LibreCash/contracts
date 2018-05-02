@@ -92,5 +92,9 @@ module.exports = {
     bounty: {
         network: network_default,
         contracts: ['ComplexBankBounty', 'ComplexExchangerBounty', ...bounty]
-    }
+    },
+    report: {
+        network: network_default,
+        contracts: 'ReportStorage'
+    },
 }

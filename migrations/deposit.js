@@ -1,6 +1,6 @@
 const 
     exchangerDeploy = require('./exchanger.js'),
-    contractConfig = require('./config.json');
+    contractConfig = require('./config.js');
 
 
 module.exports = async function(deployer, contracts, config) {

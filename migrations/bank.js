@@ -1,6 +1,6 @@
 const 
     oraclesDeploy = require('./oracles.js'),
-    contractConfig = require('./config.json');
+    contractConfig = require('./config.js');
 
 module.exports = async function(deployer, contracts, config) {
     let [cash, bank, ...oracles] = contracts;
