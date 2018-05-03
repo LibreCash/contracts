@@ -1,11 +1,9 @@
 pragma solidity ^0.4.18;
 
 import "./zeppelin/math/SafeMath.sol";
-import "./zeppelin/lifecycle/Pausable.sol";
 import "./zeppelin/ownership/Ownable.sol";
-import "./interfaces/I_Bank.sol";
+
 import "./token/LibreCash.sol";
-import "./ComplexExchanger.sol";
 
 
 contract Deposit is Ownable {
@@ -39,6 +37,7 @@ contract Deposit is Ownable {
     }
 
     mapping (address => OwnDeposit[]) public deposits;
+    mapping (address => uint256) public depositCount;
 
     /**
      * @dev Constructor.
@@ -54,14 +53,15 @@ contract Deposit is Ownable {
      * @param _amount New amount.
      */
     function setAmount(uint256 _amount) public onlyOwner {
+        require(_amount > 0);
         needAmount = _amount;
     }
 
     /**
-     * @dev Return count deposits.
+     * @dev Return length deposits array of sender.
      */
-    function myDepositCount() public view returns(uint256) {
-      return deposits[msg.sender].length;
+    function myDepositLength() public view returns(uint256) {
+        return deposits[msg.sender].length;
     }
 
     /**
@@ -76,6 +76,7 @@ contract Deposit is Ownable {
         needAmount = needAmount.add(dep.amount);
         libre.transfer(msg.sender, refundAmount);
         ClaimDeposit(msg.sender, dep.amount, dep.margin);
+        depositCount[msg.sender] = depositCount[msg.sender].sub(1);
         delete deposits[msg.sender][_id];
     }
 
@@ -87,7 +88,7 @@ contract Deposit is Ownable {
      * @param _description Plan description.
      */
     function createPlan(uint256 _period, uint256 _percent, uint256 _minAmount, string _description) public onlyOwner {
-        require(_period > 0);
+        require(_period > 0 && _percent >= 0 && _minAmount >= 0);
         plans.push(DepositPlan(_period, _percent, _minAmount, _description));
     }
 
@@ -108,7 +109,7 @@ contract Deposit is Ownable {
      * @param _description Plan description.
      */
     function changePlan(uint256 _id, uint256 _period, uint256 _percent, uint256 _minAmount, string _description) public onlyOwner {
-        require(_period > 0);
+        require(_period > 0 && _percent >= 0 && _minAmount >= 0);
         plans[_id] = DepositPlan(_period, _percent, _minAmount, _description);
     }
 
@@ -118,24 +119,25 @@ contract Deposit is Ownable {
      * @param _planId Deposit plan ID.
      */
     function createDeposit(uint256 _amount, uint256 _planId) public {
-        _amount = (_amount <= needAmount) ? _amount : needAmount;
+        uint256 amount = (_amount <= needAmount) ? _amount : needAmount;
         DepositPlan memory plan = plans[_planId];
-        uint256 margin = calcProfit(_amount, _planId);
+        uint256 margin = calcProfit(amount, _planId);
         
-        require(_amount >= plan.minAmount && _amount.add(margin) <= availableTokens());
-        lockedTokens = lockedTokens.add(margin).add(_amount);
+        require(amount >= plan.minAmount && margin <= availableTokens());
+        lockedTokens = lockedTokens.add(margin).add(amount);
 
-        libre.transferFrom(msg.sender, this, _amount);
+        libre.transferFrom(msg.sender, this, amount);
         deposits[msg.sender].push(OwnDeposit(
             now,
             now.add(plan.period),
-            _amount,
+            amount,
             margin,
             plan.description
         ));
 
-        needAmount = needAmount.sub(_amount);
-        NewDeposit(msg.sender, now, now.add(plan.period), _amount, margin);
+        needAmount = needAmount.sub(amount);
+        depositCount[msg.sender] = depositCount[msg.sender].add(1);
+        NewDeposit(msg.sender, now, now.add(plan.period), amount, margin);
     }
 
     /**

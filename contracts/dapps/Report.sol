@@ -12,7 +12,7 @@ contract ReportStorage is Claimable {
     }
 
     function counter() public view returns(uint256) {
-      return reports.length;
+        return reports.length;
     }
          
     function addNewReport(string newReport) public onlyOwner {
