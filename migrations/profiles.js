@@ -49,6 +49,10 @@ module.exports = {
         network: network_default,
         contracts: ['LibreCash','ComplexExchanger',...local]
     },
+    testExchanger: {
+        network: network_default,
+        contracts: ['LibreCash','ComplexExchanger',...local]
+    },
     bank: {
         network: network_default,
         contracts: ['LibreCash','ComplexBank',...mainnet]
@@ -61,11 +65,19 @@ module.exports = {
         network: network_default,
         contracts: ['LibreCash','ComplexBank','Association','LibertyToken','Loans','Deposit','LBRSFaucet', ...mainnet]
     },
+    testBank: {
+        network: network_default,
+        contracts: ['LibreCash','ComplexBank',...local]
+    },
     dao: {
         network: network_default,
         contracts: ['LibreCash','ComplexBank','Association','LibertyToken', ...mainnet]
     },
     daoLocal: {
+        network: network_default,
+        contracts: ['LibreCash','ComplexBank','Association','LibertyToken', ...local]
+    },
+    testDAO: {
         network: network_default,
         contracts: ['LibreCash','ComplexBank','Association','LibertyToken', ...local]
     },
