@@ -37,7 +37,6 @@ module.exports = {
             port: 8545,
             gas: 6000000,
             gasPrice: 3000000000
-
         },
         contracts: [...mainnet]
     },
@@ -51,7 +50,7 @@ module.exports = {
     },
     testExchanger: {
         network: network_default,
-        contracts: ['LibreCash','ComplexExchanger',...local]
+        contracts: ['LibreCash','ComplexExchanger','Loans', 'Deposit', ...local]
     },
     bank: {
         network: network_default,

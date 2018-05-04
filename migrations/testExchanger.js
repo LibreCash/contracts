@@ -1,7 +1,8 @@
-const oraclesDeploy = require('./oracles.js');
+const oraclesDeploy = require('./oracles.js'),
+      contractConfig = require('./config.js');
 
 module.exports = async function(deployer, contracts, config) {
-    let [cash, exchanger, ...oracles] = contracts;
+    let [cash, exchanger, loans, deposit,...oracles] = contracts;
 
     deployer.deploy(cash).then(async() => {
         await Promise.all(oracles.map((oracle) => deployer.deploy(oracle, 0)))
@@ -26,6 +27,13 @@ module.exports = async function(deployer, contracts, config) {
 
         await _cash.mint.sendTransaction(exchanger.address, 100 * 10 ** 18);
         await _cash.mint.sendTransaction(config.withdrawWallet, 1000 * 10 ** 18);
+
+        await deployer.deploy(loans, cash.address, exchanger.address);
+
+        await deployer.deploy(deposit, cash.address);
+    
+        await _cash.mint.sendTransaction(deposit.address, contractConfig["Deposit"].mintAmount)
+        await _cash.approve.sendTransaction(deposit.address, contractConfig["Deposit"].approveAmount)
     }).then(() => console.log("END DEPLOY TEST"))
     
 }

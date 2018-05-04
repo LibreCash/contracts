@@ -128,10 +128,10 @@ contract("Deposit",function(accounts) {
             await assertTx.fail(deposit.createDeposit(plan.minAmount-1,0),
                 "Tx not fail, but amount less then need!");
             
-            let beforeCount = +await deposit.myDepositCount();
+            let beforeCount = +await deposit.myDepositLength();
             let beforeTokens = await token.balanceOf(owner);
             await deposit.createDeposit(plan.minAmount,0);
-            let afterCount = +await deposit.myDepositCount();
+            let afterCount = +await deposit.myDepositLength();
             let afterTokens = await token.balanceOf(owner);
 
             assert.equal(beforeCount +1 , afterCount,"Count deposits not changed!");

@@ -2,6 +2,7 @@ module.exports = async function(deployer, contracts, config) {
     let [cash, bank, ...oracles] = contracts;
 
     deployer.deploy(cash).then(async () => {
+
         await Promise.all(oracles.map((oracle) => deployer.deploy(oracle, 0)))
         let _oracles = await Promise.all(oracles.map((oracle) => oracle.deployed()))
         let oraclesAddress = oracles.map((oracle) => oracle.address);

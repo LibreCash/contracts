@@ -14,12 +14,14 @@ module.exports = async function(deployer, network) {
     const deploy = require(`./${network}.js`);
 
     let contracts = profiles[network].contracts.map((name) => artifacts.require(`./${name}.sol`));
-    let config = profiles[network].config ? profiles[network].config : default_config;
+    let config = profiles[network].config || default_config;
 
     await deploy(deployer, contracts, config);
 
-    contracts.forEach(contract => writeContractData(contract))
-    createMistLoader(contracts);
+    if (!/^test.*/.test(network)) {
+        contracts.forEach(contract => writeContractData(contract))
+        createMistLoader(contracts);
+    }
 
     console.log("END DEPLOY");
 }; // end module.exports
