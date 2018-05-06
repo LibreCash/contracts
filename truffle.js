@@ -1,10 +1,31 @@
-const profiles = require("./migrations/profiles.js")
-      networks = {};
+require('dotenv').config();
+var 
+      profiles = require("./migrations/profiles.js"),
+      networks = {},
+      HDWalletProvider = require('truffle-hdwallet-provider');
+      providerWithMnemonic = (mnemonic, rpcEndpoint) =>
+        new HDWalletProvider(mnemonic, rpcEndpoint),
+      infuraProvider = network => providerWithMnemonic(
+        process.env.MNEMONIC || '',
+        `https://${network}.infura.io/${process.env.INFURA_API_KEY}`
+      );      
 
 Object.keys(profiles).forEach(network => networks[network] = profiles[network].network)
 
 module.exports = {
-  networks,
+
+  networks["coverage"] = {
+      host: 'localhost',
+      network_id: '*', // eslint-disable-line camelcase
+      port: 8555,
+      gas: 0xfffffffffff,
+      gasPrice: 0x01,
+  },
+  networks['ropsten'] = {
+      provider: ropstenProvider,
+      network_id: 3, // eslint-disable-line camelcase
+  },
+
    
   // add a section for mocha defaults
   mocha: {
