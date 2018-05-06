@@ -30,6 +30,7 @@
   },
   "homepage": "https://librecash.github.io/contracts/docs/ComplexExchanger",
   "dependencies": {
+    "babel-eslint": "^8.2.3",
     "babel-polyfill": "^6.23.0",
     "babel-preset-es2015": "^6.18.0",
     "babel-preset-stage-2": "^6.18.0",
@@ -41,11 +42,12 @@
     "coveralls": "^2.13.1",
     "dotenv": "^4.0.0",
     "eslint": "^4.11.0",
+    "eslint-config-airbnb": "^16.1.0",
     "eslint-config-standard": "^10.2.1",
     "eslint-plugin-import": "^2.8.0",
     "eslint-plugin-jsx-a11y": "^6.0.3",
     "eslint-plugin-node": "^5.2.1",
-    "eslint-plugin-promise": "^3.6.0",
+    "eslint-plugin-react": "^7.7.0",
     "eslint-plugin-standard": "^3.0.1",
     "ethereumjs-util": "^5.1.2",
     "ethjs-abi": "^0.2.1",
@@ -53,9 +55,11 @@
     "solidity-coverage": "^0.4.15",
     "solium": "^1.1.6",
     "truffle": "^4.1.5",
-    "truffle-hdwallet-provider": "0.0.3"
+    "truffle-hdwallet-provider": "0.0.3",
+    "webpack": "4.0.0"
   },
   "devDependencies": {
-    "@digix/doxity": "^0.5.2"
+    "@digix/doxity": "^0.5.2",
+    "eslint-plugin-promise": "^3.7.0"
   }
 }
