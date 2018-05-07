@@ -27,7 +27,7 @@ contract Bounty is PullPayment, Ownable {
     _;
   }
 
-  function Bounty(uint256 _deadline) {
+  function Bounty(uint256 _deadline)  public {
     deadline = _deadline;
   }
 
@@ -40,7 +40,7 @@ contract Bounty is PullPayment, Ownable {
   }
 
   function deleteTarget(uint256 _id) internal {
-    TargetDestroyed(msg.sender, targets[msg.sender][_id]);
+    emit TargetDestroyed(msg.sender, targets[msg.sender][_id]);
     targets[msg.sender][_id] = targets[msg.sender][targets[msg.sender].length - 1];
     targets[msg.sender].length--;
   }

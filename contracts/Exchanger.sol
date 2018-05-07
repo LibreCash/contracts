@@ -8,6 +8,8 @@ import "./zeppelin/token/BurnableToken.sol";
 
 contract BurnableERC20 is BurnableToken, StandardToken {}
 
+
+
 /**
  * @title Token exchanger contract.
  *
@@ -40,7 +42,7 @@ contract Exchanger is Ownable {
      */
     function setRate(uint _rate) public onlyOwner {
         require(_rate != 0);
-        NewRate(rate, _rate);
+        emit NewRate(rate, _rate);
         rate = _rate;
     }
 
@@ -63,7 +65,7 @@ contract Exchanger is Ownable {
     function setCollectingToken(address _address) public onlyOwner {
         require(_address != 0x0);
         require(_address != supplyTokenAddress);
-        NewCollectingToken(collectingTokenAddress, _address);
+        emit NewCollectingToken(collectingTokenAddress, _address);
         collectingTokenAddress = _address;
         collectingToken = BurnableERC20(_address);
     }
@@ -81,7 +83,7 @@ contract Exchanger is Ownable {
      */
     function buySupplyToken(uint _value) public {
         require(_value <= collectingToken.allowance(msg.sender,this));
-        ExchangeRequest(msg.sender, _value, supplyTokenAddress);
+        emit ExchangeRequest(msg.sender, _value, supplyTokenAddress);
         uint256 supplyToSend = _value.mul(RATE_MULTIPLIER) / rate;
 
         if (supplyToSend > supplyToken.balanceOf(this)) {
@@ -91,6 +93,6 @@ contract Exchanger is Ownable {
         collectingToken.transferFrom(msg.sender, this, _value);
         collectingToken.burn(_value);
         supplyToken.transfer(msg.sender, supplyToSend);
-        SupplySent(msg.sender, supplyToSend, supplyTokenAddress);
+        emit SupplySent(msg.sender, supplyToSend, supplyTokenAddress);
     }
 }

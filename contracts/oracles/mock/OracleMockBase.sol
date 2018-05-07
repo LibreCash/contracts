@@ -4,6 +4,8 @@ import "../../zeppelin/ownership/Ownable.sol";
 import "../../interfaces/I_Oracle.sol";
 import "../../ComplexBank.sol";
 
+
+
 /**
  * @title Base contract for mocked oracles for testing in private nodes.
  *
@@ -60,10 +62,10 @@ contract OracleMockBase is Ownable {
         callbackTime = now;
         rate = mockRate;
 
-        if(price == 0) 
+        if (price == 0) 
             price = MOCK_REQUEST_PRICE;
 
-        PriceTicker(rate);
+        emit PriceTicker(rate);
         return true;
     }
 

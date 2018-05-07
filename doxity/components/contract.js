@@ -55,7 +55,7 @@ export default class Contract extends Component {
   }
   renderTabMenu() {
     const { contract } = this.props
-    const tabsReady = tabs.map((tab) => ({ ...tab, available: tab.available(contract) }))
+    const tabsReady = tabs.map(tab => ({ ...tab, available: tab.available(contract) }))
     // hide the menu if there are no tabs
     if (!tabsReady.find(tab => tab.available)) { return null }
     // or render it
@@ -104,7 +104,7 @@ export default class Contract extends Component {
         {this.renderTabMenu()}
         {thisTabAvailable ?
           this.renderTabContent()
-        :
+          :
           <Message compact content={`${thisTab.text} not available for this contract.`} />
         }
       </div>
