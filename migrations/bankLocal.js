@@ -1,1 +1,1 @@
-module.exports = require('./bank.js')
+module.exports = require('./bank.js');
