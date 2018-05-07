@@ -22,6 +22,16 @@ var oracles = [];
 
 const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
 
+const OracleENUM = {
+    name: 0,
+    oracleType: 1,
+    updateTime: 2,
+    enabled: 3,
+    waitQuery: 4,
+    rate: 5,
+    next: 6,
+};
+
 const StateENUM = {
     LOCKED: 0,
     PROCESSING_ORDERS: 1,
@@ -58,7 +68,7 @@ contract('ComplexExchanger', function (accounts) {
     });
 
     context('getState', async function () {
-        var jump; // eslint-disable-line no-unused-vars
+        var jump;
 
         before('init', reverter.snapshot);
         afterEach('revert', reverter.revert);
@@ -71,7 +81,8 @@ contract('ComplexExchanger', function (accounts) {
                 calcTime = await exchanger.calcTime.call(),
                 requestTime = await exchanger.requestTime.call(),
                 requestPrice = await exchanger.requestPrice.call(),
-                oracleCount = await exchanger.oracleCount.call(), // eslint-disable-line
+                oracleCount = await exchanger.oracleCount.call(),
+                tokenBalance = await exchanger.tokenBalance.call(),
                 readyOracles = await exchanger.readyOracles.call(),
                 waitingOracles = await exchanger.waitingOracles.call(),
                 tokenAddress = await exchanger.tokenAddress.call(),
@@ -82,11 +93,7 @@ contract('ComplexExchanger', function (accounts) {
             assert.equal(calcTime.toNumber(), 0, 'the calcTime must be 0');
             assert.equal(requestTime.toNumber(), 0, 'the requestTime fee must be 0');
             assert.equal(requestPrice.toNumber(), 0, 'the initial oracle queries price must be 0');
-            assert.isAbove(
-                oracleCount.toNumber(),
-                exConfig.MIN_READY_ORACLES,
-                `the initial oracle count must be more than, ${exConfig.MIN_READY_ORACLES}`
-            );
+            assert.isAbove(oracleCount.toNumber(), exConfig.MIN_READY_ORACLES, `the initial oracle count must be more than, ${exConfig.MIN_READY_ORACLES}`);
             assert.equal(readyOracles.toNumber(), 0, 'the initial ready oracle count must be 0');
             assert.equal(waitingOracles.toNumber(), 0, 'the initial waiting oracle count must be 0');
             assert.isAbove(deadline.toNumber(), parseInt(new Date().getTime() / 1000), 'the deadline must be more then now');
@@ -132,7 +139,7 @@ contract('ComplexExchanger', function (accounts) {
             let state = +await exchanger.getState.call(),
                 waiting = +await exchanger.waitingOracles.call();
 
-            if (waiting === 0) {
+            if (waiting == 0) {
                 assert.notEqual(state, StateENUM.WAIT_ORACLES, 'Don\'t correct state when waitingOracles == 0');
                 let oracle = await oracles[0].deployed();
                 await oracle.setWaitQuery(true);
@@ -256,9 +263,7 @@ contract('ComplexExchanger', function (accounts) {
         it('(-) before all, init contracts', async function () {
             var state = await exchanger.getState.call(),
                 requestPrice = await exchanger.requestPrice.call(),
-                oracleCount = await exchanger.oracleCount.call(),
-                readyOracles;
-
+                oracleCount = await exchanger.oracleCount.call();
             assert.equal(state.toNumber(), StateENUM.REQUEST_RATES, 'the initial state must be REQUEST_RATES');
             assert.equal(requestPrice.toNumber(), 0, 'the initial oracle queries price must be 0');
 
@@ -268,10 +273,10 @@ contract('ComplexExchanger', function (accounts) {
 
             var crTimeout = Date.now() + 1000 * 60 * 10; // 10 mins
             do {
-                readyOracles = +await exchanger.readyOracles.call(); // eslint-disable-line no-undef
-                waitingOracles = +await exchanger.waitingOracles.call(); // eslint-disable-line no-undef
+                readyOracles = await exchanger.readyOracles.call();
+                waitingOracles = await exchanger.waitingOracles.call();
                 await delay(1000);
-            } while ((readyOracles !== oracleCount) && (Date.now() < crTimeout)); // es-lint-ignore
+            } while ((+readyOracles != +oracleCount) && (Date.now() < crTimeout));
 
             assert.equal(+state, StateENUM.CALC_RATES, 'the state after gathering oracle data must be CALC_RATES');
             assert.isAtLeast(readyOracles.toNumber(), 2, 'ready oracle count must be at least 2');
@@ -350,12 +355,12 @@ contract('ComplexExchanger', function (accounts) {
             assert.equal(allowanceToSet, allowance, 'error setting allowance');
             // SELL 40
             var sumToSell = 40 * tokenMultiplier;
-                tokensBefore = await token.balanceOf.call(owner); // eslint-disable-line
+            var tokensBefore = await token.balanceOf.call(owner);
             var balanceExchanger = +web3.eth.getBalance(exchanger.address);
             await assertTx.success(exchanger.sellTokens(owner, sumToSell),
                 'Basic sell - shall be success');
-            tokensAfter = await token.balanceOf.call(owner);
-
+            var tokensAfter = await token.balanceOf.call(owner);
+            var sellPrice = +await exchanger.sellRate.call();
             assert.equal(+tokensBefore - +tokensAfter, 30 * tokenMultiplier, 'balance change must be below tokens we tried to sell');
             // EXCH BALANCE ~0
             balanceExchanger = +web3.eth.getBalance(exchanger.address);
@@ -363,8 +368,8 @@ contract('ComplexExchanger', function (accounts) {
         });
 
         it('(3-buy) buy more tokens than exch. has', async function () {
-            let buyFee = await exchanger.buyFee.call(), // eslint-disable-line no-unused-vars
-                sellFee = await exchanger.sellFee.call(), // eslint-disable-line no-unused-vars
+            var buyFee = await exchanger.buyFee.call(),
+                sellFee = await exchanger.sellFee.call(),
                 tokenBalance = await exchanger.tokenBalance.call(),
                 buyRate = (await exchanger.buyRate.call()) / 1000,
                 accBalance = await token.balanceOf(owner);
@@ -373,6 +378,7 @@ contract('ComplexExchanger', function (accounts) {
             var tokensToBuy = +tokenBalance * 2;
 
             var weiToSend = tokensToBuy / buyRate,
+                ethToSend = web3.fromWei(weiToSend, 'ether'),
                 balanceBefore = web3.eth.getBalance(owner);
 
             await assertTx.success(exchanger.buyTokens(owner, { value: weiToSend }),
@@ -383,16 +389,12 @@ contract('ComplexExchanger', function (accounts) {
             assert.isAbove(balanceDelta, 0, 'balance delta must be positive - very strange if ever thrown');
             var boughtTokens = await token.balanceOf(owner);
 
-            assert.isBelow(
-                boughtTokens.minus(balanceDeltaNet * buyRate).minus(accBalance),
-                10000000,
-                'token count doesn\'t match sent ether multiplied by rate'
-            );
+            assert.isBelow(boughtTokens.minus(balanceDeltaNet * buyRate).minus(accBalance), 10000000, 'token count doesn\'t match sent ether multiplied by rate');
         });
 
         it('(4-buy) buy all tokens from exchanger', async function () {
-            var buyFee = await exchanger.buyFee.call(), // eslint-disable-line no-unused-vars
-                sellFee = await exchanger.sellFee.call(), // eslint-disable-line no-unused-vars
+            var buyFee = await exchanger.buyFee.call(),
+                sellFee = await exchanger.sellFee.call(),
                 buyRate = (await exchanger.buyRate.call()) / 1000;
             var accTokensBefore = (await token.balanceOf.call(owner)) / tokenMultiplier;
             var sumToMint = 1000 * tokenMultiplier;
@@ -413,11 +415,7 @@ contract('ComplexExchanger', function (accounts) {
             var accTokensAfter = (await token.balanceOf.call(owner)) / tokenMultiplier,
                 exchTokensAfter = (await exchanger.tokenBalance.call()) / tokenMultiplier;
             assert.equal(exchTokensAfter, 0, 'exchanger token balance must be 0 now');
-            assert.isBelow(
-                ethToSend * buyRate - (accTokensAfter - accTokensBefore),
-                0.0000001,
-                'token count doesn\'t match sent ether multiplied by rate'
-            );
+            assert.isBelow(ethToSend * buyRate - (accTokensAfter - accTokensBefore), 0.0000001, 'token count doesn\'t match sent ether multiplied by rate');
         });
 
         it('(2-buy) buy tokens, no token balance -> revert', async function () {
@@ -437,15 +435,16 @@ contract('ComplexExchanger', function (accounts) {
             var tokenBalance = await exchanger.tokenBalance.call();
             assert.equal(+tokenBalance, sumToMint, 'the exchanger token balance after mint is not valid');
 
-            var weiToSend = 0;
+            var ethToSend = 0,
+                weiToSend = 0;
 
             await assertTx.fail(exchanger.buyTokens(owner, { from: owner, value: weiToSend }),
                 'buyTokens tx with zero eth succeeded - bad');
         });
 
         it('(5) buy tokens for 1 eth', async function () {
-            var buyFee = await exchanger.buyFee.call(), // eslint-disable-line
-                sellFee = await exchanger.sellFee.call(), // eslint-disable-line
+            var buyFee = await exchanger.buyFee.call(),
+                sellFee = await exchanger.sellFee.call(),
                 buyRate = (await exchanger.buyRate.call()) / 1000;
             var accTokensBefore = await token.balanceOf.call(owner);
 
@@ -463,11 +462,7 @@ contract('ComplexExchanger', function (accounts) {
 
             var accTokensAfter = await token.balanceOf.call(owner);
 
-            assert.equal(
-                ethToSend * buyRate,
-                accTokensAfter.minus(accTokensBefore) / tokenMultiplier,
-                'token count doesn\'t match sent ether multiplied by rate'
-            );
+            assert.equal(ethToSend * buyRate, accTokensAfter.minus(accTokensBefore) / tokenMultiplier, 'token count doesn\'t match sent ether multiplied by rate');
         });
     });
 
@@ -484,7 +479,7 @@ contract('ComplexExchanger', function (accounts) {
             assert.equal(state, StateENUM.REQUEST_RATES, 'Don\'t correct state!!');
 
             reverter.snapshot((e) => {
-                if (e !== undefined) { console.log(e); }
+                if (e != undefined) { console.log(e); }
             });
         });
 
@@ -517,17 +512,19 @@ contract('ComplexExchanger', function (accounts) {
                 'requestRates failed with value: oraclesCost + 10000000');
 
             let after = +web3.eth.getBalance(owner);
-            let weiUsed = utils.gasCost();
+            weiUsed = utils.gasCost();
 
             assert.isBelow((before - after) - weiUsed - oraclesCost, 100000, 'we didn\'t get back oversent ether');
         });
     });
 
     context('calcRate', function () {
+        var oraclesDeployed = [];
+
         before('check state', async function () {
             let state = +await exchanger.getState.call();
 
-            if (state !== StateENUM.CALC_RATES) {
+            if (state != StateENUM.CALC_RATES) {
                 await assertTx.success(exchanger.requestRates({ value: MORE_THAN_COSTS }),
                     'requestRates failed');
                 state = +await exchanger.getState.call();
@@ -536,7 +533,7 @@ contract('ComplexExchanger', function (accounts) {
             assert.equal(state, StateENUM.CALC_RATES, 'Don\'t correct state!!');
 
             reverter.snapshot((e) => {
-                if (e !== undefined) { console.log(e); }
+                if (e != undefined) { console.log(e); }
             });
         });
 
@@ -581,8 +578,8 @@ contract('ComplexExchanger', function (accounts) {
                 buyRate = +await exchanger.buyRate.call(),
                 sellRate = +await exchanger.sellRate.call();
 
-            let calcBuyRate = min - min * buyFee / 100 / REVERSE_PERCENT;
-            let calcSellRate = max + max * sellFee / 100 / REVERSE_PERCENT;
+            calcBuyRate = min - min * buyFee / 100 / REVERSE_PERCENT;
+            calcSellRate = max + max * sellFee / 100 / REVERSE_PERCENT;
 
             assert.equal(calcBuyRate, buyRate, 'Don\'t equal calculate and return buyRate');
             assert.equal(calcSellRate, sellRate, 'Don\'t equal calculate and return sellRate');
@@ -608,8 +605,8 @@ contract('ComplexExchanger', function (accounts) {
         });
 
         it('(2) withdraw if call wallet', async function () {
-            let eBalanceBefore = +web3.eth.getBalance(exchanger.address);
-            if (eBalanceBefore === 0) {
+            let eBalanceBefore = web3.eth.getBalance(exchanger.address);
+            if (eBalanceBefore == 0) {
                 await exchanger.refillBalance({ value: MORE_THAN_COSTS });
                 eBalanceBefore = web3.eth.getBalance(exchanger.address);
             }

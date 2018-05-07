@@ -13,7 +13,7 @@ contract('BurnableToken', function (accounts) {
     });
 
     it('owner should be able to burn tokens', async function () {
-        await token.burn(1, { from: accounts[0] });
+        const { logs } = await token.burn(1, { from: accounts[0] });
 
         const balance = +await token.balanceOf(accounts[0]);
         assert.equal(balance, expectedTokenSupply, 'balance and tokenSupply don\'t equal!');

@@ -42,8 +42,8 @@ contract Deposit is Ownable {
     /**
      * @dev Constructor
      */
-    function Deposit() public {
-        Libre = 0xdfddb278eee836636240eba0e47f4a86dcfd52de;
+    function Deposit(address _token) public {
+        Libre = _token;
         libre = LibreCash(Libre);
     }
 
@@ -122,7 +122,7 @@ contract Deposit is Ownable {
         DepositPlan memory plan = plans[_planId];
         uint256 margin = calcProfit(amount, _planId);
         
-        //require(amount >= plan.minAmount && margin <= availableTokens());
+        require(amount >= plan.minAmount && margin <= availableTokens());
         lockedTokens = lockedTokens.add(margin).add(amount);
 
         libre.transferFrom(msg.sender, this, amount);

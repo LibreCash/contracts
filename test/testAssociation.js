@@ -1,9 +1,12 @@
 const
     reverter = new (require('./helpers/reverter'))(web3),
-    timeMachine = new (require('./helpers/timemachine'))(web3);
+    timeMachine = new (require('./helpers/timemachine'))(web3),
+    assertTx = new (require('./helpers/assertTx'))(),
+    utils = new (require('./helpers/utils'))(),
+    tokenMultiplier = Math.pow(10, 18),
+    MORE_THAN_COSTS = web3.toWei(5, 'ether');
 
-var
-    ComplexBank = artifacts.require('ComplexBank'),
+var ComplexBank = artifacts.require('ComplexBank'),
     LibreCash = artifacts.require('LibreCash'),
     Association = artifacts.require('Association'),
     Liberty = artifacts.require('LibertyToken');
@@ -28,12 +31,16 @@ var TypeProposal = {
     'CHANGE_ARBITRATOR': 16,
 };
 
+const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
+
 contract('Association', function (accounts) {
     var owner = accounts[0],
+        acc1 = accounts[1],
         bank,
         token,
         liberty,
         association,
+        minimumQuorum,
         minDebatingPeriod;
 
     before('init var', async function () {
@@ -41,7 +48,7 @@ contract('Association', function (accounts) {
         token = await LibreCash.deployed();
         liberty = await Liberty.deployed();
         association = await Association.deployed();
-        /* minimumQuorum = await association.minimumQuorum(); */
+        minimumQuorum = await association.minimumQuorum();
         minDebatingPeriod = await association.minDebatingPeriod();
     });
 
