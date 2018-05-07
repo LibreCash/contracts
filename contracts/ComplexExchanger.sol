@@ -173,8 +173,9 @@ contract ComplexExchanger is ExchangerI {
                 oracles[i].transfer(callPrice);
             }
             
-            if (oracle.updateRate())
+            if (oracle.updateRate()) {
                 emit OracleRequest(oracles[i]);
+            }
         }
         requestTime = now;
 
