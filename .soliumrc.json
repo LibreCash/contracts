@@ -3,11 +3,15 @@
   "plugins": ["security"],
   "rules": {
     "quotes": ["error", "double"],
-    "no-empty-blocks": "off",
-    "indentation": ["error", 2],
-    "arg-overflow": ["warning", 3],
+    "no-empty-blocks": "warning",
+    "indentation":"warning",
+    "security/no-assign-params": ["warning"],
+    "arg-overflow": "warning",
+    "lbrace": "warning",
+    "security/no-call-value":"warning",
+    "operator-whitespace": ["warning"],
     "security/enforce-explicit-visibility": ["error"],
-    "security/no-block-members": ["warning"],
+    "security/no-block-members": ["off"],
     "security/no-inline-assembly": ["warning"]
   }
 }
