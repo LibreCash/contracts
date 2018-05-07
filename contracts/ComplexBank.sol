@@ -410,8 +410,9 @@ contract ComplexBank is Pausable, BankI {
                     sendValue = sendValue.sub(callPrice);
                     cur.transfer(callPrice);
                 }
-                if (oracle.updateRate())
+                if (oracle.updateRate()) {
                     emit OracleRequest(cur, oracles[cur].name);
+                }
             }
         } // foreach oracles
         requestTime = now;

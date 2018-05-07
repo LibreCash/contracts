@@ -13,6 +13,19 @@ cleanup() {
   fi
 }
 
+restart_ganache() {
+  echo "Start ganache-cli..."
+  if [ $ganache_pid ]
+  then
+    echo "kill old ganache-cli instance..."
+    kill -9 $ganache_pid
+  fi
+
+  start_ganache
+
+  sleep 5
+}
+
 if [ "$SOLIDITY_COVERAGE" = true ]; then
   ganache_port=8555
 else
@@ -37,11 +50,12 @@ start_ganache() {
     --account="0x2bdd21761a483f71054e14f5b827213567971c676928d9a1808cbfa4b7501208,1000000000000000000000000"
     --account="0x2bdd21761a483f71054e14f5b827213567971c676928d9a1808cbfa4b7501209,1000000000000000000000000"
   )
-
+  # "${accounts[@]}" append it later
   if [ "$SOLIDITY_COVERAGE" = true ]; then
-    node_modules/.bin/testrpc-sc --gasLimit 0xfffffffffff --port "$ganache_port" "${accounts[@]}" > /dev/null &
+    node_modules/.bin/testrpc-sc --gasLimit 0xfffffffffff --port "$ganache_port" > /dev/null &
   else
-    node_modules/.bin/ganache-cli --gasLimit 0xfffffffffff "${accounts[@]}" > /dev/null &
+  # "${accounts[@]}" append it later
+    node_modules/.bin/ganache-cli --gasLimit 0xfffffffffff > /dev/null &
   fi
 
   ganache_pid=$!
@@ -72,12 +86,12 @@ else
 echo "[Truffle-test] Running tests LibreBank & Oraclize-like oracles"
 node_modules/.bin/truffle test test/testComplexBank.js test/token/* test/testOracle.js --network testBank
 
-cleanup
+restart_ganache
 
 echo "[Truffle-test] Running tests of ComplexExchanger (LibreCash Exchanger)"
 node_modules/.bin/truffle test test/testLoans.js test/testComplexExchanger.js test/testDeposit.js --network testExchanger
 
-cleanup
+restart_ganache
 
 echo "[Truffle-test] Running tests of DAO (Association contract)"
 node_modules/.bin/truffle test test/testAssociation.js --network testDAO

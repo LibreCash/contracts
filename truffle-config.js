@@ -1,18 +1,20 @@
 require('dotenv').config();
 var
     profiles = require('./migrations/profiles.js'),
-    networks = {},
-    HDWalletProvider = require('truffle-hdwallet-provider'),
+    networks = {};
+    /*
+     
+    HDWalletProvider = require('truffle-hdwallet-provider');
     providerWithMnemonic = (mnemonic, rpcEndpoint) => new HDWalletProvider(mnemonic, rpcEndpoint),
     infuraProvider = (network) => providerWithMnemonic(
         process.env.MNEMONIC || '',
         `https://${network}.infura.io/${process.env.INFURA_API_KEY}`
     ),
     ropstenProvider = process.env.SOLIDITY_COVERAGE ? undefined : infuraProvider('ropsten'),
-    rinkebyProvider = process.env.SOLIDITY_COVERAGE ? undefined : infuraProvider('ropsten');
+    rinkebyProvider = process.env.SOLIDITY_COVERAGE ? undefined : infuraProvider('ropsten'); */
 
 Object.keys(profiles).forEach(network => { networks[network] = profiles[network].network; });
-networks["coverage"] = { // eslint-disable-line
+/* networks["coverage"] = { // eslint-disable-line
     host: 'localhost',
     network_id: '*', // eslint-disable-line camelcase
     port: 8555,
@@ -29,7 +31,7 @@ networks["rinkeby"] = { // eslint-disable-line
     provider: rinkebyProvider,
     network_id: '*', // eslint-disable-line camelcase
 };
-
+*/
 module.exports = {
     networks,
    

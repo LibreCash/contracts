@@ -1,4 +1,6 @@
 node_modules
 docs/*.js
 doxity/**
+test/**
+migrations/**
 .eslintrc

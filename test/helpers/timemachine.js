@@ -33,7 +33,7 @@
 *  Time Machine
 */
 function TimeMachine (web3) {
-    var dTime; // eslint-disable-line no-unused-vars
+    var dTime = 0;
 
     function send (method, params, callback) {
         if (typeof params == 'function') {
@@ -53,11 +53,11 @@ function TimeMachine (web3) {
         return new Promise(function (resolve, reject) {
             send('evm_increaseTime', [seconds], function (e, result) {
                 if (e) reject(e);
-                self.dTime += seconds;
+                dTime += seconds;
 
                 // Mine a block so new time is recorded.
                 send('evm_mine', function (err, result) {
-                    if (err) reject(e);
+                    if (e) reject(e);
 
                     web3.eth.getBlock('latest', function (e, block) {
                         if (e) reject(e);
@@ -86,7 +86,7 @@ function TimeMachine (web3) {
 
                 // Mine a block so new time is recorded.
                 send('evm_mine', function (err, result) {
-                    if (err) reject(e);
+                    if (e) reject(e);
 
                     web3.eth.getBlock('latest', function (e, block) {
                         if (e) reject(e);

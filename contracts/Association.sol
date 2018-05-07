@@ -4,7 +4,8 @@ import "./zeppelin/token/ERC20.sol";
 import "./zeppelin/math/Math.sol";
 import "./token/LibreCash.sol";
 import "./ComplexBank.sol";
-
+
+
 
 /**
  * The shareholder association contract itself
@@ -190,7 +191,14 @@ contract Association {
      * @param minimumSharesToPassAVote proposal can vote only if the sum of shares held by all voters exceed this number
      * @param minSecondsForDebate the minimum amount of delay between when a proposal is made and when it can be executed
      */
-    function changeVotingRules(ERC20 sharesAddress, ComplexBank _bank, LibreCash _cash, uint minimumSharesToPassAVote, uint minSecondsForDebate) public onlyArbitrator {
+     /* solium-disable-next-line */
+    function changeVotingRules(
+        ERC20 sharesAddress, 
+        ComplexBank _bank, 
+        LibreCash _cash, 
+        uint minimumSharesToPassAVote, 
+        uint minSecondsForDebate
+    ) public onlyArbitrator {
         sharesTokenAddress = ERC20(sharesAddress);
         bank = ComplexBank(_bank);
         cash = LibreCash(_cash);
@@ -279,7 +287,7 @@ contract Association {
 
         voteID = p.votes.length++;
         p.votes[voteID] = Vote({
-            inSupport: supportsProposal, 
+            inSupport: supportsProposal,
             voter: msg.sender
         });
 
@@ -319,7 +327,7 @@ contract Association {
 
         if (yea > nay) {
             if (p.tp == TypeProposal.UNIVERSAL)
-                require(p.recipient.call.value(p.amount)(p.bytecode));
+                require(p.recipient.call.value(p.amount)(p.bytecode)); /* solium-disable-line */
             else if (p.tp == TypeProposal.TRANSFER_OWNERSHIP) {
                 bank.transferOwnership(p.recipient);
             } else if (p.tp == TypeProposal.ATTACH_TOKEN) {

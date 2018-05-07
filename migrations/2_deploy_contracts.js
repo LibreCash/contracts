@@ -1,13 +1,19 @@
 const
     profiles = require('./profiles.js'),
-    configContract = require('./config.js'),
-    utils = require('./utils.js');
+    utils = require('./utils.js'),
+    default_config = {
+        mintAmount: 100 * 10 ** 18,
+        buyFee: 250,
+        sellFee: 250,
+        deadline: utils.getTimestamp(+5),
+        withdrawWallet: web3.eth.coinbase,
+    };
 
 module.exports = async function (deployer, network) {
     const deploy = require(`./${network}.js`);
 
     let contracts = profiles[network].contracts.map((name) => artifacts.require(`./${name}.sol`));
-    let config = profiles[network].config || configContract.Exchanger;
+    let config = profiles[network].config || default_config;
 
     await deploy(deployer, contracts, config);
 
