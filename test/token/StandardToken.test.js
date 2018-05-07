@@ -13,7 +13,7 @@ contract('StandardToken', function (accounts) {
   it('should return the correct totalSupply after construction', async function () {
     let totalSupply = await token.totalSupply();
 
-    assert.equal(+ totalSupply, 100);
+    assert.equal(+totalSupply, 100);
   });
 
   it('should return the correct allowance amount after approval', async function () {
@@ -21,7 +21,7 @@ contract('StandardToken', function (accounts) {
     await token.approve(accounts[1], 100);
     let allowance = await token.allowance(accounts[0], accounts[1]);
 
-    assert.equal(+ allowance, 100);
+    assert.equal(+allowance, 100);
   });
 
   it('should return correct balances after transfer', async function () {
@@ -29,10 +29,10 @@ contract('StandardToken', function (accounts) {
     await token.mint(accounts[0], 100);
     await token.transfer(accounts[1], 100);
     let balance0 = await token.balanceOf(accounts[0]);
-    assert.equal(+ balance0, 0);
+    assert.equal(+balance0, 0);
 
     let balance1 = await token.balanceOf(accounts[1]);
-    assert.equal(+ balance1, 100);
+    assert.equal(+balance1, 100);
   });
 
   it('should throw an error when trying to transfer more than balance', async function () {
@@ -48,13 +48,13 @@ contract('StandardToken', function (accounts) {
     await token.transferFrom(accounts[0], accounts[2], 100, { from: accounts[1] });
 
     let balance0 = await token.balanceOf(accounts[0]);
-    assert.equal(+ balance0, 0);
+    assert.equal(+balance0, 0);
 
     let balance1 = await token.balanceOf(accounts[2]);
-    assert.equal(+ balance1, 100);
+    assert.equal(+balance1, 100);
 
     let balance2 = await token.balanceOf(accounts[1]);
-    assert.equal(+ balance2, 0);
+    assert.equal(+balance2, 0);
   });
 
   it('should throw an error when trying to transfer more than allowed', async function () {
@@ -73,16 +73,16 @@ contract('StandardToken', function (accounts) {
 
     it('should start with zero', async function () {
       preApproved = await token.allowance(accounts[0], accounts[1]);
-      assert.equal(+ preApproved, 0);
+      assert.equal(+preApproved, 0);
     });
 
     it('should increase by 50 then decrease by 10', async function () {
       await token.increaseApproval(accounts[1], 50);
       let postIncrease = await token.allowance(accounts[0], accounts[1]);
-      assert.equal(+ preApproved.plus(50), postIncrease);
+      assert.equal(+preApproved.plus(50), postIncrease);
       await token.decreaseApproval(accounts[1], 10);
       let postDecrease = await token.allowance(accounts[0], accounts[1]);
-      assert.equal(+ postIncrease.minus(10),postDecrease);
+      assert.equal(+postIncrease.minus(10), postDecrease);
     });
   });
 
@@ -90,7 +90,7 @@ contract('StandardToken', function (accounts) {
     await token.approve(accounts[1], 50);
     await token.decreaseApproval(accounts[1], 60);
     let postDecrease = await token.allowance(accounts[0], accounts[1]);
-    assert.equal(+ postDecrease,0);
+    assert.equal(+postDecrease, 0);
   });
 
   it('should throw an error when trying to transfer to 0x0', async function () {

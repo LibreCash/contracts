@@ -1,7 +1,7 @@
-const 
-    expectThrow = require('../helpers/expectThrow'),
-    BurnableToken = artifacts.require("LibreCash"),
-    BigNumber = web3.BigNumber;
+const
+  expectThrow = require('../helpers/expectThrow'),
+  BurnableToken = artifacts.require('LibreCash'),
+  BigNumber = web3.BigNumber;
 
 contract('BurnableToken', function (accounts) {
   let token;
@@ -15,11 +15,11 @@ contract('BurnableToken', function (accounts) {
   it('owner should be able to burn tokens', async function () {
     const { logs } = await token.burn(1, { from: accounts[0] });
 
-    const balance = + await token.balanceOf(accounts[0]);
-    assert.equal(balance, expectedTokenSupply, "balance and tokenSupply don't equal!");
+    const balance = +await token.balanceOf(accounts[0]);
+    assert.equal(balance, expectedTokenSupply, 'balance and tokenSupply don\'t equal!');
 
-    const totalSupply = + await token.totalSupply();
-    assert.equal(totalSupply, expectedTokenSupply, "totalSupply not right!");
+    const totalSupply = +await token.totalSupply();
+    assert.equal(totalSupply, expectedTokenSupply, 'totalSupply not right!');
   });
 
   it('cannot burn more tokens than your balance', async function () {
