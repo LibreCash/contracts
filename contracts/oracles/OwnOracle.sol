@@ -1,6 +1,7 @@
 pragma solidity ^0.4.18;
 
 import "../zeppelin/ownership/Ownable.sol";
+
 
 /**
  * @title Base contract for Libre oracles.
@@ -29,12 +30,19 @@ contract OwnOracle is Ownable {
     }
 
     /**
+     * @dev Constructor.
+     */
+    function OwnOracle(address bank) public {
+        bankAddress = bank;
+    }
+
+    /**
      * @dev Sets bank address.
      * @param bank Address of the bank contract.
      */
     function setBank(address bank) public onlyOwner {
         bankAddress = bank;
-        BankSet(bankAddress);
+        emit BankSet(bankAddress);
     }
 
     /**
@@ -43,7 +51,7 @@ contract OwnOracle is Ownable {
      */
     function setUpdaterAddress(address updater) public onlyOwner {
         updaterAddress = updater;
-        UpdaterSet(updaterAddress);
+        emit UpdaterSet(updaterAddress);
     }
 
     /**
@@ -65,7 +73,7 @@ contract OwnOracle is Ownable {
      * @dev Requests updating rate from LibreOracle node.
      */
     function updateRate() external onlyBank returns (bool) {
-        NewOraclizeQuery();
+        emit NewOraclizeQuery();
         updateTime = now;
         waitQuery = true;
         return true;
@@ -81,7 +89,7 @@ contract OwnOracle is Ownable {
         rate = result;
         callbackTime = now;
         waitQuery = false;
-        PriceTicker(result);
+        emit PriceTicker(result);
     }
 
     /**

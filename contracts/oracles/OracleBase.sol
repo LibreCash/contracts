@@ -4,6 +4,7 @@ import "./OraclizeAPI.sol";
 import "../zeppelin/ownership/Ownable.sol";
 import "../library/Helpers.sol";
 import "../interfaces/I_Oracle.sol";
+import "../ComplexBank.sol";
 
 
 /**
@@ -35,14 +36,13 @@ contract OracleBase is Ownable, usingOraclize, OracleI {
     OracleConfig public oracleConfig;
 
     
-    uint256 public gasPrice = 20 * 10**9;
+    uint256 public gasPrice = 3 * 10**9;
     uint256 public gasLimit = 100000;
 
-    uint256 constant MIN_GAS_PRICE = 1 * 10**9; // Min gas price limit
-    uint256 constant MAX_GAS_PRICE = 100 * 10**9; // Max gas limit pric
+    uint256 constant MIN_GAS_PRICE = 2 * 10**9; // Min gas price limit
+    uint256 constant MAX_GAS_PRICE = 15 * 10**9; // Max gas limit pric
     uint256 constant MIN_GAS_LIMIT = 95000; 
-    uint256 constant MAX_GAS_LIMIT = 1000000;
-    uint256 constant MIN_REQUEST_PRICE = 0.001118 ether;
+    uint256 constant MAX_GAS_LIMIT = 500000;
 
     modifier onlyBank() {
         require(msg.sender == bankAddress);
@@ -52,7 +52,8 @@ contract OracleBase is Ownable, usingOraclize, OracleI {
     /**
      * @dev Constructor.
      */
-    function OracleBase() public {
+    function OracleBase(address bank) public {
+        bankAddress = bank;
         oraclize_setProof(proofType_TLSNotary | proofStorage_IPFS);
     }
 
@@ -80,8 +81,12 @@ contract OracleBase is Ownable, usingOraclize, OracleI {
      * @param bank Address of the bank contract.
      */
     function setBank(address bank) public onlyOwner {
+        require(
+            bankAddress == address(0) ||
+            ComplexBank(bankAddress).tokenAddress() == address(0)
+        );
         bankAddress = bank;
-        BankSet(bankAddress);
+        emit BankSet(bankAddress);
     }
 
     /**
@@ -96,17 +101,17 @@ contract OracleBase is Ownable, usingOraclize, OracleI {
      */
     function updateRate() external onlyBank returns (bool) {
         if (getPrice() > this.balance) {
-            OraclizeError("Not enough ether");
+            emit OraclizeError("Not enough ether");
             return false;
         }
         bytes32 queryId = oraclize_query(oracleConfig.datasource, oracleConfig.arguments, gasLimit, priceLimit);
         
         if (queryId == bytes32(0)) {
-            OraclizeError("Unexpectedly high query price");
+            emit OraclizeError("Unexpectedly high query price");
             return false;
         }
 
-        NewOraclizeQuery();
+        emit NewOraclizeQuery();
         validIds[queryId] = true;
         waitQuery = true;
         updateTime = now;
@@ -126,7 +131,7 @@ contract OracleBase is Ownable, usingOraclize, OracleI {
         delete validIds[myid];
         callbackTime = now;
         waitQuery = false;
-        PriceTicker(result, myid, proof);
+        emit PriceTicker(result, myid, proof);
     }
 
     /**
@@ -143,4 +148,12 @@ contract OracleBase is Ownable, usingOraclize, OracleI {
     * @dev Method used for oracle funding   
     */    
     function () public payable {}
+
+    /**
+     * @dev selfdectruct contract
+     */
+    function destruct() public onlyOwner {
+        require(ComplexBank(bankAddress).tokenAddress() == address(0));
+        selfdestruct(owner);
+    }
 }

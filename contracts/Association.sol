@@ -5,17 +5,21 @@ import "./zeppelin/math/Math.sol";
 import "./token/LibreCash.sol";
 import "./ComplexBank.sol";
 
+
+
 /**
  * The shareholder association contract itself
  */
-contract Association  {
+
+
+contract Association {
 
     modifier onlyArbitrator() {
         require(msg.sender == owner);
         _;
     }
 
-    address owner;
+    address public owner;
     using SafeMath for uint256;
 
     uint public minimumQuorum;
@@ -96,14 +100,25 @@ contract Association  {
         changeVotingRules(sharesAddress, _bank, _cash, minShares, minDebatePeriod);
     }
 
+    /**
+     * Get a balance of tokens
+     */
     function getTokenBalance() public view returns(uint256) {
         return sharesTokenAddress.balanceOf(msg.sender);
     }
 
+    /**
+     * Get a length of proposals
+     */
     function prsLength() public view returns (uint) {
         return proposals.length;
     }
-    // Change to internal after testing
+
+    /**
+     * Get vote yea and nay for proposal
+     * @param proposalID is id proposal
+     */
+    // Change to internal after testing why
     function calcVotes(uint256 proposalID) public view returns(uint256, uint256) {
         Vote[] memory votes = proposals[proposalID].votes;
 
@@ -121,6 +136,10 @@ contract Association  {
         return(yea, nay);
     }
 
+    /**
+     * Get data about proposal
+     * @param proposalID is id proposal
+     */
     function getVotingData(uint256 proposalID) public view returns (
         uint256,
         uint256,
@@ -134,6 +153,10 @@ contract Association  {
         return (yea, nay, p.voted[msg.sender], p.votingDeadline);
     }
 
+    /**
+     * Get proposal fields
+     * @param proposalID is id proposal
+     */
     function getProposal(uint256 proposalID) public view returns (TypeProposal, address, uint, uint, bytes, string, Status) {
         return (
             proposals[proposalID].tp,
@@ -146,12 +169,16 @@ contract Association  {
         );
     }
 
+    /**
+     * Blocking proposal
+     * @param proposalID is id proposal
+     */
     function blockingProposal(uint proposalID) public onlyArbitrator {
         require(proposals[proposalID].status == Status.ACTIVE);
 
         proposals[proposalID].status = Status.BLOCKED;
         numProposals = numProposals.sub(1);
-        ProposalBlocking(proposalID, proposals[proposalID].recipient, proposals[proposalID].amount, proposals[proposalID].description);
+        emit ProposalBlocking(proposalID, proposals[proposalID].recipient, proposals[proposalID].amount, proposals[proposalID].description);
     }
 
     /**
@@ -164,7 +191,14 @@ contract Association  {
      * @param minimumSharesToPassAVote proposal can vote only if the sum of shares held by all voters exceed this number
      * @param minSecondsForDebate the minimum amount of delay between when a proposal is made and when it can be executed
      */
-    function changeVotingRules(ERC20 sharesAddress, ComplexBank _bank, LibreCash _cash, uint minimumSharesToPassAVote, uint minSecondsForDebate) public onlyArbitrator {
+     /* solium-disable-next-line */
+    function changeVotingRules(
+        ERC20 sharesAddress, 
+        ComplexBank _bank, 
+        LibreCash _cash, 
+        uint minimumSharesToPassAVote, 
+        uint minSecondsForDebate
+    ) public onlyArbitrator {
         sharesTokenAddress = ERC20(sharesAddress);
         bank = ComplexBank(_bank);
         cash = LibreCash(_cash);
@@ -172,7 +206,7 @@ contract Association  {
             minimumSharesToPassAVote = 1;
         minimumQuorum = minimumSharesToPassAVote;
         minDebatingPeriod = minSecondsForDebate;
-        ChangeOfRules(minimumQuorum, minDebatingPeriod, sharesTokenAddress);
+        emit ChangeOfRules(minimumQuorum, minDebatingPeriod, sharesTokenAddress);
     }
 
     /**
@@ -222,7 +256,7 @@ contract Association  {
         p.votingDeadline = now + ((_debatingPeriod >= minDebatingPeriod) ? _debatingPeriod : minDebatingPeriod);
         p.numberOfVotes = 0;
         numProposals = numProposals.add(1);
-        ProposalAdded(proposalID, _beneficiary, _weiAmount, _buffer, _jobDescription, p.votingDeadline);
+        emit ProposalAdded(proposalID, _beneficiary, _weiAmount, _buffer, _jobDescription, p.votingDeadline);
 
         return proposalID;
     }
@@ -253,14 +287,14 @@ contract Association  {
 
         voteID = p.votes.length++;
         p.votes[voteID] = Vote({
-            inSupport: supportsProposal, 
+            inSupport: supportsProposal,
             voter: msg.sender
         });
 
         p.voted[msg.sender] = true;
 
         p.numberOfVotes = voteID + 1;
-        Voted(proposalID, supportsProposal, msg.sender);
+        emit Voted(proposalID, supportsProposal, msg.sender);
         return voteID;
     }
 
@@ -293,7 +327,7 @@ contract Association  {
 
         if (yea > nay) {
             if (p.tp == TypeProposal.UNIVERSAL)
-                require(p.recipient.call.value(p.amount)(p.bytecode));
+                require(p.recipient.call.value(p.amount)(p.bytecode)); /* solium-disable-line */
             else if (p.tp == TypeProposal.TRANSFER_OWNERSHIP) {
                 bank.transferOwnership(p.recipient);
             } else if (p.tp == TypeProposal.ATTACH_TOKEN) {
@@ -334,13 +368,21 @@ contract Association  {
         proposals[proposalID].status = Status.FINISHED;
         numProposals = numProposals.sub(1);
         // Fire Events
-        ProposalTallied(proposalID, int(yea - nay), quorum);
+        emit ProposalTallied(proposalID, int(yea - nay), quorum);
     }
 
+    /**
+     * Set address of bank contract
+     * @param _bank new address bank
+     */
     function setBankAddress(address _bank) internal {
         bank = ComplexBank(_bank);
     }
 
+    /**
+     * Change arbitrator
+     * @param newArbitrator new arbitrator address
+     */
     function changeArbitrator(address newArbitrator) internal {
         require(msg.sender == address(this));
         owner = newArbitrator;

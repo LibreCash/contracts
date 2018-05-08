@@ -1,6 +1,7 @@
 pragma solidity ^0.4.18;
 
 import "./OracleBase.sol";
+
 
 /**
  * @title GDAX oracle.
@@ -17,7 +18,7 @@ contract OracleGDAX is OracleBase {
     /**
      * @dev Constructor.
      */
-    function OracleGDAX() public {
+    function OracleGDAX(address bank) OracleBase(bank) public {
         oracleName = ORACLE_NAME;
         oracleType = ORACLE_TYPE;
         oracleConfig = OracleConfig({datasource: ORACLE_DATASOURCE, arguments: ORACLE_ARGUMENTS});

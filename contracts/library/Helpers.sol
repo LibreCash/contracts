@@ -1,5 +1,7 @@
 pragma solidity ^0.4.17;
 import "../zeppelin/math/SafeMath.sol";
+
+/* solium-disable */
 library Helpers {
 	using SafeMath for uint256;
 	function parseIntRound(string _a, uint256 _b) internal pure returns (uint256) {

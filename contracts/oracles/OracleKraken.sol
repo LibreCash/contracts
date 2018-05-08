@@ -1,6 +1,7 @@
 pragma solidity ^0.4.18;
 
 import "./OracleBase.sol";
+
 
 /**
  * @title Kraken oracle.
@@ -18,7 +19,7 @@ contract OracleKraken is OracleBase {
     /**
      * @dev Constructor.
      */
-    function OracleKraken() public {
+    function OracleKraken(address bank) OracleBase(bank) public {
         oracleName = ORACLE_NAME;
         oracleType = ORACLE_TYPE;
         oracleConfig = OracleConfig({datasource: ORACLE_DATASOURCE, arguments: ORACLE_ARGUMENTS});

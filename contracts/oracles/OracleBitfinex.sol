@@ -1,6 +1,7 @@
 pragma solidity ^0.4.18;
 
 import "./OracleBase.sol";
+
 
 /**
  * @title Bitfinex oracle.
@@ -17,7 +18,7 @@ contract OracleBitfinex is OracleBase {
     /**
      * @dev Constructor.
      */
-    function OracleBitfinex() public {
+    function OracleBitfinex(address bank) OracleBase(bank) public {
         oracleName = ORACLE_NAME;
         oracleType = ORACLE_TYPE;
         oracleConfig = OracleConfig({datasource: ORACLE_DATASOURCE, arguments: ORACLE_ARGUMENTS});

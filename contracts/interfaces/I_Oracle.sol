@@ -1,5 +1,6 @@
 pragma solidity ^0.4.18;
 
+
 contract OracleI {
     bytes32 public oracleName;
     bytes16 public oracleType;

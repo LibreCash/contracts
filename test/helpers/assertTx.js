@@ -1,12 +1,11 @@
-function AssertTx() {
-
+function AssertTx () {
     this.run = async promise => {
         var funcRes;
         try {
             funcRes = await promise;
-        } catch(e) {
-            if (e.toString().search("revert") >= 0 || e.message.search("invalid opcode") >= 0) {
-                funcRes = { receipt: {status: 0 }};
+        } catch (e) {
+            if (e.toString().search('revert') >= 0 || e.message.search('invalid opcode') >= 0) {
+                funcRes = { receipt: { status: 0 } };
             } else {
                 throw new Error(e.toString());
             }
@@ -21,6 +20,6 @@ function AssertTx() {
     this.fail = async (promise, msg) => {
         return assert.equal((await this.run(promise)).receipt.status, 0, msg);
     };
-  }
+}
   
-  module.exports = AssertTx;
+module.exports = AssertTx;

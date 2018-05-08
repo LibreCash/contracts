@@ -123,7 +123,7 @@ contract ComplexExchanger is ExchangerI {
         }
 
         token.transfer(recipient, tokensAmount);
-        Buy(msg.sender, recipient, tokensAmount, buyRate);
+        emit Buy(msg.sender, recipient, tokensAmount, buyRate);
         if (refundAmount > 0)
             recipient.transfer(refundAmount);
     }
@@ -149,7 +149,7 @@ contract ComplexExchanger is ExchangerI {
         token.transferFrom(msg.sender, this, tokensCount);
         address recipient = _recipient == 0x0 ? msg.sender : _recipient;
 
-        Sell(msg.sender, recipient, cryptoAmount, sellRate);
+        emit Sell(msg.sender, recipient, cryptoAmount, sellRate);
         recipient.transfer(cryptoAmount);
     }
 
@@ -173,8 +173,9 @@ contract ComplexExchanger is ExchangerI {
                 oracles[i].transfer(callPrice);
             }
             
-            if (oracle.updateRate())
-                OracleRequest(oracles[i]);
+            if (oracle.updateRate()) {
+                emit OracleRequest(oracles[i]);
+            }
         }
         requestTime = now;
 
@@ -214,7 +215,7 @@ contract ComplexExchanger is ExchangerI {
                 maxRate = Math.max256(rate, maxRate);
                 validOracles++;
             } else {
-                InvalidRate(rate, oracles[i]);
+                emit InvalidRate(rate, oracles[i]);
             }
         }
         // If valid rates data is insufficient - throw
@@ -298,16 +299,16 @@ contract ComplexExchanger is ExchangerI {
      */
     function withdrawReserve() public {
         require(getState() == State.LOCKED && msg.sender == withdrawWallet);
-        ReserveWithdraw(this.balance);
-        withdrawWallet.transfer(this.balance);
-        token.burn(tokenBalance());
+        emit ReserveWithdraw(this.balance);
+        token.transfer(withdrawWallet, tokenBalance());
+        selfdestruct(withdrawWallet);
     }
 
     /**
      * @dev Allows to deposit eth to the contract without creating orders.
      */
     function refillBalance() public payable {
-        ReserveRefill(msg.value);
+        emit ReserveRefill(msg.value);
     }
 
     /**

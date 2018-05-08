@@ -4,6 +4,7 @@ import "./token/LibertyToken.sol";
 import "./zeppelin/ownership/Ownable.sol";
 import "./zeppelin/lifecycle/Pausable.sol";
 
+
 contract LBRSFaucet is Ownable, Pausable {
     address public lbrsToken;
     LibertyToken token;
@@ -17,7 +18,7 @@ contract LBRSFaucet is Ownable, Pausable {
     function LBRSFaucet(address LBRS) public {
         lbrsToken = LBRS;
         token = LibertyToken(lbrsToken);
-        tokensToSend = 2000 * 10**(token.decimals());
+        tokensToSend = 2000 * 10**token.decimals ();
     }
 
     /**

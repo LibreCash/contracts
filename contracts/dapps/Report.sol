@@ -3,6 +3,7 @@ pragma solidity ^0.4.18;
 
 import "../zeppelin/ownership/Claimable.sol";
 
+
 contract ReportStorage is Claimable {
     Report[] public reports;
 
@@ -12,7 +13,7 @@ contract ReportStorage is Claimable {
     }
 
     function counter() public view returns(uint256) {
-      return reports.length;
+        return reports.length;
     }
          
     function addNewReport(string newReport) public onlyOwner {
