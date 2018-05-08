@@ -106,6 +106,6 @@ module.exports = {
     },
     report: {
         network: network_default,
-        contracts: 'ReportStorage'
+        contracts: ['ReportStorage']
     },
 }
