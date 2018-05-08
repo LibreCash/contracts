@@ -1,1 +1,1 @@
-module.exports = require('./deposit.js')
+module.exports = require('./deposit.js');

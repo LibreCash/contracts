@@ -71,8 +71,8 @@ contract LibertyPreSale is Ownable {
     function buyTokens(address recipient) public payable {
         require(
             getTime() >= dateStart &&
-            getTime() < dateEnd &&
-            weiRaised < saleCap &&
+            getTime() < dateEnd && 
+            weiRaised < saleCap && 
             msg.value > 0
         );
         uint256 weiToAccept = 0;
@@ -85,7 +85,7 @@ contract LibertyPreSale is Ownable {
             weiToReturn = 0;
         }
         weiRaised = weiRaised.add(weiToAccept);
-        PaymentAccepted(msg.sender, recipient, weiToAccept);
+        emit PaymentAccepted(msg.sender, recipient, weiToAccept);
         // If the buyer is new add him to `buyers` list
         if (raisedByAddress[recipient] == 0) {
             buyers.push(recipient);
@@ -94,7 +94,7 @@ contract LibertyPreSale is Ownable {
         fundsWallet.transfer(weiToAccept);
         if (weiToReturn > 0) {
             msg.sender.transfer(weiToReturn);
-            ChangeReturned(msg.sender, weiToReturn);
+            emit ChangeReturned(msg.sender, weiToReturn);
         }
     }
 

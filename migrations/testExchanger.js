@@ -1,27 +1,27 @@
-const oraclesDeploy = require('./oracles.js'),
-      contractConfig = require('./config.js');
+const
+    contractConfig = require('./config.js');
 
-module.exports = async function(deployer, contracts, config) {
-    let [cash, exchanger, loans, deposit,...oracles] = contracts;
+module.exports = async function (deployer, contracts, config) {
+    let [cash, exchanger, loans, deposit, ...oracles] = contracts;
 
-    deployer.deploy(cash).then(async() => {
-        await Promise.all(oracles.map((oracle) => deployer.deploy(oracle, 0)))
-        let _oracles = await Promise.all(oracles.map((oracle) => oracle.deployed()))
+    deployer.deploy(cash).then(async () => {
+        await Promise.all(oracles.map((oracle) => deployer.deploy(oracle, 0)));
+        let _oracles = await Promise.all(oracles.map((oracle) => oracle.deployed()));
         let oraclesAddress = oracles.map((oracle) => oracle.address);
 
         let _cash = await cash.deployed();
 
         await deployer.deploy(
             exchanger,
-            /*Constructor params*/
+            /* Constructor params */
             cash.address, // Token address
             config.buyFee, // Buy Fee
             config.sellFee, // Sell Fee,
-            oraclesAddress,// oracles (array of address)
+            oraclesAddress, // oracles (array of address)
             config.deadline,
             config.withdrawWallet
         );
-        let _exchanger = await exchanger.deployed();
+        await exchanger.deployed();
 
         await Promise.all(_oracles.map((oracle) => oracle.setBank(exchanger.address)));
 
@@ -32,8 +32,7 @@ module.exports = async function(deployer, contracts, config) {
 
         await deployer.deploy(deposit, cash.address);
     
-        await _cash.mint.sendTransaction(deposit.address, contractConfig["Deposit"].mintAmount)
-        await _cash.approve.sendTransaction(deposit.address, contractConfig["Deposit"].approveAmount)
-    }).then(() => console.log("END DEPLOY TEST"))
-    
-}
+        await _cash.mint.sendTransaction(deposit.address, contractConfig.Deposit.mintAmount);
+        await _cash.approve.sendTransaction(deposit.address, contractConfig.Deposit.approveAmount);
+    }).then(() => console.log('END DEPLOY TEST')).catch((e) => { console.log(JSON.stringify(e)); });
+};

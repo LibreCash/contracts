@@ -1,3 +1,4 @@
+/* solium-disable */
 /*
 Copyright (c) 2015-2016 Oraclize SRL
 Copyright (c) 2016 Oraclize LTD
@@ -22,6 +23,7 @@ THE SOFTWARE.
 */
 pragma solidity ^0.4.0;
 
+/* solium ignore */
 contract OraclizeI {
     address public cbAddress;
     function query_withGasLimit(uint _timestamp, string _datasource, string _arg, uint _gaslimit) payable public returns (bytes32 _id);
@@ -30,9 +32,11 @@ contract OraclizeI {
     function setCustomGasPrice(uint _gasPrice) public;
 }
 
+
 contract OraclizeAddrResolverI {
     function getAddress() view public returns (address _addr);
 }
+
 
 contract usingOraclize {
     byte constant proofType_NONE = 0x00;
@@ -109,7 +113,7 @@ contract usingOraclize {
         return oraclize.setCustomGasPrice(gasPrice);
     }
 
-    function getCodeSize(address _addr) constant internal returns(uint _size) {
+    function getCodeSize(address _addr) view internal returns(uint _size) {
         assembly {
             _size := extcodesize(_addr)
         }

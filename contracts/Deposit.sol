@@ -40,11 +40,10 @@ contract Deposit is Ownable {
     mapping (address => uint256) public depositCount;
 
     /**
-     * @dev Constructor.
-     * @param _libre Address of LibreCash contract.
+     * @dev Constructor
      */
-    function Deposit(address _libre) public {
-        Libre = _libre;
+    function Deposit() public {
+        Libre = 0xdfddb278eee836636240eba0e47f4a86dcfd52de;
         libre = LibreCash(Libre);
     }
 
@@ -75,7 +74,7 @@ contract Deposit is Ownable {
         lockedTokens = lockedTokens.sub(refundAmount);
         needAmount = needAmount.add(dep.amount);
         libre.transfer(msg.sender, refundAmount);
-        ClaimDeposit(msg.sender, dep.amount, dep.margin);
+        emit ClaimDeposit(msg.sender, dep.amount, dep.margin);
         depositCount[msg.sender] = depositCount[msg.sender].sub(1);
         delete deposits[msg.sender][_id];
     }
@@ -123,7 +122,7 @@ contract Deposit is Ownable {
         DepositPlan memory plan = plans[_planId];
         uint256 margin = calcProfit(amount, _planId);
         
-        require(amount >= plan.minAmount && margin <= availableTokens());
+        //require(amount >= plan.minAmount && margin <= availableTokens());
         lockedTokens = lockedTokens.add(margin).add(amount);
 
         libre.transferFrom(msg.sender, this, amount);
@@ -137,7 +136,7 @@ contract Deposit is Ownable {
 
         needAmount = needAmount.sub(amount);
         depositCount[msg.sender] = depositCount[msg.sender].add(1);
-        NewDeposit(msg.sender, now, now.add(plan.period), amount, margin);
+        emit NewDeposit(msg.sender, now, now.add(plan.period), amount, margin);
     }
 
     /**

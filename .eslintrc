@@ -19,12 +19,13 @@
 	  "web3": false
 	},
 	"rules": {
-  
+		"one-var": 0,
+		"camelcase": 0,
 	  // Strict mode
 	  "strict": [2, "global"],
   
 	  // Code style
-	  "indent": [2, 2],
+	  "indent": [2, 4],
 	  "quotes": [2, "single"],
 	  "semi": ["error", "always"],
 	  "space-before-function-paren": ["error", "always"],
@@ -35,7 +36,6 @@
 	  "no-trailing-spaces": [2, { "skipBlankLines": true }],
 	  "eol-last": 1,
 	  "comma-spacing": [2, {"before": false, "after": true}],
-	  "camelcase": [2, {"properties": "always"}],
 	  "no-mixed-spaces-and-tabs": [2, "smart-tabs"],
 	  "comma-dangle": [1, "always-multiline"],
 	  "no-dupe-args": 2,
@@ -43,7 +43,7 @@
 	  "no-debugger": 0,
 	  "no-undef": 2,
 	  "object-curly-spacing": [2, "always"],
-	  "max-len": [2, 120, 2],
+	  "max-len": [2, 150, 2],
 	  "generator-star-spacing": ["error", "before"],
 	  "promise/avoid-new": 0,
 	  "promise/always-return": 0

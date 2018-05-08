@@ -1,1 +1,1 @@
-module.exports = require('./dao.js')
+module.exports = require('./dao.js');

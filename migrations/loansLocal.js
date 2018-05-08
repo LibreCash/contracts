@@ -1,1 +1,1 @@
-module.exports = require('./loans.js')
+module.exports = require('./loans.js');

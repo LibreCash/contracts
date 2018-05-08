@@ -86,7 +86,7 @@ contract OracleBase is Ownable, usingOraclize, OracleI {
             ComplexBank(bankAddress).tokenAddress() == address(0)
         );
         bankAddress = bank;
-        BankSet(bankAddress);
+        emit BankSet(bankAddress);
     }
 
     /**
@@ -101,17 +101,17 @@ contract OracleBase is Ownable, usingOraclize, OracleI {
      */
     function updateRate() external onlyBank returns (bool) {
         if (getPrice() > this.balance) {
-            OraclizeError("Not enough ether");
+            emit OraclizeError("Not enough ether");
             return false;
         }
         bytes32 queryId = oraclize_query(oracleConfig.datasource, oracleConfig.arguments, gasLimit, priceLimit);
         
         if (queryId == bytes32(0)) {
-            OraclizeError("Unexpectedly high query price");
+            emit OraclizeError("Unexpectedly high query price");
             return false;
         }
 
-        NewOraclizeQuery();
+        emit NewOraclizeQuery();
         validIds[queryId] = true;
         waitQuery = true;
         updateTime = now;
@@ -131,7 +131,7 @@ contract OracleBase is Ownable, usingOraclize, OracleI {
         delete validIds[myid];
         callbackTime = now;
         waitQuery = false;
-        PriceTicker(result, myid, proof);
+        emit PriceTicker(result, myid, proof);
     }
 
     /**

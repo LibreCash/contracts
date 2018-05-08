@@ -76,7 +76,7 @@ contract BountyOracleBase is Ownable {
         if (prices[msg.sender] == 0) 
             prices[msg.sender] = MOCK_REQUEST_PRICE;
 
-        PriceTicker(msg.sender, rates[msg.sender]);
+        emit PriceTicker(msg.sender, rates[msg.sender]);
         return true;
     }
 

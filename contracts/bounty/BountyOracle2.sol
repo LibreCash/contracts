@@ -3,7 +3,7 @@ import "./BountyOracleBase.sol";
 
 
 contract BountyOracle2 is BountyOracleBase {
-    function BountyOracle2() {
+    function BountyOracle2()  public {
         oracleName = "Bounty Oracle 2";
         mockRate = 280000;
     }

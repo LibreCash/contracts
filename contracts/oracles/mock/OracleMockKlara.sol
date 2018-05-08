@@ -1,5 +1,6 @@
 pragma solidity ^0.4.18;
 import "./OracleMockBase.sol";
+
 
 /**
  * @title Mocked oracles contract for testing purposes.

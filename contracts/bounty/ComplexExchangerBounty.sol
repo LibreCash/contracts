@@ -4,6 +4,7 @@ import "./ComplexExchangerTarget.sol";
 import "../token/LibreCash.sol";
 import { Bounty, Target } from "../zeppelin/Bounty.sol";
 
+
 contract ComplexExchangerBounty is Bounty {
     address[] public oracles;
 

@@ -20,7 +20,7 @@ export default class Method extends Component {
     calledMethod.call.apply(calledMethod, [...this.state.inputs, (err, res) => {
       const results = Array.isArray(res) ? res : [res]
       // format bignumbers
-      const outputs = results.map((out) => (out.toNumber ? `${out.toNumber()}` : `${out}`))
+      const outputs = results.map(out => (out.toNumber ? `${out.toNumber()}` : `${out}`))
       this.setState({ outputs })
     }])
   }
@@ -47,7 +47,7 @@ export default class Method extends Component {
             >
               {type}
             </Table.Cell>
-          :
+            :
             <Table.Cell style={{ display: 'none' }}>{type}</Table.Cell>
           }
           <Table.Cell>{`${i}`}</Table.Cell>
@@ -64,9 +64,9 @@ export default class Method extends Component {
                 <Input
                   className="method-input"
                   placeholder={param.name}
-                  onChange={(e) => this.handleUpdateParam(e, i)}
+                  onChange={e => this.handleUpdateParam(e, i)}
                 />
-              :
+                :
                 outputs[i]
               }
             </Table.Cell>

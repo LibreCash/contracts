@@ -4,10 +4,13 @@ import "./zeppelin/token/ERC20.sol";
 import "./zeppelin/math/Math.sol";
 import "./token/LibreCash.sol";
 import "./ComplexBank.sol";
+
 
 /**
  * The shareholder association contract itself
  */
+
+
 contract Association {
 
     modifier onlyArbitrator() {
@@ -174,7 +177,7 @@ contract Association {
 
         proposals[proposalID].status = Status.BLOCKED;
         numProposals = numProposals.sub(1);
-        ProposalBlocking(proposalID, proposals[proposalID].recipient, proposals[proposalID].amount, proposals[proposalID].description);
+        emit ProposalBlocking(proposalID, proposals[proposalID].recipient, proposals[proposalID].amount, proposals[proposalID].description);
     }
 
     /**
@@ -195,7 +198,7 @@ contract Association {
             minimumSharesToPassAVote = 1;
         minimumQuorum = minimumSharesToPassAVote;
         minDebatingPeriod = minSecondsForDebate;
-        ChangeOfRules(minimumQuorum, minDebatingPeriod, sharesTokenAddress);
+        emit ChangeOfRules(minimumQuorum, minDebatingPeriod, sharesTokenAddress);
     }
 
     /**
@@ -245,7 +248,7 @@ contract Association {
         p.votingDeadline = now + ((_debatingPeriod >= minDebatingPeriod) ? _debatingPeriod : minDebatingPeriod);
         p.numberOfVotes = 0;
         numProposals = numProposals.add(1);
-        ProposalAdded(proposalID, _beneficiary, _weiAmount, _buffer, _jobDescription, p.votingDeadline);
+        emit ProposalAdded(proposalID, _beneficiary, _weiAmount, _buffer, _jobDescription, p.votingDeadline);
 
         return proposalID;
     }
@@ -283,7 +286,7 @@ contract Association {
         p.voted[msg.sender] = true;
 
         p.numberOfVotes = voteID + 1;
-        Voted(proposalID, supportsProposal, msg.sender);
+        emit Voted(proposalID, supportsProposal, msg.sender);
         return voteID;
     }
 
@@ -357,7 +360,7 @@ contract Association {
         proposals[proposalID].status = Status.FINISHED;
         numProposals = numProposals.sub(1);
         // Fire Events
-        ProposalTallied(proposalID, int(yea - nay), quorum);
+        emit ProposalTallied(proposalID, int(yea - nay), quorum);
     }
 
     /**

@@ -1,1 +1,1 @@
-module.exports = require('./exchanger.js')
+module.exports = require('./exchanger.js');

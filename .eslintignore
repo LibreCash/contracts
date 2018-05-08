@@ -1,4 +1,4 @@
 node_modules
-/docs/**
-!.eslintrc.js
 docs/*.js
+doxity/**
+.eslintrc

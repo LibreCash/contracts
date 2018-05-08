@@ -7,6 +7,7 @@ import "./interfaces/I_Oracle.sol";
 import "./interfaces/I_Bank.sol";
 import "./token/LibreCash.sol";
 
+
 contract ComplexBank is Pausable, BankI {
     using SafeMath for uint256;
     address public tokenAddress;
@@ -51,7 +52,7 @@ contract ComplexBank is Pausable, BankI {
         sellFee = _sellFee;
 
         uint i = 0;
-        for(;i < _oracles.length; i++)
+        for (;i < _oracles.length; i++)
             addOracle(_oracles[i]);
 
     }
@@ -94,7 +95,7 @@ contract ComplexBank is Pausable, BankI {
         address recipient = _recipient == 0x0 ? msg.sender : _recipient;
 
         token.mint(recipient, tokensAmount);
-        Buy(msg.sender, recipient, tokensAmount, buyRate);
+        emit Buy(msg.sender, recipient, tokensAmount, buyRate);
     }
 
     /**
@@ -122,7 +123,7 @@ contract ComplexBank is Pausable, BankI {
         token.burn(tokensCount);
         address recipient = _recipient == 0x0 ? msg.sender : _recipient;
 
-        Sell(msg.sender, recipient, cryptoAmount, sellRate);
+        emit Sell(msg.sender, recipient, cryptoAmount, sellRate);
         recipient.transfer(cryptoAmount);
     }
 
@@ -309,7 +310,7 @@ contract ComplexBank is Pausable, BankI {
 
         oracleCount++;
         numEnabledOracles++;
-        OracleAdded(_address, oracleName);
+        emit OracleAdded(_address, oracleName);
     }
 
     /**
@@ -320,7 +321,7 @@ contract ComplexBank is Pausable, BankI {
         require((oracleExists(_address)) && (oracles[_address].enabled));
         oracles[_address].enabled = false;
         numEnabledOracles--;
-        OracleDisabled(_address, oracles[_address].name);
+        emit OracleDisabled(_address, oracles[_address].name);
     }
 
     /**
@@ -331,7 +332,7 @@ contract ComplexBank is Pausable, BankI {
         require((oracleExists(_address)) && (!oracles[_address].enabled));
         oracles[_address].enabled = true;
         numEnabledOracles++;
-        OracleEnabled(_address, oracles[_address].name);
+        emit OracleEnabled(_address, oracles[_address].name);
     }
 
     /**
@@ -340,7 +341,7 @@ contract ComplexBank is Pausable, BankI {
      */
     function deleteOracle(address _address) public onlyOwner {
         require(oracleExists(_address));
-        OracleDeleted(_address, oracles[_address].name);
+        emit OracleDeleted(_address, oracles[_address].name);
         if (firstOracle == _address) {
             firstOracle = oracles[_address].next;
         } else {
@@ -363,7 +364,7 @@ contract ComplexBank is Pausable, BankI {
         require(msg.sender == scheduler);
         for (address cur = firstOracle; cur != 0x0; cur = oracles[cur].next) {
             if (oracles[cur].enabled)
-                cur.transfer((fund == 0) ? (OracleI(cur).getPrice()) : (fund));
+                cur.transfer((fund == 0) ? OracleI(cur).getPrice() : (fund));
         }
         requestRates();
     }
@@ -410,7 +411,7 @@ contract ComplexBank is Pausable, BankI {
                     cur.transfer(callPrice);
                 }
                 if (oracle.updateRate())
-                    OracleRequest(cur, oracles[cur].name);
+                    emit OracleRequest(cur, oracles[cur].name);
             }
         } // foreach oracles
         requestTime = now;

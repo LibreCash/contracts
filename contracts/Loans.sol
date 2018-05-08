@@ -7,6 +7,7 @@ import "./interfaces/I_Bank.sol";
 import "./token/LibreCash.sol";
 import "./ComplexExchanger.sol";
 
+
 contract Loans is Ownable {
     using SafeMath for uint256;
     address public Libre;
@@ -141,7 +142,7 @@ contract Loans is Ownable {
         Loan memory curLoan = Loan(msg.sender, 0x0, now, _period, _amount, _margin, feeLibre, 0, Status.ACTIVE);
         loansLibre.push(curLoan);
 
-        NewLoan(Assets.ETH, now, _period, _amount, _margin, Status.ACTIVE);
+        emit NewLoan(Assets.ETH, now, _period, _amount, _margin, Status.ACTIVE);
     }
 
     /**
@@ -159,7 +160,7 @@ contract Loans is Ownable {
         
         loansEth.push(curLoan);
         
-        NewLoan(Assets.LIBRE, now, _period, _amount, _margin, Status.ACTIVE);
+        emit NewLoan(Assets.LIBRE, now, _period, _amount, _margin, Status.ACTIVE);
 
         if (refund > 0)
             msg.sender.transfer(refund);
@@ -205,7 +206,7 @@ contract Loans is Ownable {
         uint256 needReturn = refundAmount(loan);
 
         require(
-            loan.status == Status.USED &&
+            loan.status == Status.USED && 
             msg.sender == loan.recipient &&
             msg.value >= needReturn
         );

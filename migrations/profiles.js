@@ -1,9 +1,9 @@
 const network_default = {
-        host: "localhost",
+        host: 'localhost',
         port: 8545,
-        network_id: "*",
+        network_id: '*',
         gas: 6000000,
-        gasPrice: 5000000000
+        gasPrice: 5000000000,
     },
     mainnet = [
         'OracleBitfinex',
@@ -17,95 +17,96 @@ const network_default = {
         'OracleMockLiza',
         'OracleMockSasha',
         'OracleMockKlara',
-        'OracleMockTest'
+        'OracleMockTest',
     ],
     bounty = [
         'BountyOracle1',
         'BountyOracle2',
-        'BountyOracle3'
+        'BountyOracle3',
     ];
 
 module.exports = {
     development: {
         network: network_default,
-        contracts: []
+        contracts: [],
     },
     mainnet: {
         network: {
-            network_id: "mainnet", // rinkeby, ropsten, main network, etc.
-            host: "localhost",
+            network_id: 'mainnet', // rinkeby, ropsten, main network, etc.
+            host: 'localhost',
             port: 8545,
             gas: 6000000,
-            gasPrice: 3000000000
+            gasPrice: 3000000000,
         },
-        contracts: [...mainnet]
+        contracts: [...mainnet],
     },
     exchanger: {
         network: network_default,
-        contracts: ['LibreCash','ComplexExchanger',...mainnet]
+        contracts: ['LibreCash', 'ComplexExchanger', ...mainnet],
     },
     exchangerLocal: {
         network: network_default,
-        contracts: ['LibreCash','ComplexExchanger',...local]
+        contracts: ['LibreCash', 'ComplexExchanger', ...local],
     },
     testExchanger: {
         network: network_default,
-        contracts: ['LibreCash','ComplexExchanger','Loans', 'Deposit', ...local]
+        contracts: ['LibreCash', 'ComplexExchanger', 'Loans', 'Deposit', ...local],
     },
     bank: {
         network: network_default,
-        contracts: ['LibreCash','ComplexBank',...mainnet]
+        contracts: ['LibreCash', 'ComplexBank', ...mainnet],
     },
     bankLocal: {
         network: network_default,
-        contracts: ['LibreCash','ComplexBank',...local]
+        contracts: ['LibreCash', 'ComplexBank', ...local],
     },
     common: {
         network: network_default,
-        contracts: ['LibreCash','ComplexBank','Association','LibertyToken','Loans','Deposit','LBRSFaucet', ...mainnet]
+        contracts: ['LibreCash', 'ComplexBank', 'Association',
+            'LibertyToken', 'Loans', 'Deposit', 'LBRSFaucet', ...mainnet],
     },
     testBank: {
         network: network_default,
-        contracts: ['LibreCash','ComplexBank',...local]
+        contracts: ['LibreCash', 'ComplexBank', ...local],
     },
     dao: {
         network: network_default,
-        contracts: ['LibreCash','ComplexBank','Association','LibertyToken', ...mainnet]
+        contracts: ['LibreCash', 'ComplexBank', 'Association', 'LibertyToken', ...mainnet],
     },
     daoLocal: {
         network: network_default,
-        contracts: ['LibreCash','ComplexBank','Association','LibertyToken', ...local]
+        contracts: ['LibreCash', 'ComplexBank', 'Association', 'LibertyToken', ...local],
     },
     testDAO: {
         network: network_default,
-        contracts: ['LibreCash','ComplexBank','Association','LibertyToken', ...local]
+        contracts: ['LibreCash', 'ComplexBank', 'Association', 'LibertyToken', ...local],
     },
     deposit: {
         network: network_default,
-        contracts: ['LibreCash','ComplexExchanger','Deposit', ...mainnet]
+        contracts: ['LibreCash', 'ComplexExchanger', 'Deposit', ...mainnet],
     },
     depositLocal: {
         network: network_default,
-        contracts: ['LibreCash','ComplexExchanger','Deposit', ...local]
+        contracts: ['LibreCash', 'ComplexExchanger', 'Deposit', ...local],
     },
     loans: {
         network: network_default,
-        contracts: ['LibreCash','ComplexExchanger','Loans', ...mainnet]
+        contracts: ['LibreCash', 'ComplexExchanger', 'Loans', ...mainnet],
     },
     loansLocal: {
         network: network_default,
-        contracts: ['LibreCash','ComplexExchanger','Loans', ...local]
+        contracts: ['LibreCash', 'ComplexExchanger', 'Loans', ...local],
     },
     faucet: {
         network: network_default,
-        contracts: ['LibreCash','ComplexBank','Association','LibertyToken','LBRSFaucet', ...mainnet]
+        contracts: ['LibreCash', 'ComplexBank', 'Association', 'LibertyToken', 'LBRSFaucet', ...mainnet],
     },
     bounty: {
         network: network_default,
-        contracts: ['ComplexBankBounty', 'ComplexExchangerBounty', ...bounty]
+        contracts: ['ComplexBankBounty', 'ComplexExchangerBounty', ...bounty],
     },
     report: {
         network: network_default,
-        contracts: ['ReportStorage']
+        contracts: 'ReportStorage',
     },
-}
+};
