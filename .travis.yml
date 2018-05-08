@@ -1,26 +1,27 @@
 dist: trusty
-sudo: required
-group: beta
+sudo: false
 language: node_js
 node_js:
-  - "9"
+- '9'
 cache:
   directories:
-    - node_modules
+  - node_modules
 env:
   -
   - SOLIDITY_COVERAGE=true
-  - SOLC_NIGHTLY=true
+  - SOLC_NIGHTLY=true 
 matrix:
   fast_finish: true
   allow_failures:
-    - env: SOLIDITY_COVERAGE=true
-    - env: SOLC_NIGHTLY=true
+  - env: SOLIDITY_COVERAGE=true
+  - env: SOLC_NIGHTLY=true
 before_script:
-  - truffle version
+- truffle version
 script:
-  - npm run lint
-  - npm run lint:sol
-  - npm run test
+- npm run lint
+- npm run lint:sol
+- npm run test
 notifications:
   webhooks: https://fathomless-fjord-24024.herokuapp.com/notify
+  slack:
+    secure: S+Id01IqHz5vf+igOJmyPbfObDOT6NyVUTKMiM96EySSZ9RuQNHq4yL/AZYGC8xLXdKu/t4kfWM51dDgB0yYwihBpLDG9KAlSlWXm5kHatFyLM8tdgi4UaDk9bEn/GM296RA1lJeZZc+7ZMLN4UbPs64ndQ3ivwxcfwCe3eR7Vt7XeO7r8yKrdja6qRGUNLuRL+opfYNrr1ONZxpQ7Mw1+GTt9k/e32lVuOCpD5swrj/JDMnsghu/nSoUl7QHFWsJCc3i42X8EAIqHtraL/wBEOWgWSXBQsIB+puIzbDAzVDag6TTyXiIJC/yTpwfC5FLhhOqF2aXUCDNDdYS05JpZ09GKJQ/eD7u2JnBUY0si4Lro+jo3rjxM/e1ac8+tQeUSDiej+JfXwNf+9gT3E23nrSIey+P7Z/BDou4dwCuQERUK/LB82oFYyf0ojgFt4/Y/WeuaEghxzeI4qh4ol9OZDacdNMoHKssQXGjkHhW2eRo5UciFtgpz/ipQrrSiy+ui3jp7ybL6H+LpG0cZkMqE4pDW5j7IxVTVyvOdwVamFoQzJ+UXhVJorhsqnJGxyGPYdK/ZOF21QOTsT1r12I0Dhp9lD67T0y4ZX8qfo2Ft9okdmcgLOdxtCW8bmfJWxKALKjN2tx25W+jP4bWwu2taCaDe2TDdLJLoftNv+CU5s=

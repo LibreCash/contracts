@@ -14,15 +14,8 @@ var
     rinkebyProvider = process.env.SOLIDITY_COVERAGE ? undefined : infuraProvider('ropsten'); */
 
 Object.keys(profiles).forEach(network => { networks[network] = profiles[network].network; });
-/* networks["coverage"] = { // eslint-disable-line
-    host: 'localhost',
-    network_id: '*', // eslint-disable-line camelcase
-    port: 8555,
-    gas: 0xfffffffffff,
-    gasPrice: 0x01,
-};
 
-networks["ropsten"] = { // eslint-disable-line
+/* networks["ropsten"] = { // eslint-disable-line
     provider: ropstenProvider,
     network_id: 3, // eslint-disable-line camelcase
 };
