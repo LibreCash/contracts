@@ -1,7 +1,8 @@
-pragma solidity ^0.4.18;
+pragma solidity ^0.4.21;
 
 import "../zeppelin/ownership/Ownable.sol";
-
+
+
 
 /**
  * @title Base contract for Libre oracles.
