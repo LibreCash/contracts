@@ -1,11 +1,12 @@
 pragma solidity ^0.4.18;
 
-import "./token/LibertyToken.sol"; 
+import "./token/LibertyToken.sol";
 import "./zeppelin/ownership/Ownable.sol";
 
 
 contract LBRSMultitransfer is Ownable {
     address public lbrsToken;
+    address public sender;
     LibertyToken token;
 
     /**
@@ -13,9 +14,9 @@ contract LBRSMultitransfer is Ownable {
      * @param recipient - recipient addresses array
      * @param balance - refill amounts array
      */
-    function multiTransfer(address[] recipient,uint256[] balance) public onlyOwner {
-        require(recipient.length == balance.length);
-        
+    function multiTransfer(address[] recipient,uint256[] balance) public {
+        require(recipient.length == balance.length && msg.sender == sender);
+
         for (uint256 i = 0; i < recipient.length; i++) {
             token.transfer(recipient[i],balance[i]);
         }
@@ -25,9 +26,14 @@ contract LBRSMultitransfer is Ownable {
      * @dev Constructor
      * @param LBRS - LBRS token address
      */
-    function LBRSMultitransfer(address LBRS) public {
+    function LBRSMultitransfer(address LBRS, address _sender) public {
         lbrsToken = LBRS;
+        sender = _sender;
         token = LibertyToken(lbrsToken);
+    }
+
+    function withdrawTokens() public onlyOwner {
+        token.transfer(owner,tokenBalance());
     }
 
     /**
