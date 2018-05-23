@@ -32,6 +32,9 @@ contract LBRSMultitransfer is Ownable {
         token = LibertyToken(lbrsToken);
     }
 
+    /**
+     * @dev Withdraw unsold tokens
+     */
     function withdrawTokens() public onlyOwner {
         token.transfer(owner,tokenBalance());
     }
@@ -41,5 +44,13 @@ contract LBRSMultitransfer is Ownable {
      */
     function tokenBalance() public view returns(uint256) {
         return token.balanceOf(this);
+    }
+
+     /**
+     * @dev Sets new token sender address
+     * @param _sender - token sender addresses
+     */
+    function setSender(address _sender) public onlyOwner {
+        sender = _sender;
     }
 }
