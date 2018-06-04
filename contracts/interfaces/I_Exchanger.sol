@@ -6,7 +6,7 @@ interface ExchangerI {
     function sellTokens(address _recipient, uint256 tokensCount) public;
 
     /* Rate calc & init  params */
-    function requestRates() payable public;
+    function requestRates(uint256 customGasPrice) payable public;
     function calcRates() public;
 
     /* Data getters */

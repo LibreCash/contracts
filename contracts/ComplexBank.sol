@@ -366,7 +366,7 @@ contract ComplexBank is Pausable, BankI {
             if (oracles[cur].enabled)
                 cur.transfer((fund == 0) ? OracleI(cur).getPrice() : (fund));
         }
-        requestRates();
+        requestRates(0);
     }
 
     /**
@@ -398,7 +398,7 @@ contract ComplexBank is Pausable, BankI {
     /**
      * @dev Requests every enabled oracle to get the actual rate.
      */
-    function requestRates() payable public state(State.REQUEST_RATES) {
+    function requestRates(uint256 customGasPrice) payable public state(State.REQUEST_RATES) {
         require(numEnabledOracles >= MIN_ORACLES_ENABLED);
         uint256 sendValue = msg.value;
 
@@ -410,7 +410,7 @@ contract ComplexBank is Pausable, BankI {
                     sendValue = sendValue.sub(callPrice);
                     cur.transfer(callPrice);
                 }
-                if (oracle.updateRate()) {
+                if (oracle.updateRate(customGasPrice)) {
                     emit OracleRequest(cur, oracles[cur].name);
                 }
             }
