@@ -39,6 +39,7 @@ module.exports = {
                 jsonInterface: ${JSON.stringify(contracts[i]._json.abi)}
             });`;
         }
+        console.log("console-log-2")
         fs.writeFileSync(loader, data);
     },
 
@@ -52,7 +53,7 @@ module.exports = {
         `abi: '${JSON.stringify(artifact._json.abi)}',\n` +
         `abiRefactored: '${JSON.stringify(mew_abi)}'`;
 
-        this.createDir(directory);
+        createDir(directory);
         fs.writeFileSync(`${directory}${artifact.contractName}.js`, data);
     },
 

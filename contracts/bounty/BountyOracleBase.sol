@@ -68,7 +68,7 @@ contract BountyOracleBase is Ownable {
     /**
      * @dev Sends query to oraclize.
      */
-    function updateRate() external returns (bool) {
+    function updateRate(uint256 customGasPrice) external returns (bool) {
         updateTimes[msg.sender] = now;
         callbackTimes[msg.sender] = now;
         rates[msg.sender] = mockRate;

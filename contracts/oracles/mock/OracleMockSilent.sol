@@ -1,6 +1,7 @@
 pragma solidity ^0.4.18;
 import "./OracleMockBase.sol";
-
+
+
 
 /**
  * @title Mocked silent oracle contract for testing purposes.
@@ -11,7 +12,7 @@ contract OracleSilent is OracleMockBase {
         mockRate = 0;
     }
 
-    function updateRate() external returns(bool) {
+    function updateRate(uint256 customGasPrice) external returns(bool) {
         updateTime = now;
         waitQuery = true;
         return true;

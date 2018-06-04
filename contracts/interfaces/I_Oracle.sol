@@ -8,9 +8,9 @@ contract OracleI {
     bool public waitQuery;
     uint256 public updateTime;
     uint256 public callbackTime;
-    function getPrice() view public returns (uint);
+    function getPrice() public view returns (uint);
     function setBank(address _bankAddress) public;
     function setGasPrice(uint256 _price) public;
     function setGasLimit(uint256 _limit) public;
-    function updateRate() external returns (bool);
+    function updateRate(uint256 customGasPrice) external returns (bool);
 }

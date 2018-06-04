@@ -7,7 +7,7 @@ interface BankI {
 
     /* Rate calc & init  params */
     function calcRates() public;
-    function requestRates() payable public;
+    function requestRates(uint256 customGasPrice) payable public;
     
     /* Data getters */
     function readyOracles() public view returns (uint256);
