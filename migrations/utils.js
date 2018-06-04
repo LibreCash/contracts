@@ -1,5 +1,12 @@
 const
-    fs = require('fs');
+    fs = require('fs'),
+    path = require('path');
+
+function createDir(dirname) {
+        if (!fs.existsSync(dirname)) {
+            fs.mkdirSync(dirname);
+        }
+};
 
 module.exports = {
 
@@ -8,14 +15,8 @@ module.exports = {
         return Math.round((Date.now() + diffDays * msInDay) / 1000);
     },
 
-    createDir: (dirname) => {
-        if (!fs.existsSync(dirname)) {
-            fs.mkdirSync(dirname);
-        }
-    },
-
     createMistLoader: (contracts) => {
-        let loader = `${__dirname}/../build/data/loader.js`;
+        let loader = `${path.resolve(__dirname+'/../build/data/loader.js')}`;
         var data = `        // paste the script to mist developer console to autoimport all deployed contracts and tokens
         CustomContracts.find().fetch().map((m) => {if (m.name.indexOf('_') == 0) CustomContracts.remove(m._id)});
         Tokens.find().fetch().map((m) => {if (m.name.indexOf('_') == 0) Tokens.remove(m._id)});`;
@@ -52,7 +53,7 @@ module.exports = {
         `abi: '${JSON.stringify(artifact._json.abi)}',\n` +
         `abiRefactored: '${JSON.stringify(mew_abi)}'`;
 
-        this.createDir(directory);
+        createDir(directory);
         fs.writeFileSync(`${directory}${artifact.contractName}.js`, data);
     },
 

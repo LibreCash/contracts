@@ -20,12 +20,12 @@ module.exports = async function (deployer, contracts, config) {
         config.sellFee, // Sell Fee,
         oraclesAddress, // oracles (array of address)
         config.deadline,
-        web3
+        config.withdrawWallet
     );
     await exchanger.deployed();
 
     await Promise.all(_oracles.map((oracle) => oracle.setBank(exchanger.address)));
 
     await _cash.mint.sendTransaction(exchanger.address, contractConfig.Exchanger.mintAmount);
-    await _cash.mint.sendTransaction(web3.eth.coinbase, contractConfig.main.cashMinting);
+    await _cash.mint.sendTransaction(config.coinbase, contractConfig.main.cashMinting);
 };

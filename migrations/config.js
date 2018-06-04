@@ -2,7 +2,7 @@ const utils = require('./utils');
 module.exports = {
     'main': {
         isDebug: false,
-        cashMinting: 1000 * 10 ** 18,
+        cashMinting: 1000 * 10 ** 18
     },
     'Association': {
         minimumSharesToPassAVote: 10000 * 10 ** 18,
