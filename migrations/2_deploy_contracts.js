@@ -7,6 +7,7 @@ const
         sellFee: 250,
         deadline: utils.getTimestamp(+5),
         withdrawWallet: web3.eth.coinbase,
+        coinbase: web3.eth.coinbase
     };
 console.log("console-log-1")
 module.exports = async function (deployer, network) {

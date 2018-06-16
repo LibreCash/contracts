@@ -20,7 +20,7 @@ module.exports = async function (deployer, contracts, config) {
         config.sellFee, // Sell Fee,
         oraclesAddress, // oracles (array of address)
         config.deadline,
-        "0x0124cEEa90258dC124b698f3C88fee8eec0c3d10"
+        config.withdrawWallet
     );
     
     await exchanger.deployed();
@@ -28,5 +28,5 @@ module.exports = async function (deployer, contracts, config) {
     await Promise.all(_oracles.map((oracle) => oracle.setBank(exchanger.address)));
     console.log("console-log-2-2")
     await _cash.mint.sendTransaction(exchanger.address, contractConfig.Exchanger.mintAmount);
-    await _cash.mint.sendTransaction("0x0124cEEa90258dC124b698f3C88fee8eec0c3d10", contractConfig.main.cashMinting);
+    await _cash.mint.sendTransaction(config.coinbase, contractConfig.main.cashMinting);
 };
