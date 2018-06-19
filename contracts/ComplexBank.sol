@@ -41,7 +41,7 @@ contract ComplexBank is Pausable, BankI {
         _;
     }
 
-    function ComplexBank(address _token, uint256 _buyFee, uint256 _sellFee, address[] _oracles) 
+    function ComplexBank(address _token, uint256 _buyFee, uint256 _sellFee, address[] _oracles)
         public
     {
         require(_buyFee <= MAX_FEE);
@@ -69,7 +69,7 @@ contract ComplexBank is Pausable, BankI {
 
         if (waitingOracles() != 0)
             return State.WAIT_ORACLES;
-        
+
         if (readyOracles() >= MIN_READY_ORACLES)
             return State.CALC_RATES;
 
@@ -103,9 +103,9 @@ contract ComplexBank is Pausable, BankI {
      * @param _recipient Recipient.
      * @param tokensCount Amount of tokens to sell.
      */
-    function sellTokens(address _recipient, uint256 tokensCount) 
-        public 
-        whenNotPaused 
+    function sellTokens(address _recipient, uint256 tokensCount)
+        public
+        whenNotPaused
         state(State.PROCESSING_ORDERS)
     {
         require(tokensCount <= token.allowance(msg.sender, this));
@@ -148,21 +148,17 @@ contract ComplexBank is Pausable, BankI {
 
     // 03-oracles methods start
     event OracleAdded(address indexed _address, bytes32 name);
-    event OracleEnabled(address indexed _address, bytes32 name);
-    event OracleDisabled(address indexed _address, bytes32 name);
     event OracleDeleted(address indexed _address, bytes32 name);
     event OracleRequest(address indexed _address, bytes32 name);
     event OracleError(string description);
 
     struct OracleData {
         bytes32 name;
-        bool enabled;
         address next;
     }
 
     mapping (address => OracleData) oracles;
     uint256 public oracleCount;
-    uint256 public numEnabledOracles;
     address public firstOracle = 0x0;
 
     uint256 public buyRate = 1000;
@@ -177,11 +173,11 @@ contract ComplexBank is Pausable, BankI {
      * @dev Gets oracle data.
      * @param _address Oracle address.
      */
-    function getOracleData(address _address) 
-        public 
-        view 
-        returns (bytes32, bytes32, uint256, bool, bool, uint256, address)
-                /* name, type, upd_time, enabled, waiting, rate, next */
+    function getOracleData(address _address)
+        public
+        view
+        returns (bytes32, bytes32, uint256, bool, uint256, address)
+                /* name, type, upd_time, waiting, rate, next */
     {
         OracleI currentOracle = OracleI(_address);
         OracleData memory oracle = oracles[_address];
@@ -190,7 +186,6 @@ contract ComplexBank is Pausable, BankI {
             oracle.name,
             currentOracle.oracleType(),
             currentOracle.updateTime(),
-            oracle.enabled,
             currentOracle.waitQuery(),
             currentOracle.rate(),
             oracle.next
@@ -203,8 +198,6 @@ contract ComplexBank is Pausable, BankI {
     function readyOracles() public view returns (uint256) {
         uint256 count = 0;
         for (address current = firstOracle; current != 0x0; current = oracles[current].next) {
-            if (!oracles[current].enabled) 
-                continue;
             OracleI currentOracle = OracleI(current);
             if ((currentOracle.rate() != 0) &&
                 !currentOracle.waitQuery() &&
@@ -220,8 +213,6 @@ contract ComplexBank is Pausable, BankI {
     function waitingOracles() public view returns (uint256) {
         uint256 count = 0;
         for (address current = firstOracle; current != 0x0; current = oracles[current].next) {
-            if (!oracles[current].enabled) 
-                continue;
             if (OracleI(current).waitQuery() && (now - requestTime) < oracleTimeout) {
                 count++;
             }
@@ -283,7 +274,7 @@ contract ComplexBank is Pausable, BankI {
             buyRate = minimalOracleRate.mul(RATE_MULTIPLIER * FEE_MULTIPLIER - buyFee * RATE_MULTIPLIER / 100) / (RATE_MULTIPLIER * FEE_MULTIPLIER);
         }
     }
-    
+
     /**
      * @dev Adds an oracle.
      * @param _address The oracle address.
@@ -295,7 +286,6 @@ contract ComplexBank is Pausable, BankI {
         require(oracleName != bytes32(0));
         OracleData memory newOracle = OracleData({
             name: oracleName,
-            enabled: true,
             next: 0x0
         });
 
@@ -309,30 +299,7 @@ contract ComplexBank is Pausable, BankI {
         }
 
         oracleCount++;
-        numEnabledOracles++;
         emit OracleAdded(_address, oracleName);
-    }
-
-    /**
-     * @dev Disables an oracle.
-     * @param _address The oracle address.
-     */
-    function disableOracle(address _address) public onlyOwner {
-        require((oracleExists(_address)) && (oracles[_address].enabled));
-        oracles[_address].enabled = false;
-        numEnabledOracles--;
-        emit OracleDisabled(_address, oracles[_address].name);
-    }
-
-    /**
-     * @dev Enables an oracle.
-     * @param _address The oracle address.
-     */
-    function enableOracle(address _address) public onlyOwner {
-        require((oracleExists(_address)) && (!oracles[_address].enabled));
-        oracles[_address].enabled = true;
-        numEnabledOracles++;
-        emit OracleEnabled(_address, oracles[_address].name);
     }
 
     /**
@@ -349,10 +316,8 @@ contract ComplexBank is Pausable, BankI {
             for (; oracles[prev].next != _address; prev = oracles[prev].next) { }
             oracles[prev].next = oracles[_address].next;
         }
-        
+
         oracleCount--;
-        if (oracles[_address].enabled)
-            numEnabledOracles--;
         delete oracles[_address];
     }
 
@@ -363,7 +328,6 @@ contract ComplexBank is Pausable, BankI {
     function schedulerUpdateRate(uint256 fund) public {
         require(msg.sender == scheduler);
         for (address cur = firstOracle; cur != 0x0; cur = oracles[cur].next) {
-            if (oracles[cur].enabled)
                 cur.transfer((fund == 0) ? OracleI(cur).getPrice() : (fund));
         }
         requestRates();
@@ -377,7 +341,7 @@ contract ComplexBank is Pausable, BankI {
         require(_scheduler != 0x0);
         scheduler = _scheduler;
     }
-    
+
     /**
      * @dev Get need money for oracles.
      */
@@ -385,12 +349,10 @@ contract ComplexBank is Pausable, BankI {
         uint256 requestCost = 0;
         for (address curr = firstOracle; curr != 0x0; curr = oracles[curr].next) {
             OracleI oracle = OracleI(curr);
-            if (oracles[curr].enabled) {
                 uint callPrice = oracle.getPrice();
                 if (curr.balance < callPrice) {
                     requestCost += callPrice - curr.balance;
                 }
-            }   
         }
         return requestCost;
     }
@@ -399,11 +361,10 @@ contract ComplexBank is Pausable, BankI {
      * @dev Requests every enabled oracle to get the actual rate.
      */
     function requestRates() payable public state(State.REQUEST_RATES) {
-        require(numEnabledOracles >= MIN_ORACLES_ENABLED);
+        require(oracleCount >= MIN_ORACLES_ENABLED);
         uint256 sendValue = msg.value;
 
         for (address cur = firstOracle; cur != 0x0; cur = oracles[cur].next) {
-            if (oracles[cur].enabled) {
                 OracleI oracle = OracleI(cur);
                 uint callPrice = oracle.getPrice();
                 if (cur.balance < callPrice) {
@@ -413,10 +374,9 @@ contract ComplexBank is Pausable, BankI {
                 if (oracle.updateRate()) {
                     emit OracleRequest(cur, oracles[cur].name);
                 }
-            }
         } // foreach oracles
         requestTime = now;
-        
+
         if (sendValue > 0)
             msg.sender.transfer(sendValue);
     }
@@ -424,7 +384,7 @@ contract ComplexBank is Pausable, BankI {
      // 03-oracles methods end
 
 
-    // 04-spread calc start 
+    // 04-spread calc start
     /**
      * @dev Processes data from ready oracles to get rates.
      */
@@ -433,10 +393,9 @@ contract ComplexBank is Pausable, BankI {
         uint256 maximalRate = 0;
 
         for (address cur = firstOracle; cur != 0x0; cur = oracles[cur].next) {
-            OracleData memory currentOracleData = oracles[cur];
             OracleI currentOracle = OracleI(cur);
             uint256 _rate = currentOracle.rate();
-            if ((currentOracleData.enabled) && (!currentOracle.waitQuery()) && (_rate != 0)) {
+            if ((!currentOracle.waitQuery()) && (_rate != 0)) {
                 minimalRate = Math.min256(_rate, minimalRate);
                 maximalRate = Math.max256(_rate, maximalRate);
             }
