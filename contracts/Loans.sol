@@ -10,8 +10,12 @@ import "./ComplexExchanger.sol";
 
 contract Loans is Ownable {
     using SafeMath for uint256;
+
     address public Libre;
     address public Exchanger;
+    address public feed;
+    OracleFeed private feedContract;
+
 
     uint256 constant MAX_UINT256 = 2**256 - 1;
 
@@ -301,7 +305,7 @@ contract Loans is Ownable {
         require(token.balanceOf(Exchanger) >= needSend);
         uint256 buyTokens = needSend.mul(RATE_MULTIPLIER) / rate;
 
-        if ( (buyTokens * rate / RATE_MULTIPLIER) < needSend)
+        if ((buyTokens * rate / RATE_MULTIPLIER) < needSend)
             buyTokens++;
 
         loansLibre[id].status = Status.COMPLETED;

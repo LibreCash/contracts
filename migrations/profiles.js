@@ -8,10 +8,10 @@ const network_default = {
     mainnet = [
         'OracleBitfinex',
         'OracleBitstamp',
-        'OracleWEX',
-        'OracleGDAX',
-        'OracleGemini',
-        'OracleKraken',
+        //'OracleWEX',
+        //'OracleGDAX',
+        //'OracleGemini',
+        //'OracleKraken',
     ],
     local = [
         'OracleMockLiza',
@@ -44,6 +44,10 @@ module.exports = {
         network: network_default,
         contracts: ['LibreCash', 'ComplexExchanger', ...mainnet],
     },
+    exchangerFeed: {
+        network: network_default,
+        contracts: ['OracleStore', 'OracleFeed', 'LibreCash', 'ComplexExchanger', ...mainnet],
+    },
     exchangerLocal: {
         network: network_default,
         contracts: ['LibreCash', 'ComplexExchanger', ...local],
@@ -55,6 +59,10 @@ module.exports = {
     bank: {
         network: network_default,
         contracts: ['LibreCash', 'ComplexBank', ...mainnet],
+    },
+    bankFeed: {
+        network: network_default,
+        contracts: ['OracleStore', 'OracleFeed', 'LibreCash', 'ComplexBank', ...mainnet],
     },
     bankLocal: {
         network: network_default,

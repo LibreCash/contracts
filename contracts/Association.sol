@@ -335,23 +335,23 @@ contract Association {
             } else if (p.tp == TypeProposal.SET_FEES) {
                 bank.setFees(p.amount, p.buffer);
             } else if (p.tp == TypeProposal.ADD_ORACLE) {
-                bank.addOracle(p.recipient);
+                //bank.addOracle(p.recipient);
             } else if (p.tp == TypeProposal.DISABLE_ORACLE) {
-                bank.disableOracle(p.recipient);
+                //bank.disableOracle(p.recipient);
             } else if (p.tp == TypeProposal.ENABLE_ORACLE) {
-                bank.enableOracle(p.recipient);
+                //bank.enableOracle(p.recipient);
             } else if (p.tp == TypeProposal.DELETE_ORACLE) {
-                bank.deleteOracle(p.recipient);
+                //bank.deleteOracle(p.recipient);
             } else if (p.tp == TypeProposal.SET_SCHEDULER) {
-                bank.setScheduler(p.recipient);
+                //bank.setScheduler(p.recipient);
             } else if (p.tp == TypeProposal.WITHDRAW_BALANCE) {
                 bank.withdrawBalance();
             } else if (p.tp == TypeProposal.SET_ORACLE_TIMEOUT) {
-                bank.setOracleTimeout(p.amount);
+                //bank.setOracleTimeout(p.amount);
             } else if (p.tp == TypeProposal.SET_ORACLE_ACTUAL) {
-                bank.setOracleActual(p.amount);
+                //bank.setOracleActual(p.amount);
             } else if (p.tp == TypeProposal.SET_RATE_PERIOD) {
-                bank.setRatePeriod(p.amount);
+                //bank.setRatePeriod(p.amount);
             } else if (p.tp == TypeProposal.SET_PAUSED) {
                 (p.amount > 0) ? bank.pause() : bank.unpause();
             } else if (p.tp == TypeProposal.CLAIM_OWNERSHIP) {

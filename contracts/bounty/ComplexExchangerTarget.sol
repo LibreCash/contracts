@@ -11,18 +11,16 @@ contract ComplexExchangerTarget is ComplexExchanger, Target {
         address _token,
         uint256 _buyFee,
         uint256 _sellFee,
-        address[] _oracles,
+        address _feed,
         uint256 _deadline,
         address _withdrawWallet
     ) public
-    ComplexExchanger(_token, _buyFee, _sellFee, _oracles, _deadline, _withdrawWallet) {
-        // initial values
-        sellRate = 1000;
-        buyRate = 1000;
+    ComplexExchanger(_token, _buyFee, _sellFee, _feed, _deadline, _withdrawWallet) {
+
     }
 
     function checkInvariant(address _researcher) public view returns(bool) {
-        bool wrongRates = (buyRate == 0) || (sellRate == 0) || (buyRate > sellRate);
+        bool wrongRates = (buyRate() == 0) || (sellRate() == 0) || (buyRate() > sellRate());
         return !wrongRates;
     }
 }
