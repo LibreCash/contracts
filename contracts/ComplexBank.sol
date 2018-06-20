@@ -61,7 +61,7 @@ contract ComplexBank is Pausable, BankI {
     function buyRate() public view returns (uint256) {
         return feed.buyRate().mul(100 * FEE_MULTIPLIER - buyFee) / 100 / FEE_MULTIPLIER;
     }
-
+    
     /**
      * @dev Returns sell rate.
      */
@@ -97,9 +97,9 @@ contract ComplexBank is Pausable, BankI {
      * @param _recipient Recipient.
      * @param tokensCount Amount of tokens to sell.
      */
-    function sellTokens(address _recipient, uint256 tokensCount) 
-        public 
-        whenNotPaused 
+    function sellTokens(address _recipient, uint256 tokensCount)
+        public
+        whenNotPaused
         state(State.PROCESSING_ORDERS)
     {
         require(tokensCount <= token.allowance(msg.sender, this));
@@ -141,10 +141,8 @@ contract ComplexBank is Pausable, BankI {
         token = LibreCash(tokenAddress);
     }
 
-    uint256 public buyFee = 0;
-    uint256 public sellFee = 0;
     uint256 constant MAX_FEE = 70 * FEE_MULTIPLIER; // 70%
-
+    
     /**
      * @dev Sets buyFee and sellFee.
      * @param _buyFee The buy fee.
@@ -155,6 +153,7 @@ contract ComplexBank is Pausable, BankI {
 
         sellFee = _sellFee;
         buyFee = _buyFee;
+
     }
 
     // system methods start
