@@ -12,8 +12,6 @@ module.exports = async function (deployer, contracts, config) {
         association,
         /* Constructor params */
         liberty.address,
-        bank.address,
-        cash.address,
         contractConfig.Association.minimumSharesToPassAVote,
         contractConfig.Association.minSecondsForDebate
     );

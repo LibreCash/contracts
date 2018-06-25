@@ -2,63 +2,10 @@ pragma solidity ^0.4.21;
 
 import "./zeppelin/token/ERC20.sol";
 import "./zeppelin/math/Math.sol";
-import "./token/LibreCash.sol";
-import "./ComplexBank.sol";
+import "./zeppelin/math/SafeMath.sol";
 
 
-
-/**
- * The shareholder association contract itself
- */
-
-
-contract Association {
-
-    modifier onlyArbitrator() {
-        require(msg.sender == owner);
-        _;
-    }
-
-    address public owner;
-    using SafeMath for uint256;
-
-    uint public minimumQuorum;
-    uint public minDebatingPeriod;
-    uint256 public numProposals;
-    Proposal[] proposals;
-
-    ERC20 public sharesTokenAddress;
-    ComplexBank public bank;
-    LibreCash public cash;
-
-    uint constant MINIMAL_VOTE_BALANCE = 2000 * 10 ** 18;
-
-    event ProposalAdded(uint proposalID, address recipient, uint amount, uint buffer, string description, uint deadLine);
-    event Voted(uint proposalID, bool position, address voter);
-    event ProposalTallied(uint proposalID, int result, uint quorum);
-    event ProposalBlocking(uint proposalID, address recipient, uint amount, string description);
-    event ChangeOfRules(uint newMinimumQuorum, uint newdebatingPeriod, address newSharesTokenAddress);
-
-    enum TypeProposal {
-        UNIVERSAL,
-        TRANSFER_OWNERSHIP,
-        ATTACH_TOKEN,
-        SET_BANK_ADDRESS,
-        SET_FEES,
-        ADD_ORACLE,
-        DISABLE_ORACLE,
-        ENABLE_ORACLE,
-        DELETE_ORACLE,
-        SET_SCHEDULER,
-        WITHDRAW_BALANCE,
-        SET_ORACLE_TIMEOUT,
-        SET_ORACLE_ACTUAL,
-        SET_RATE_PERIOD,
-        SET_PAUSED,
-        CLAIM_OWNERSHIP,
-        CHANGE_ARBITRATOR
-    }
-
+contract ProposalSystem {
     enum Status {
         ACTIVE,
         FINISHED,
@@ -66,28 +13,124 @@ contract Association {
     }
 
     struct Proposal {
-        TypeProposal tp;
-        address recipient;
-        uint amount;
-        uint buffer;
+        address initiator;
+        address target;
         string description;
-        uint votingDeadline;
+        uint256 value;
+        uint deadline;
         bytes bytecode;
-        uint numberOfVotes;
-        Vote[] votes;
-        mapping (address => bool) voted;
         Status status;
+        uint256 yea;
+        uint256 nay;
+        mapping (address => bool) voted;
     }
+
+    uint256 public numProposals;
+    Proposal[] public proposals;
+}
+
+
+contract VotingSystem is ProposalSystem {
+    using SafeMath for uint256;
+
+    event Lock(address locker, uint256 value);
+    event Unlock(address locker, uint256 value);
+
+    mapping (address => uint256) public locked;
+    ERC20 public sharesTokenAddress;
+    uint256 constant VOTE_LIMIT = 10;
+    uint256 constant MINIMAL_VOTE_BALANCE = 2000 * 10 ** 18;
+
+    modifier voters {
+        require(locked[msg.sender] >= MINIMAL_VOTE_BALANCE);
+        _;
+    }
+
+    //event LockPhase(string descr);
+
+    function lock(uint256 _amount) public {
+        sharesTokenAddress.transferFrom(msg.sender, address(this), _amount);
+        for (uint i = 0; i < voted[msg.sender].length; i++) {
+            if (proposals[voted[msg.sender][i].proposal].status == Status.ACTIVE) {
+                if (voted[msg.sender][i].support) {
+                    proposals[voted[msg.sender][i].proposal].yea = proposals[voted[msg.sender][i].proposal].yea.add(_amount);
+                } else {
+                    proposals[voted[msg.sender][i].proposal].nay = proposals[voted[msg.sender][i].proposal].nay.add(_amount);
+                }
+            }
+        }
+        locked[msg.sender] = locked[msg.sender].add(_amount);
+        emit Lock(msg.sender, _amount);
+    }
+
+    function votes() public view returns (uint256) {
+        return locked[msg.sender];
+    }
+
+    function unlock(uint256 _amount) public {
+        sharesTokenAddress.transfer(msg.sender, _amount);
+        for (uint i = 0; i < voted[msg.sender].length; i++) {
+            if (proposals[voted[msg.sender][i].proposal].status == Status.ACTIVE) {
+                if (voted[msg.sender][i].support) {
+                    proposals[voted[msg.sender][i].proposal].yea = proposals[voted[msg.sender][i].proposal].yea.sub(_amount);
+                } else {
+                    proposals[voted[msg.sender][i].proposal].nay = proposals[voted[msg.sender][i].proposal].nay.sub(_amount);
+                }
+            }
+        }
+        locked[msg.sender] = locked[msg.sender].sub(_amount);
+        emit Unlock(msg.sender, _amount);
+    }
+
+    struct votePosition {
+        uint256 proposal;
+        bool support;
+    }
+
+    mapping (address => votePosition[]) public voted;
+
+    function addVote(uint256 proposal, bool support) internal {
+        uint256 len = voted[msg.sender].length;
+        bool added = false;
+        for (uint i = 0; i < len; i++) {
+            if (proposals[voted[msg.sender][i].proposal].status != Status.ACTIVE) {
+                voted[msg.sender][i] = votePosition({ proposal: proposal, support: support });
+                added = true;
+                break;
+            }
+        }
+        if (!added) {
+            if (len >= VOTE_LIMIT) revert(); // already voted for vote limit, wait for some proposals to become inactive
+            voted[msg.sender].push(votePosition({ proposal: proposal, support: support }));
+        }
+    }
+}
+
+
+/**
+ * The shareholder association contract itself
+ */
+contract Association is VotingSystem {
+
+    modifier onlyArbitrator() {
+        require(msg.sender == owner);
+        _;
+    }
+
+    address public owner;
+
+    uint public minimumQuorum;
+    uint public minDebatingPeriod;
+
+    event ProposalAdded(uint proposalID, address target, string description, uint deadLine, uint value);
+    event Voted(uint proposalID, bool position, address voter);
+    event ProposalTallied(uint proposalID, int result, uint quorum);
+    event ProposalBlocked(uint proposalID, address target, string description);
+    event ChangeOfRules(uint newMinimumQuorum, uint newdebatingPeriod, address newSharesTokenAddress);
 
     struct Vote {
         bool inSupport;
         address voter;
-    }
-
-    // Modifier that allows only shareholders to vote and create new proposals
-    modifier onlyShareholders {
-        require(sharesTokenAddress.balanceOf(msg.sender) >= MINIMAL_VOTE_BALANCE);
-        _;
     }
 
     /**
@@ -95,9 +138,9 @@ contract Association {
      *
      * First time setup
      */
-    function Association(ERC20 sharesAddress, ComplexBank _bank, LibreCash _cash, uint minShares, uint minDebatePeriod) public {
+    function Association(ERC20 sharesAddress, uint minShares, uint minDebatePeriod) public {
         owner = msg.sender;
-        changeVotingRules(sharesAddress, _bank, _cash, minShares, minDebatePeriod);
+        changeVotingRules(sharesAddress, minShares, minDebatePeriod);
     }
 
     /**
@@ -115,28 +158,6 @@ contract Association {
     }
 
     /**
-     * Get vote yea and nay for proposal
-     * @param proposalID is id proposal
-     */
-    // Change to internal after testing why
-    function calcVotes(uint256 proposalID) public view returns(uint256, uint256) {
-        Vote[] memory votes = proposals[proposalID].votes;
-
-        uint yea = 0;
-        uint nay = 0;
-        for (uint i = 0; i < votes.length; ++i) {
-            Vote memory v = votes[i];
-            uint voteWeight = sharesTokenAddress.balanceOf(v.voter);
-            if (v.inSupport) {
-                yea += voteWeight;
-            } else {
-                nay += voteWeight;
-            }
-        }
-        return(yea, nay);
-    }
-
-    /**
      * Get data about proposal
      * @param proposalID is id proposal
      */
@@ -147,38 +168,36 @@ contract Association {
         uint256
     ) {
         Proposal storage p = proposals[proposalID];
-        uint256 yea;
-        uint256 nay;
-        (yea, nay) = calcVotes(proposalID);
-        return (yea, nay, p.voted[msg.sender], p.votingDeadline);
+        return (p.yea, p.nay, p.voted[msg.sender], p.deadline);
     }
 
     /**
      * Get proposal fields
      * @param proposalID is id proposal
      */
-    function getProposal(uint256 proposalID) public view returns (TypeProposal, address, uint, uint, bytes, string, Status) {
+    function getProposal(uint256 proposalID) public view returns (address, address, bytes, string, Status, uint256, uint256) {
         return (
-            proposals[proposalID].tp,
-            proposals[proposalID].recipient,
-            proposals[proposalID].amount,
-            proposals[proposalID].buffer,
+            proposals[proposalID].initiator,
+            proposals[proposalID].target,
             proposals[proposalID].bytecode,
             proposals[proposalID].description,
-            proposals[proposalID].status
+            proposals[proposalID].status,
+            proposals[proposalID].yea,
+            proposals[proposalID].nay
         );
     }
 
     /**
      * Blocking proposal
-     * @param proposalID is id proposal
+     * @param proposalID Proposal ID
      */
-    function blockingProposal(uint proposalID) public onlyArbitrator {
+    function blockProposal(uint proposalID) public onlyArbitrator {
         require(proposals[proposalID].status == Status.ACTIVE);
 
         proposals[proposalID].status = Status.BLOCKED;
         numProposals = numProposals.sub(1);
-        emit ProposalBlocking(proposalID, proposals[proposalID].recipient, proposals[proposalID].amount, proposals[proposalID].description);
+        proposals[proposalID].initiator.transfer(proposals[proposalID].value);
+        emit ProposalBlocked(proposalID, proposals[proposalID].target, proposals[proposalID].description);
     }
 
     /**
@@ -194,14 +213,10 @@ contract Association {
      /* solium-disable-next-line */
     function changeVotingRules(
         ERC20 sharesAddress, 
-        ComplexBank _bank, 
-        LibreCash _cash, 
         uint minimumSharesToPassAVote, 
         uint minSecondsForDebate
     ) public onlyArbitrator {
         sharesTokenAddress = ERC20(sharesAddress);
-        bank = ComplexBank(_bank);
-        cash = LibreCash(_cash);
         if (minimumSharesToPassAVote == 0) 
             minimumSharesToPassAVote = 1;
         minimumQuorum = minimumSharesToPassAVote;
@@ -212,53 +227,38 @@ contract Association {
     /**
      * Add Proposal
      *
-     * Propose to send `weiAmount / 1e18` ether to `beneficiary` for `jobDescription`. `transactionBytecode ? Contains : Does not contain` code.
+     * Propose to send `weiAmount / 1e18` ether to `target` for `jobDescription`. `transactionBytecode ? Contains : Does not contain` code.
      *
-     * @param _beneficiary who to send the ether to
-     * @param _weiAmount amount of ether to send, in wei
+     * @param _target who to send the ether to
      * @param _jobDescription Description of job
      * @param _transactionBytecode bytecode of transaction
      */
     function newProposal(
-        TypeProposal tp,
-        address _beneficiary,
-        uint _weiAmount,
-        uint _buffer,
+        address _target,
         string _jobDescription,
         uint _debatingPeriod,
         bytes _transactionBytecode
     )
         public
-        onlyShareholders
+        voters
+        payable
         returns (uint proposalID)
     {
-        if (tp == TypeProposal.UNIVERSAL ||
-            tp == TypeProposal.TRANSFER_OWNERSHIP ||
-            tp == TypeProposal.ATTACH_TOKEN ||
-            tp == TypeProposal.ADD_ORACLE ||
-            tp == TypeProposal.DISABLE_ORACLE ||
-            tp == TypeProposal.ENABLE_ORACLE ||
-            tp == TypeProposal.DELETE_ORACLE ||
-            tp == TypeProposal.SET_SCHEDULER ||
-            tp == TypeProposal.SET_BANK_ADDRESS ||
-            tp == TypeProposal.CHANGE_ARBITRATOR)
-          require (_beneficiary != address(0));
+        require(_target != address(0));
 
         proposalID = proposals.length++; 
         Proposal storage p = proposals[proposalID];
-        p.tp = tp;
-        p.recipient = _beneficiary;
-        p.amount = _weiAmount;
-        p.buffer = _buffer;
+        p.initiator = msg.sender;
+        p.value = msg.value;
+        p.target = _target;
         p.bytecode = _transactionBytecode;
         p.description = _jobDescription;
         p.status = Status.ACTIVE;
-        p.votingDeadline = now + ((_debatingPeriod >= minDebatingPeriod) ? _debatingPeriod : minDebatingPeriod);
-        p.numberOfVotes = 0;
+        p.deadline = now + ((_debatingPeriod >= minDebatingPeriod) ? _debatingPeriod : minDebatingPeriod);
+        p.yea = 0;
+        p.nay = 0;
         numProposals = numProposals.add(1);
-        emit ProposalAdded(proposalID, _beneficiary, _weiAmount, _buffer, _jobDescription, p.votingDeadline);
-
-        return proposalID;
+        emit ProposalAdded(proposalID, _target, _jobDescription, p.deadline, p.value);
     }
     
     /**
@@ -267,14 +267,14 @@ contract Association {
      * Vote `supportsProposal? in support of : against` proposal #`proposalID`
      *
      * @param proposalID number of proposal
-     * @param supportsProposal either in favor or against it
+     * @param support either in favor or against it
      */
     function vote(
         uint proposalID,
-        bool supportsProposal
+        bool support
     )
         public
-        onlyShareholders
+        voters
         returns (uint voteID)
     {
         Proposal storage p = proposals[proposalID];
@@ -282,19 +282,18 @@ contract Association {
         require(
             p.status == Status.ACTIVE && 
             !p.voted[msg.sender] && 
-            p.votingDeadline > now
+            p.deadline > now
         );
 
-        voteID = p.votes.length++;
-        p.votes[voteID] = Vote({
-            inSupport: supportsProposal,
-            voter: msg.sender
-        });
+        if (support) {
+            p.yea = p.yea.add(locked[msg.sender]);
+        } else {
+            p.nay = p.nay.add(locked[msg.sender]);
+        }
 
         p.voted[msg.sender] = true;
-
-        p.numberOfVotes = voteID + 1;
-        emit Voted(proposalID, supportsProposal, msg.sender);
+        addVote(proposalID, support);
+        emit Voted(proposalID, support, msg.sender);
         return voteID;
     }
 
@@ -310,80 +309,29 @@ contract Association {
 
         require(
             p.status == Status.ACTIVE && 
-            now > p.votingDeadline
+            now > p.deadline
         );
 
-
-        // ...then tally the results
-        uint quorum;
-        uint yea;
-        uint nay;
-        
-        (yea, nay) = calcVotes(proposalID);
-        quorum = yea + nay;
+        uint quorum = p.yea + p.nay;
 
 
         require(quorum >= minimumQuorum); // Check if a minimum quorum has been reached
 
-        if (yea > nay) {
-            if (p.tp == TypeProposal.UNIVERSAL)
-                require(p.recipient.call.value(p.amount)(p.bytecode)); /* solium-disable-line */
-            else if (p.tp == TypeProposal.TRANSFER_OWNERSHIP) {
-                bank.transferOwnership(p.recipient);
-            } else if (p.tp == TypeProposal.ATTACH_TOKEN) {
-                bank.attachToken(p.recipient);
-            } else if (p.tp == TypeProposal.SET_FEES) {
-                bank.setFees(p.amount, p.buffer);
-            } else if (p.tp == TypeProposal.ADD_ORACLE) {
-                bank.addOracle(p.recipient);
-            } else if (p.tp == TypeProposal.DISABLE_ORACLE) {
-                bank.disableOracle(p.recipient);
-            } else if (p.tp == TypeProposal.ENABLE_ORACLE) {
-                bank.enableOracle(p.recipient);
-            } else if (p.tp == TypeProposal.DELETE_ORACLE) {
-                bank.deleteOracle(p.recipient);
-            } else if (p.tp == TypeProposal.SET_SCHEDULER) {
-                bank.setScheduler(p.recipient);
-            } else if (p.tp == TypeProposal.WITHDRAW_BALANCE) {
-                bank.withdrawBalance();
-            } else if (p.tp == TypeProposal.SET_ORACLE_TIMEOUT) {
-                bank.setOracleTimeout(p.amount);
-            } else if (p.tp == TypeProposal.SET_ORACLE_ACTUAL) {
-                bank.setOracleActual(p.amount);
-            } else if (p.tp == TypeProposal.SET_RATE_PERIOD) {
-                bank.setRatePeriod(p.amount);
-            } else if (p.tp == TypeProposal.SET_PAUSED) {
-                (p.amount > 0) ? bank.pause() : bank.unpause();
-            } else if (p.tp == TypeProposal.CLAIM_OWNERSHIP) {
-                bank.claimOwnership();
-            } else if (p.tp == TypeProposal.SET_BANK_ADDRESS) {
-                bank.transferTokenOwner(p.recipient);
-                setBankAddress(p.recipient);
-                bank.claimOwnership();
-            } else if (p.tp == TypeProposal.CHANGE_ARBITRATOR) {
-                changeArbitrator(p.recipient);
-            }
+        if (p.yea > p.nay) {
+            require(p.target.call.value(p.value)(p.bytecode)); /* solium-disable-line */
         }
 
         proposals[proposalID].status = Status.FINISHED;
         numProposals = numProposals.sub(1);
         // Fire Events
-        emit ProposalTallied(proposalID, int(yea - nay), quorum);
-    }
-
-    /**
-     * Set address of bank contract
-     * @param _bank new address bank
-     */
-    function setBankAddress(address _bank) internal {
-        bank = ComplexBank(_bank);
+        emit ProposalTallied(proposalID, int(p.yea - p.nay), quorum);
     }
 
     /**
      * Change arbitrator
      * @param newArbitrator new arbitrator address
      */
-    function changeArbitrator(address newArbitrator) internal {
+    function changeArbitrator(address newArbitrator) public {
         require(msg.sender == address(this));
         owner = newArbitrator;
     }
