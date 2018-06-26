@@ -6,13 +6,6 @@ import "./zeppelin/math/SafeMath.sol";
 
 
 contract ProposalSystem {
-    enum Status {
-        ACTIVE,
-        FINISHED,
-        CANCELED,
-        BLOCKED
-    }
-
     struct Proposal {
         address creator;
         address target;
@@ -28,23 +21,18 @@ contract ProposalSystem {
 
     uint256 public proposalCount;
     Proposal[] public proposals;
+
+    enum Status {
+        ACTIVE,
+        FINISHED,
+        CANCELED,
+        BLOCKED
+    }
 }
 
 
 contract VotingSystem is ProposalSystem {
     using SafeMath for uint256;
-
-    event Lock(address locker, uint256 value); // Maybe delete it after test
-    event Unlock(address locker, uint256 value); // Maybe delete it after test
-
-    mapping (address => uint256) locked;
-    ERC20 public GovToken;
-    uint256 constant VOTE_LIMIT = 10;
-    uint256 activeVotesLimit = 10;
-    uint256 constant MINIMAL_VOTE_BALANCE = 2000 * 10 ** 18;
-    uint256 public minVotes = MINIMAL_VOTE_BALANCE;
-
-    mapping (address => votePosition[]) public voted;
 
     struct votePosition {
         uint256 proposal;
@@ -61,13 +49,14 @@ contract VotingSystem is ProposalSystem {
         _;
     }
 
-    //event LockPhase(string descr);
+    mapping (address => uint256) locked;
+    mapping (address => votePosition[]) public voted;
+
 
     function lock(uint256 _amount) public {
         locked[msg.sender] = locked[msg.sender].add(_amount);
         changeProposals(_amount,true);
         GovToken.transferFrom(msg.sender, address(this), _amount);
-        emit Lock(msg.sender, _amount);
     }
 
     function voicePower() public view returns (uint256) {
@@ -78,7 +67,6 @@ contract VotingSystem is ProposalSystem {
         locked[msg.sender] = locked[msg.sender].sub(_amount);
         changeProposals(_amount, false);
         GovToken.transfer(msg.sender, _amount);
-        emit Unlock(msg.sender, _amount);
     }
 
     function changeProposals(uint256 _amount, bool isLock) internal {
@@ -133,6 +121,17 @@ contract VotingSystem is ProposalSystem {
  * The shareholder association contract itself
  */
 contract Association is VotingSystem {
+    struct Vote {
+        bool inSupport;
+        address voter;
+    }
+
+    event ProposalAdded(uint proposalID, address target, uint deadLine, uint value);
+    event Voted(uint proposalID, bool position, address voter);
+    event ProposalTallied(uint proposalID, int result, uint quorum);
+    event ProposalBlocked(uint proposalID, address target);
+    event ChangeOfRules(uint newMinimumQuorum, uint newdebatingPeriod, address newGovToken);
+    event NewArbitrator(address arbitrator);
 
     modifier onlyArbitrator() {
         require(msg.sender == owner);
@@ -140,27 +139,19 @@ contract Association is VotingSystem {
     }
 
     address public owner;
-
     uint public minimumQuorum;
     uint public minDebatingPeriod;
-
-    event ProposalAdded(uint proposalID, address target, uint deadLine, uint value);
-    event Voted(uint proposalID, bool position, address voter);
-    event ProposalTallied(uint proposalID, int result, uint quorum);
-    event ProposalBlocked(uint proposalID, address target);
-    event ChangeOfRules(uint newMinimumQuorum, uint newdebatingPeriod, address newGovToken);
-
-    struct Vote {
-        bool inSupport;
-        address voter;
-    }
 
     /**
      * Constructor function
      *
      * First time setup
      */
-    function Association(ERC20 sharesAddress, uint minShares, uint minDebatePeriod) public {
+    constructor(
+        ERC20 sharesAddress,
+        uint minShares,
+        uint minDebatePeriod
+    ) public {
         owner = msg.sender;
         changeVotingRules(sharesAddress, minShares, minDebatePeriod);
     }
@@ -280,11 +271,16 @@ contract Association is VotingSystem {
         p.bytecode = _transactionBytecode;
         p.description = _jobDescription;
         p.status = Status.ACTIVE;
-        p.deadline = now + ((_debatingPeriod >= minDebatingPeriod) ? _debatingPeriod : minDebatingPeriod);
+        p.deadline = getDeadline(_debatingPeriod);
         p.yea = 0;
         p.nay = 0;
         proposalCount = proposalCount.add(1);
         emit ProposalAdded(proposalID, _target, p.deadline, p.etherValue);
+    }
+
+
+    function getDeadline() internal returns(uint256){
+        return now + ((_debatingPeriod >= minDebatingPeriod) ? _debatingPeriod : minDebatingPeriod);
     }
 
     /**
@@ -357,8 +353,10 @@ contract Association is VotingSystem {
      * Change arbitrator
      * @param newArbitrator new arbitrator address
      */
-    function changeArbitrator(address newArbitrator) self public {
-        owner = newArbitrator;
+    function changeArbitrator(address arbitrator) self public {
+        require(arbitrator != address(0));
+        owner = arbitrator;
+        emit NewArbitrator(arbitrator)
     }
 
     function setActiveLimit(uint256 voteLimit) self public {
