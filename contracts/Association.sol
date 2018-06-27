@@ -138,6 +138,10 @@ contract VotingSystem is ProposalSystem {
     uint256 constant MINIMAL_VOTE_BALANCE = 2000 * 10 ** 18;
     uint256 public minVotes = MINIMAL_VOTE_BALANCE;
 
+    /* Implement later - check that proposal p has status p
+    function _is(Proposal p, Status s) public returns (bool) {
+        return p.status == s;
+    }*/
 
     function lock(uint256 _amount) public {
         voteForce[msg.sender] = voteForce[msg.sender].add(_amount);
@@ -209,13 +213,14 @@ contract VotingSystem is ProposalSystem {
  * The shareholder association contract itself
  */
 contract Association is VotingSystem {
+    uint256 constant MIN_DEALINE_PAUSE = 14 days;
     struct Vote {
         bool inSupport;
         address voter;
     }
 
     event Voted(uint proposalID, bool position, address voter);
-    event ChangeOfRules(uint newMinimumQuorum, uint newdebatingPeriod, address newGovToken);
+    event ChangeOfRules(uint minQuorum, uint debatingPeriod, address newGovToken);
     event NewArbitrator(address arbitrator);
 
     modifier onlyArbitrator() {
@@ -224,8 +229,8 @@ contract Association is VotingSystem {
     }
 
     address public owner;
-    uint public minimumQuorum;
-    uint public minDebatingPeriod;
+    uint public minQuorum;
+    uint public minPeriod;
 
     /**
      * Constructor function
@@ -233,12 +238,12 @@ contract Association is VotingSystem {
      * First time setup
      */
     constructor(
-        ERC20 sharesAddress,
+        ERC20 gov,
         uint minShares,
-        uint minDebatePeriod
+        uint minDebate
     ) public {
         owner = msg.sender;
-        changeVotingRules(sharesAddress, minShares, minDebatePeriod);
+        changeVotingRules(gov, minShares, minDebate);
     }
 
     /**
@@ -318,26 +323,26 @@ contract Association is VotingSystem {
      * Change voting rules
      *
      * Make so that proposals need to be discussed for at least `minSecondsForDebate` seconds
-     * and all voters combined must own more than `minimumSharesToPassAVote` shares of token `sharesAddress` to be executed
+     * and all voters combined must own more than `minShares` shares of token `gov` to be executed
      *
-     * @param sharesAddress token address
-     * @param minimumSharesToPassAVote proposal can vote only if the sum of shares held by all voters exceed this number
+     * @param gov token address
+     * @param minShares proposal can vote only if the sum of shares held by all voters exceed this number
      * @param minSecondsForDebate the minimum amount of delay between when a proposal is made and when it can be executed
      */
      /* solium-disable-next-line */
     function changeVotingRules(
-        ERC20 sharesAddress,
-        uint minimumSharesToPassAVote,
-        uint minSecondsForDebate
+        ERC20 gov,
+        uint minShares,
+        uint minDebate
     ) public onlyArbitrator {
         require(
-            minimumSharesToPassAVote > 0 &&
-            minDebatingPeriod > 0
+            minShares >= 0 &&
+            minPeriod > 0
         );
-        govToken = ERC20(sharesAddress);
-        minimumQuorum = minimumSharesToPassAVote;
-        minDebatingPeriod = minSecondsForDebate;
-        emit ChangeOfRules(minimumQuorum, minDebatingPeriod, govToken);
+        govToken = ERC20(gov);
+        minQuorum = minShares;
+        minPeriod = minSecondsForDebate;
+        emit ChangeOfRules(minQuorum, minPeriod, govToken);
     }
 
     /**
@@ -352,7 +357,7 @@ contract Association is VotingSystem {
     function newProposal(
         address _target,
         string _jobDescription,
-        uint _debatingPeriod,
+        uint period,
         bytes _bytecode
     )
         public
@@ -371,15 +376,15 @@ contract Association is VotingSystem {
         p.bytecode = _bytecode;
         p.description = _jobDescription;
         p.status = Status.ACTIVE;
-        p.deadline = getDeadline(_debatingPeriod);
+        p.deadline = getDeadline(period);
         p.yea = 0;
         p.nay = 0;
         proposalCount = proposalCount.add(1);
         emit ProposalAdded(proposalID, _target, p.deadline, p.etherValue);
     }
 
-    function getDeadline(uint256 _debatingPeriod) internal view returns (uint256) {
-        return now.add((_debatingPeriod >= minDebatingPeriod) ? _debatingPeriod : minDebatingPeriod);
+    function getDeadline(uint256 period) internal view returns (uint256) {
+        return now.add((period >= minPeriod) ? period : minPeriod);
     }
 
     /**
@@ -435,7 +440,7 @@ contract Association is VotingSystem {
         uint quorum = p.yea + p.nay;
 
 
-        require(quorum >= minimumQuorum); // Check if a minimum quorum has been reached
+        require(quorum >= minQuorum); // Check if a minimum quorum has been reached
 
         if (p.yea > p.nay) {
             require(p.target.call.value(p.etherValue)(p.bytecode)); /* solium-disable-line */
@@ -474,7 +479,8 @@ contract Association is VotingSystem {
 
     function setPause(uint256 date) public self {
         require(
-            date >= (now + 14 days) || date == 0
+            date >= (now + MIN_DEALINE_PAUSE) ||
+            date == 0
         );
         deadline = date;
     }
