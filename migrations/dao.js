@@ -7,7 +7,7 @@ module.exports = async function (deployer, contracts, config) {
 
     await deployer.deploy(liberty);
     await bankDeploy(deployer, [cash, bank, ...oracles], config);
-    
+
     await deployer.deploy(
         association,
         /* Constructor params */
