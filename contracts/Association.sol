@@ -53,7 +53,7 @@ contract TokenStore {
         emit Burn(burner, _value);
     }
 
-    function changeOwner(address newOwner) onlyOwne{
+    function changeOwner(address newOwner) onlyOwner {
         require(newOwner != address(0));
         owner = newOwner;
     }
@@ -422,7 +422,7 @@ contract Association is VotingSystem {
         require(arbitrator != address(0));
         owner = arbitrator;
         emit NewArbitrator(arbitrator);
-    }
+        }
 
     function setActiveLimit(uint256 voteLimit) self public {
         require(voteLimit > VOTE_LIMIT);
