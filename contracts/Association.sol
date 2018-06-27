@@ -1,4 +1,4 @@
-pragma solidity ^0.4.21;
+pragma solidity ^0.4.23;
 
 import "./zeppelin/token/ERC20.sol";
 import "./zeppelin/math/Math.sol";
@@ -20,7 +20,7 @@ contract TokenStore {
         _;
     }
 
-    function TokenStore() public {
+    constructor() public {
         owner = msg.sender;
     }
 
@@ -49,7 +49,7 @@ contract TokenStore {
         totalSupply_ = totalSupply_.add(_amount);
         balances[_to] = balances[_to].add(_amount);
         emit Mint(_to, _amount);
-        Transfer(address(0), _to, _amount);
+        emit Transfer(address(0), _to, _amount);
         return true;
     }
 
@@ -63,7 +63,7 @@ contract TokenStore {
         emit Burn(burner, _value);
     }
 
-    function changeOwner(address newOwner) onlyOwner {
+    function changeOwner(address newOwner) public onlyOwner {
         require(newOwner != address(0));
         owner = newOwner;
     }
@@ -131,7 +131,7 @@ contract VotingSystem is ProposalSystem {
     mapping (address => VotePosition[]) public voted;
 
     ERC20 public govToken;
-    
+
     uint256 deadline = 0;
     uint256 constant VOTE_LIMIT = 10;
     uint256 activeVotesLimit = 10;
@@ -232,7 +232,11 @@ contract Association is VotingSystem {
      *
      * First time setup
      */
-    function Association(ERC20 sharesAddress, uint minShares, uint minDebatePeriod) public {
+    constructor(
+        ERC20 sharesAddress,
+        uint minShares,
+        uint minDebatePeriod
+    ) public {
         owner = msg.sender;
         changeVotingRules(sharesAddress, minShares, minDebatePeriod);
     }
@@ -328,8 +332,7 @@ contract Association is VotingSystem {
     ) public onlyArbitrator {
         require(
             minimumSharesToPassAVote > 0 &&
-            minDebatingPeriod > 0 &&
-            minimumQuorum > 0
+            minDebatingPeriod > 0
         );
         govToken = ERC20(sharesAddress);
         minimumQuorum = minimumSharesToPassAVote;
@@ -375,7 +378,7 @@ contract Association is VotingSystem {
         emit ProposalAdded(proposalID, _target, p.deadline, p.etherValue);
     }
 
-    function getDeadline(uint256 _debatingPeriod) internal returns (uint256) {
+    function getDeadline(uint256 _debatingPeriod) internal view returns (uint256) {
         return now.add((_debatingPeriod >= minDebatingPeriod) ? _debatingPeriod : minDebatingPeriod);
     }
 
@@ -448,10 +451,12 @@ contract Association is VotingSystem {
 
     /**
      * Change arbitrator
-     * @param newArbitrator new arbitrator address
+     * @param arbitrator - new arbitrator address
      */
-    function changeArbitrator(address newArbitrator) public self {
-        owner = newArbitrator;
+    function changeArbitrator(address arbitrator) public self {
+        require(arbitrator != address(0));
+        owner = arbitrator;
+        emit NewArbitrator(arbitrator);
     }
 
     function setActiveLimit(uint256 voteLimit) public self {
