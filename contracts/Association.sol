@@ -1,4 +1,4 @@
-pragma solidity ^0.4.21;
+pragma solidity ^0.4.23;
 
 import "./zeppelin/token/ERC20.sol";
 import "./zeppelin/math/Math.sol";
@@ -232,7 +232,11 @@ contract Association is VotingSystem {
      *
      * First time setup
      */
-    function Association(ERC20 sharesAddress, uint minShares, uint minDebatePeriod) public {
+    constructor(
+        ERC20 sharesAddress,
+        uint minShares,
+        uint minDebatePeriod
+    ) public {
         owner = msg.sender;
         changeVotingRules(sharesAddress, minShares, minDebatePeriod);
     }
@@ -328,8 +332,7 @@ contract Association is VotingSystem {
     ) public onlyArbitrator {
         require(
             minimumSharesToPassAVote > 0 &&
-            minDebatingPeriod > 0 &&
-            minimumQuorum > 0
+            minDebatingPeriod > 0
         );
         govToken = ERC20(sharesAddress);
         minimumQuorum = minimumSharesToPassAVote;
@@ -448,10 +451,12 @@ contract Association is VotingSystem {
 
     /**
      * Change arbitrator
-     * @param newArbitrator new arbitrator address
+     * @param arbitrator - new arbitrator address
      */
-    function changeArbitrator(address newArbitrator) public self {
-        owner = newArbitrator;
+    function changeArbitrator(address arbitrator) public self {
+        require(arbitrator != address(0));
+        owner = arbitrator;
+        emit NewArbitrator(arbitrator);
     }
 
     function setActiveLimit(uint256 voteLimit) public self {
