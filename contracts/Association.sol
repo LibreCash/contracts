@@ -4,6 +4,61 @@ import "./zeppelin/token/ERC20.sol";
 import "./zeppelin/math/Math.sol";
 import "./zeppelin/math/SafeMath.sol";
 
+contract TokenStore {
+    address owner;
+    mapping(address => uint256) balance;
+    uint256 totalSupply_;
+
+    modifier onlyOwner {
+        require(msg.sender == owner);
+        _;
+    }
+
+    function balanceOf(address beneficiary) public view returns(uint256) {
+        return balance[beneficiary];
+    }
+
+    function balanceOf() public view returns(uint256) {
+        return balanceOf(msg.sender)/
+    }
+
+    /**
+    * @dev total number of tokens in existence
+    */
+    function totalSupply() public view returns (uint256) {
+        return totalSupply_;
+    }
+
+    /**
+    * @dev Function to mint tokens
+    * @param _to The address that will receive the minted tokens.
+    * @param _amount The amount of tokens to mint.
+    * @return A boolean that indicates if the operation was successful.
+    */
+    function mint(address _to, uint256 _amount) onlyOwner public returns (bool) {
+        totalSupply_ = totalSupply_.add(_amount);
+        balances[_to] = balances[_to].add(_amount);
+        emit Mint(_to, _amount);
+        Transfer(address(0), _to, _amount);
+        return true;
+    }
+
+    function burn(uint256 _value) onlyOwner public  {
+        require(_value <= balances[msg.sender]);
+        // no need to require value <= totalSupply, since that would imply the
+        // sender's balance is greater than the totalSupply, which *should* be an assertion failure
+        address burner = msg.sender;
+        balances[burner] = balances[burner].sub(_value);
+        totalSupply_ = totalSupply_.sub(_value);
+        emit Burn(burner, _value);
+    }
+
+    function changeOwner(address newOwner) onlyOwne{
+        require(newOwner != address(0));
+        owner = newOwner;
+    }
+
+}
 
 contract ProposalSystem {
     struct Proposal {
@@ -49,7 +104,7 @@ contract VotingSystem is ProposalSystem {
         _;
     }
 
-    modifier isActive {
+    modifier active {
         require(
             deadline == 0 ||
             deadline >= now
@@ -61,7 +116,7 @@ contract VotingSystem is ProposalSystem {
     mapping (address => votePosition[]) public voted;
 
 
-    function lock(uint256 _amount) public {
+    function lock(uint256 _amount) active public {
         locked[msg.sender] = locked[msg.sender].add(_amount);
         changeProposals(_amount,true);
         GovToken.transferFrom(msg.sender, address(this), _amount);
@@ -93,10 +148,10 @@ contract VotingSystem is ProposalSystem {
             }
         }
     }
-    function addVote(uint256 proposal, bool support) public {
+    function addVote(uint256 proposal, bool support) active public {
         addVote(proposal, support, -1);
     }
-    function addVote(uint256 proposal, bool support, int256 _field) internal {
+    function addVote(uint256 proposal, bool support, int256 _field) active internal {
         int256 field = _field == -1 ? getFreeField() : _field;
         uint current = voted[msg.sender][uint(field)].proposal;
 
@@ -265,6 +320,7 @@ contract Association is VotingSystem {
         bytes _transactionBytecode
     )
         public
+        active
         voters
         payable
         returns (uint proposalID)
@@ -304,6 +360,7 @@ contract Association is VotingSystem {
         bool support
     )
         public
+        active
         voters
         returns (uint voteID)
     {
@@ -334,7 +391,7 @@ contract Association is VotingSystem {
      *
      * @param proposalID proposal number
      */
-    function executeProposal(uint proposalID) public {
+    function executeProposal(uint proposalID) active public {
         Proposal storage p = proposals[proposalID];
 
         require(
@@ -359,12 +416,12 @@ contract Association is VotingSystem {
 
     /**
      * Change arbitrator
-     * @param newArbitrator new arbitrator address
+     * @param arbitrator - new arbitrator address
      */
     function changeArbitrator(address arbitrator) self public {
         require(arbitrator != address(0));
         owner = arbitrator;
-        emit NewArbitrator(arbitrator)
+        emit NewArbitrator(arbitrator);
     }
 
     function setActiveLimit(uint256 voteLimit) self public {
@@ -378,5 +435,12 @@ contract Association is VotingSystem {
             _minVotes > 0
         );
         minVotes = _minVotes;
+    }
+
+    function setPause(uint256 date) self public  {
+        require(
+            data >= now + 14 days || date = 0
+        );
+        deadline = date;
     }
 }
