@@ -22,9 +22,13 @@ contract TokenStore {
     constructor() public {
         owner = msg.sender;
     }
-
-    function balanceOf(address beneficiary) public view returns(uint256) {
-        return balances[beneficiary];
+    /**
+    * @dev Gets the balance of the specified address.
+    * @param _owner The address to query the the balance of.
+    * @return An uint256 representing the amount owned by the passed address.
+    */
+    function balanceOf(address _owner) public view returns(uint256) {
+        return balances[_owner];
     }
 
     /**
@@ -46,13 +50,22 @@ contract TokenStore {
         return true;
     }
 
-    function burn(address beneficiar, uint256 _value) onlyOwner public  {
-        require(_value <= balances[beneficiar]);
-        balances[beneficiar] = balances[beneficiar].sub(_value);
-        totalSupply_ = totalSupply_.sub(_value);
+    /**
+     * @dev Burns a specific amount of tokens.
+     * @param _to The address that will burn tokens.
+     * @param _amount The amount of token to be burned.
+     */
+    function burn(address _to, uint256 _amount) onlyOwner public  {
+        require(_amount <= balances[_to]);
+        balances[_to] = balances[_to].sub(_amount);
+        totalSupply_ = totalSupply_.sub(_amount);
     }
 
-    function changeOwner(address newOwner) public onlyOwner {
+    /**
+    * @dev Allows the current owner to transfer control of the contract to a newOwner.
+    * @param newOwner The address to transfer ownership to.
+    */
+    function transferOwnership(address newOwner) public onlyOwner {
         require(newOwner != address(0));
         owner = newOwner;
     }
@@ -82,7 +95,7 @@ contract ProposalSystem {
         Status status;
         uint256 yea;
         uint256 nay;
-        mapping (address => bool) voted;
+        mapping (address => bool) isVoted;
     }
 
     uint256 public proposalCount;
@@ -93,15 +106,12 @@ contract ProposalSystem {
 contract VotingSystem is ProposalSystem {
     using SafeMath for uint256;
 
-    struct VotePosition {
+    struct VoteItem {
         uint256 proposal;
         bool support;
     }
 
-    modifier self {
-        require(msg.sender == address(this));
-        _;
-    }
+    mapping(address=>mapping(uint256 =>uint256)) proposalField;
 
     modifier active {
         require(
@@ -111,7 +121,7 @@ contract VotingSystem is ProposalSystem {
         _;
     }
 
-    mapping (address => VotePosition[]) public voted;
+    mapping (address => VoteItem[]) public votesOf;
 
     TokenStore public voteToken;
     ERC20 public govToken;
@@ -122,20 +132,19 @@ contract VotingSystem is ProposalSystem {
     uint256 constant MINIMAL_VOTE_BALANCE = 2000 * 10 ** 18;
     uint256 public minVotes = MINIMAL_VOTE_BALANCE;
 
-    /* Implement later - check that proposal p has status p
-    function _is(Proposal p, Status s) public returns (bool) {
+    function its(Proposal p, Status s) pure internal returns (bool) {
         return p.status == s;
-    }*/
+    }
 
     function lock(uint256 _amount) public {
         voteToken.mint(msg.sender, _amount);
-        recalcProposal(_amount, true);
+        recalcProposals(_amount, true);
         govToken.transferFrom(msg.sender, address(this), _amount);
     }
 
     function unlock(uint256 _amount) public {
         voteToken.burn(msg.sender, _amount);
-        recalcProposal(_amount, false);
+        recalcProposals(_amount, false);
         govToken.transfer(msg.sender, _amount);
     }
 
@@ -143,21 +152,38 @@ contract VotingSystem is ProposalSystem {
         return voteToken.balanceOf(msg.sender);
     }
 
+    function cancelVote(uint256 id) public {
+        uint number = proposalField[msg.sender][id];
+        Proposal storage p = proposals[number];
 
-    function recalcProposal(uint256 _amount, bool beenLocked) internal {
-        for (uint256 i = 0; i < voted[msg.sender].length; i++) {
-            uint256 current = voted[msg.sender][i].proposal;
-            if (proposals[current].status == Status.ACTIVE && proposals[current].deadline > now) {
-                if (voted[msg.sender][i].support) {
-                    proposals[current].yea = beenLocked ?
+        require(
+            p.isVoted[msg.sender] &&
+            its(p,Status.ACTIVE)
+        );
+        recalcProposal(number,votePower(),false);
+        proposals[number].isVoted[msg.sender] = false;
+    }
+
+    function recalcProposal(uint256 i, uint256 _amount, bool increase) internal {
+            uint256 current = votesOf[msg.sender][i].proposal;
+            if (
+                its(proposals[current], Status.ACTIVE) &&
+                proposals[current].deadline > now
+            ) {
+                if (votesOf[msg.sender][i].support) {
+                    proposals[current].yea = increase ?
                         proposals[current].yea.add(_amount) :
                         proposals[current].yea.sub(_amount);
                 } else {
-                    proposals[current].nay = beenLocked ?
+                    proposals[current].nay = increase ?
                         proposals[current].nay.add(_amount) :
                         proposals[current].nay.sub(_amount);
                 }
             }
+    }
+    function recalcProposals(uint256 _amount, bool increase) internal {
+        for (uint256 i = 0; i < votesOf[msg.sender].length; i++) {
+            recalcProposal(i, _amount, increase);
         }
     }
 
@@ -168,27 +194,28 @@ contract VotingSystem is ProposalSystem {
     function addVote(uint256 proposal, bool support, int256 _field) internal active {
         int256 field = _field == -1 ? getFreeField() : _field;
         require(field > -1 && field < int256(activeVotesLimit));
-        if (field >= int256(voted[msg.sender].length)) {
-            voted[msg.sender].length++;
+        if (field >= int256(votesOf[msg.sender].length)) {
+            votesOf[msg.sender].length++;
         } else {
             // user sets incorrect field
-            uint256 current = voted[msg.sender][uint256(field)].proposal;
-            require(proposals[current].status != Status.ACTIVE);
+            uint256 current = votesOf[msg.sender][uint256(field)].proposal;
+            require(its(proposals[current], Status.ACTIVE));
         }
 
-        voted[msg.sender][uint256(field)] = VotePosition({
+        votesOf[msg.sender][uint256(field)] = VoteItem({
             proposal: proposal,
             support: support
         });
+        proposalField[msg.sender][proposal] = uint256(field);
     }
 
     function getFreeField() public view returns(int256) {
-        uint256 len = voted[msg.sender].length;
+        uint256 len = votesOf[msg.sender].length;
         if (len < activeVotesLimit) return int256(len);
         for (uint256 i = 0; i < len; i++) {
-            uint256 current = voted[msg.sender][i].proposal;
+            uint256 current = votesOf[msg.sender][i].proposal;
             if (
-                proposals[current].status != Status.ACTIVE ||
+                !its(proposals[current], Status.ACTIVE) ||
                 proposals[current].deadline < now
             )
                 return int256(i);
@@ -202,6 +229,7 @@ contract VotingSystem is ProposalSystem {
  * The shareholder association contract itself
  */
 contract Association is VotingSystem {
+
     uint256 constant MIN_DEALINE_PAUSE = 14 days;
     struct Vote {
         bool inSupport;
@@ -212,8 +240,9 @@ contract Association is VotingSystem {
     event RulesChange(address token, uint256 quorum, uint256 period, uint256 votes);
     event NewArbitrator(address arbitrator);
 
-    modifier onlyArbitrator() {
-        require(msg.sender == arbitrator);
+
+    modifier only(address _sender) {
+        require(msg.sender == _sender);
         _;
     }
 
@@ -234,7 +263,7 @@ contract Association is VotingSystem {
         Proposal storage p = proposals[id];
         uint256 quorum = p.yea + p.nay;
         return (
-            p.status == Status.ACTIVE &&
+            its(p,Status.ACTIVE) &&
             now > p.deadline &&
             quorum >= minQuorum &&
             p.yea > p.nay
@@ -282,42 +311,18 @@ contract Association is VotingSystem {
         uint256
     ) {
         Proposal storage p = proposals[id];
-        return (p.yea, p.nay, p.voted[msg.sender], p.deadline);
+        return (p.yea, p.nay, p.isVoted[msg.sender], p.deadline);
     }
 
-    /**
-     * Get proposal fields
-     * @param id is id proposal
-     */
-    /*function getProposal(uint256 id) public view returns (
-        address,
-        //address,
-        bytes,
-        //string,
-        uint256, Status,
-        uint256,
-        uint256
-    ) {
-        return (
-            proposals[id].initiator,
-            //proposals[id].target,
-            proposals[id].bytecode,
-            //proposals[id].description,
-            proposals[id].etherValue,
-            proposals[id].status,
-            proposals[id].yea,
-            proposals[id].nay,
-            proposals[id].deadline
-        );
-    }*/
+
 
     /**
      * Veto proposal
      * @param id Proposal ID
      */
-    function veto(uint256 id) public onlyArbitrator {
+    function veto(uint256 id) public only(arbitrator) {
         Proposal memory proposal = proposals[id];
-        require(proposal.status == Status.ACTIVE);
+        require(its(proposal,Status.ACTIVE));
 
         proposals[id].status = Status.BLOCKED;
         proposalCount = proposalCount.sub(1);
@@ -331,8 +336,7 @@ contract Association is VotingSystem {
      */
     function cancel(uint256 id) public voters {
         Proposal storage p = proposals[id];
-        require(p.status == Status.ACTIVE && p.deadline < now);
-        require(p.yea <= p.nay || p.yea + p.nay < minQuorum);
+        require(!canExecute(id));
 
         p.status = Status.CANCELLED;
         proposalCount = proposalCount.sub(1);
@@ -357,7 +361,7 @@ contract Association is VotingSystem {
         uint256 _minQuorum,
         uint256 _minPeriod,
         uint256 _minVotes
-    ) public onlyArbitrator {
+    ) public only(arbitrator) {
         require(
             _minQuorum >= 0 &&
             _minPeriod > 0 &&
@@ -434,11 +438,11 @@ contract Association is VotingSystem {
         Proposal storage p = proposals[id];
 
         require(
-            p.status == Status.ACTIVE &&
-            !p.voted[msg.sender] &&
+            its(p,Status.ACTIVE) &&
+            !p.isVoted[msg.sender] &&
             p.deadline > now
         );
-        p.voted[msg.sender] = true;
+        p.isVoted[msg.sender] = true;
 
         uint256 power = votePower();
 
@@ -468,7 +472,6 @@ contract Association is VotingSystem {
         require(
             p.target.call.value(p.etherValue)(p.bytecode)
         );
-        // Fire Events
         emit ProposalTallied(id);
 
     }
@@ -477,18 +480,18 @@ contract Association is VotingSystem {
      * Change arbitrator
      * @param _arbitrator - new arbitrator address
      */
-    function changeArbitrator(address _arbitrator) public self {
+    function changeArbitrator(address _arbitrator) public only(address(this)) {
         require(_arbitrator != address(0));
         arbitrator = _arbitrator;
         emit NewArbitrator(arbitrator);
     }
 
-    function setActiveLimit(uint256 voteLimit) public self {
+    function setActiveLimit(uint256 voteLimit) public only(address(this)) {
         require(voteLimit > MIN_VOTE_LIMIT);
         activeVotesLimit = voteLimit;
     }
 
-    function setPause(uint256 date) public self {
+    function setPause(uint256 date) public only(address(this)) {
         require(
             date >= (now + MIN_DEALINE_PAUSE) ||
             date == 0
@@ -496,11 +499,11 @@ contract Association is VotingSystem {
         deadline = date;
     }
 
-    function changeStoreOwner(address newOwner) public self {
-        voteToken.changeOwner(newOwner);
+    function transferOwnership(address newOwner) public only(address(this)) {
+        voteToken.transferOwnership(newOwner);
     }
     // For debugging only
-    function kill() public onlyArbitrator {
+    function kill() public only(arbitrator) {
         selfdestruct(arbitrator);
     }
 }

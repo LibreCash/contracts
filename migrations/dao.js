@@ -3,11 +3,14 @@ const
     contractConfig = require('./config.js');
 
 module.exports = async function (deployer, contracts, config) {
-    let [cash, bank, association, liberty, ...oracles] = contracts;
+    let
+        onlyAssociation = true,
+        [cash, bank, association, liberty, ...oracles] = contracts;
+    if(!onlyAssociation) {
+        await bankDeploy(deployer, [cash, bank, ...oracles], config);
+    }
 
     await deployer.deploy(liberty);
-    await bankDeploy(deployer, [cash, bank, ...oracles], config);
-
     await deployer.deploy(
         association,
         /* Constructor params */
@@ -17,6 +20,8 @@ module.exports = async function (deployer, contracts, config) {
         1
     );
 
-    let _bank = await bank.deployed();
-    await _bank.transferOwnership(association.address);
+    if(!onlyAssociation) {
+        let _bank = await bank.deployed();
+        await _bank.transferOwnership(association.address);
+    }
 };
