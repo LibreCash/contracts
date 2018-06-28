@@ -13,7 +13,8 @@ module.exports = async function (deployer, contracts, config) {
         /* Constructor params */
         liberty.address,
         contractConfig.Association.minimumSharesToPassAVote,
-        contractConfig.Association.minSecondsForDebate
+        contractConfig.Association.minSecondsForDebate,
+        1
     );
 
     let _bank = await bank.deployed();
