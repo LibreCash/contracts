@@ -187,7 +187,10 @@ contract VotingSystem is ProposalSystem {
         if (len < activeVotesLimit) return int256(len);
         for (uint256 i = 0; i < len; i++) {
             uint256 current = voted[msg.sender][i].proposal;
-            if (proposals[current].status != Status.ACTIVE)
+            if (
+                proposals[current].status != Status.ACTIVE ||
+                proposals[current].deadline < now
+            )
                 return int256(i);
         }
         return -1;
