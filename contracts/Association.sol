@@ -10,7 +10,7 @@ contract TokenStore {
     string public constant name = "LibreVoting";
     string public constant symbol = "LbVote";
     uint32 public constant decimals = 18;
-    address owner;
+    address public owner;
     mapping (address => uint256) balances;
     uint256 totalSupply_;
 
@@ -86,7 +86,7 @@ contract ProposalSystem {
     }
 
     uint256 public proposalCount;
-    Proposal[] internal proposals;
+    Proposal[] public proposals;
 }
 
 
@@ -118,7 +118,7 @@ contract VotingSystem is ProposalSystem {
 
     uint256 public deadline = 0;
     uint256 constant MIN_VOTE_LIMIT = 10;
-    uint256 activeVotesLimit = 10;
+    uint256 public activeVotesLimit = 10;
     uint256 constant MINIMAL_VOTE_BALANCE = 2000 * 10 ** 18;
     uint256 public minVotes = MINIMAL_VOTE_BALANCE;
 
@@ -286,18 +286,27 @@ contract Association is VotingSystem {
      * Get proposal fields
      * @param id is id proposal
      */
-    function getProposal(uint256 id) public view returns (address, address, bytes, string, Status, uint256, uint256, uint256) {
+    /*function getProposal(uint256 id) public view returns (
+        address,
+        //address,
+        bytes,
+        //string,
+        uint256, Status,
+        uint256,
+        uint256
+    ) {
         return (
             proposals[id].initiator,
-            proposals[id].target,
+            //proposals[id].target,
             proposals[id].bytecode,
-            proposals[id].description,
+            //proposals[id].description,
+            proposals[id].etherValue,
             proposals[id].status,
             proposals[id].yea,
             proposals[id].nay,
-             proposals[id].deadline
+            proposals[id].deadline
         );
-    }
+    }*/
 
     /**
      * Veto proposal
