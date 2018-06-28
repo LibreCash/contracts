@@ -120,7 +120,7 @@ contract VotingSystem is ProposalSystem {
     TokenStore public voteToken;
     ERC20 public govToken;
 
-    uint256 deadline = 0;
+    uint256 public deadline = 0;
     uint256 constant MIN_VOTE_LIMIT = 10;
     uint256 activeVotesLimit = 10;
     uint256 constant MINIMAL_VOTE_BALANCE = 2000 * 10 ** 18;
@@ -442,7 +442,7 @@ contract Association is VotingSystem {
     }
 
     /**
-     * Execute proposal and finish   vote
+     * Execute proposal and finish vote
      *
      * Count the votes proposal #`id` and execute it if approved
      *
@@ -483,5 +483,13 @@ contract Association is VotingSystem {
             date == 0
         );
         deadline = date;
+    }
+
+    function changeStoreOwner(address newOwner) public self {
+        voteToken.changeOwner(newOwner);
+    }
+    // For debugging only
+    function kill() public onlyArbitrator {
+        selfdestruct(arbitrator);
     }
 }
