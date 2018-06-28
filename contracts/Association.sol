@@ -27,10 +27,6 @@ contract TokenStore {
         return balances[beneficiary];
     }
 
-    function balanceOf() public view returns(uint256) {
-        return balanceOf(msg.sender);
-    }
-
     /**
     * @dev total number of tokens in existence
     */
@@ -133,8 +129,8 @@ contract VotingSystem is ProposalSystem {
 
     function lock(uint256 _amount) public {
         voteToken.mint(msg.sender, _amount);
-        govToken.transferFrom(msg.sender, address(this), _amount);
         recalcProposal(_amount, true);
+        govToken.transferFrom(msg.sender, address(this), _amount);
     }
 
     function unlock(uint256 _amount) public {
@@ -151,7 +147,7 @@ contract VotingSystem is ProposalSystem {
     function recalcProposal(uint256 _amount, bool beenLocked) internal {
         for (uint256 i = 0; i < voted[msg.sender].length; i++) {
             uint256 current = voted[msg.sender][i].proposal;
-            if (proposals[current].status == Status.ACTIVE && proposals[current].deadline < now) {
+            if (proposals[current].status == Status.ACTIVE && proposals[current].deadline > now) {
                 if (voted[msg.sender][i].support) {
                     proposals[current].yea = beenLocked ?
                         proposals[current].yea.add(_amount) :
@@ -210,7 +206,7 @@ contract Association is VotingSystem {
     }
 
     event Voted(uint256 id, bool position, uint256 power);
-    event ChangeOfRules(uint256 quorum, uint256 period, address token);
+    event RulesChange(address token, uint256 quorum, uint256 period, uint256 votes);
     event NewArbitrator(address arbitrator);
 
     modifier onlyArbitrator() {
@@ -228,7 +224,7 @@ contract Association is VotingSystem {
     uint256 public minPeriod;
 
     function canVote() public view returns(bool) {
-        return voteToken.balanceOf() >= minVotes;
+        return voteToken.balanceOf(msg.sender) >= minVotes;
     }
 
     function canExecute(uint256 id) public view returns (bool) {
@@ -290,7 +286,7 @@ contract Association is VotingSystem {
      * Get proposal fields
      * @param id is id proposal
      */
-    function getProposal(uint256 id) public view returns (address, address, bytes, string, Status, uint256, uint256) {
+    function getProposal(uint256 id) public view returns (address, address, bytes, string, Status, uint256, uint256, uint256) {
         return (
             proposals[id].initiator,
             proposals[id].target,
@@ -298,7 +294,8 @@ contract Association is VotingSystem {
             proposals[id].description,
             proposals[id].status,
             proposals[id].yea,
-            proposals[id].nay
+            proposals[id].nay,
+             proposals[id].deadline
         );
     }
 
@@ -340,6 +337,7 @@ contract Association is VotingSystem {
      * @param gov token address
      * @param _minQuorum proposal can vote only if the sum of shares held by all voters exceed this number
      * @param _minPeriod the minimum amount of delay between when a proposal is made and when it can be executed
+     * @param _minVotes the minimum amount of votes to vote
      */
      /* solium-disable-next-line */
     function changeRules(
@@ -355,11 +353,11 @@ contract Association is VotingSystem {
             _minVotes > 0
         );
 
-        minVotes = _minVotes;
         govToken = ERC20(gov);
         minQuorum = _minQuorum;
         minPeriod = _minPeriod;
-        emit ChangeOfRules(minQuorum, minPeriod, govToken);
+        minVotes = _minVotes;
+        emit RulesChange(govToken, minQuorum, minPeriod, minVotes);
     }
 
     /**
@@ -368,13 +366,14 @@ contract Association is VotingSystem {
      * Propose to send `weiAmount / 1e18` ether to `target` for `jobDescription`. `transactionBytecode ? Contains : Does not contain` code.
      *
      * @param _target who to send the ether to
-     * @param _jobDescription Description of job
+     * @param _description job description
+     * @param _period period in seconds
      * @param _bytecode bytecode of transaction
      */
     function newProposal(
         address _target,
-        string _jobDescription,
-        uint256 period,
+        string _description,
+        uint256 _period,
         bytes _bytecode
     )
         public
@@ -391,9 +390,9 @@ contract Association is VotingSystem {
         p.etherValue = msg.value;
         p.target = _target;
         p.bytecode = _bytecode;
-        p.description = _jobDescription;
+        p.description = _description;
         p.status = Status.ACTIVE;
-        p.deadline = getDeadline(period);
+        p.deadline = getDeadline(_period);
         p.yea = 0;
         p.nay = 0;
         proposalCount = proposalCount.add(1);
