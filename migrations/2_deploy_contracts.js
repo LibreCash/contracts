@@ -1,16 +1,19 @@
 const
     profiles = require('./profiles.js'),
     utils = require('./utils.js'),
-    default_config = {
+    util = require('util');
+
+
+module.exports = async function (deployer, network) {
+    let getCoinbase = util.promisify(web3.eth.getCoinbase);
+    const default_config = {
         mintAmount: 100 * 10 ** 18,
         buyFee: 250,
         sellFee: 250,
         deadline: utils.getTimestamp(+5),
-        withdrawWallet: web3.eth.coinbase,
-        coinbase: web3.eth.coinbase
+        withdrawWallet: await getCoinbase(),
+        coinbase: await getCoinbase()
     };
-
-module.exports = async function (deployer, network) {
     const deploy = require(`./${network}.js`);
 
     let contracts = profiles[network].contracts.map((name) => artifacts.require(`./${name}.sol`));
