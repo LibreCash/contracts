@@ -22,28 +22,29 @@ contract TokenStore {
     constructor() public {
         owner = msg.sender;
     }
+    
     /**
-    * @dev Gets the balance of the specified address.
-    * @param _owner The address to query the the balance of.
-    * @return An uint256 representing the amount owned by the passed address.
-    */
-    function balanceOf(address _owner) public view returns(uint256) {
+     * @dev Gets the balance of the specified address.
+     * @param _owner The address to query the the balance of.
+     * @return An uint256 representing the amount owned by the passed address.
+     */
+    function balanceOf(address _owner) public view returns (uint256) {
         return balances[_owner];
     }
 
     /**
-    * @dev total number of tokens in existence
-    */
+     * @dev Total number of tokens in existence
+     */
     function totalSupply() public view returns (uint256) {
         return totalSupply_;
     }
 
     /**
-    * @dev Function to mint tokens
-    * @param _to The address that will receive the minted tokens.
-    * @param _amount The amount of tokens to mint.
-    * @return A boolean that indicates if the operation was successful.
-    */
+     * @dev Function to mint tokens
+     * @param _to The address that will receive the minted tokens.
+     * @param _amount The amount of tokens to mint.
+     * @return A boolean that indicates if the operation was successful.
+     */
     function mint(address _to, uint256 _amount) onlyOwner public returns (bool) {
         totalSupply_ = totalSupply_.add(_amount);
         balances[_to] = balances[_to].add(_amount);
@@ -62,9 +63,9 @@ contract TokenStore {
     }
 
     /**
-    * @dev Allows the current owner to transfer control of the contract to a newOwner.
-    * @param newOwner The address to transfer ownership to.
-    */
+     * @dev Allows the current owner to transfer control of the contract to a newOwner.
+     * @param newOwner The address to transfer ownership to.
+     */
     function transferOwnership(address newOwner) public onlyOwner {
         require(newOwner != address(0));
         owner = newOwner;
@@ -103,6 +104,9 @@ contract ProposalSystem {
 }
 
 
+/**
+ * The voting system
+ */
 contract VotingSystem is ProposalSystem {
     using SafeMath for uint256;
 
@@ -110,9 +114,6 @@ contract VotingSystem is ProposalSystem {
         uint256 proposal;
         bool support;
     }
-
-// public for debug only
-    mapping(address => mapping(uint256 => uint256)) public fieldOf; // proposal => field
 
     modifier active {
         require(
@@ -122,51 +123,59 @@ contract VotingSystem is ProposalSystem {
         _;
     }
 
-    mapping (address => VoteItem[]) public votesOf;
+    mapping(address => mapping(uint256 => uint256)) internal fieldOf; // proposal => field
+    mapping (address => VoteItem[]) internal votesOf;
 
     TokenStore public voteToken;
     ERC20 public govToken;
 
     uint256 public deadline = 0;
-    uint256 constant MIN_VOTE_LIMIT = 3;//10;
-    uint256 public activeVotesLimit = 3;//10;
+    uint256 constant MAX_UINT = 2 ** 256 - 1;
+    uint256 constant MIN_VOTE_LIMIT = 10;
+    uint256 public activeVotesLimit = 10;
     uint256 constant MINIMAL_VOTE_BALANCE = 2000 * 10 ** 18;
     uint256 public minVotes = MINIMAL_VOTE_BALANCE;
 
-    uint256 constant MAX_UINT = 2 ** 256 - 1;
-
+    /**
+     * @dev Checks the proposal status.
+     * @param p Proposal.
+     * @param s Status.
+     */
     function its(Proposal p, Status s) internal pure returns (bool) {
         return p.status == s;
     }
 
+    /**
+     * @dev Locks tokens for voting.
+     * @param _amount Token amount.
+     */
     function lock(uint256 _amount) public {
         voteToken.mint(msg.sender, _amount);
         recalcProposals(_amount, true);
         govToken.transferFrom(msg.sender, address(this), _amount);
     }
 
+    /**
+     * @dev Unlocks tokens for voting.
+     * @param _amount Token amount.
+     */
     function unlock(uint256 _amount) public {
         voteToken.burn(msg.sender, _amount);
         recalcProposals(_amount, false);
         govToken.transfer(msg.sender, _amount);
     }
 
+    /**
+     * @dev User vote power.
+     */
     function votePower() public view returns (uint256) {
         return voteToken.balanceOf(msg.sender);
     }
 
-// for debug only
-    function propnumber(uint256 id) public view returns (uint256) {
-        return fieldOf[msg.sender][id];
-    }
-    // for debug
-    function canUnvote(uint256 id) public view returns (bool) {
-        Proposal storage p = proposals[id];
-        return
-            p.isVoted[msg.sender] &&
-            its(p, Status.ACTIVE);
-    }
-
+    /**
+     * @dev Allows to take back user vote.
+     * @param id Proposal ID.
+     */
     function unvote(uint256 id) public {
         uint field = fieldOf[msg.sender][id];
         Proposal storage p = proposals[id];
@@ -180,12 +189,15 @@ contract VotingSystem is ProposalSystem {
         votesOf[msg.sender][field].proposal = MAX_UINT;
     }
 
+    /**
+     * @dev Modifies proposal votes; internal.
+     * @param i Vote flag id.
+     * @param _amount Vote token amount.
+     * @param increase Flag, increase or decrease.
+     */
     function recalcProposal(uint256 i, uint256 _amount, bool increase) internal {
         uint256 current = votesOf[msg.sender][i].proposal;
-        if (
-            its(proposals[current], Status.ACTIVE) &&
-            proposals[current].deadline > now
-        ) {
+        if (its(proposals[current], Status.ACTIVE) && proposals[current].deadline > now) {
             if (votesOf[msg.sender][i].support) {
                 proposals[current].yea = increase ?
                     proposals[current].yea.add(_amount) :
@@ -198,14 +210,22 @@ contract VotingSystem is ProposalSystem {
         }
     }
 
+    /**
+     * @dev Modifies all user's proposal votes; internal.
+     * @param _amount Vote token amount.
+     * @param increase Flag, increase or decrease.
+     */
     function recalcProposals(uint256 _amount, bool increase) internal {
         for (uint256 i = 0; i < votesOf[msg.sender].length; i++) {
             recalcProposal(i, _amount, increase);
         }
     }
-
-// after debug make it internal
-    function isFieldFree(uint256 id) public view returns (bool) {
+    
+    /**
+     * @dev Returns if vote flag is unused now; internal.
+     * @param id Vote flag id.
+     */
+    function isFieldFree(uint256 id) internal view returns (bool) {
         uint256 proposal = votesOf[msg.sender][id].proposal;
         return proposal == MAX_UINT ||
                 !its(proposals[proposal], Status.ACTIVE) ||
@@ -213,14 +233,17 @@ contract VotingSystem is ProposalSystem {
                 !proposals[proposal].isVoted[msg.sender];
     }
 
-    function getFreeField() public view returns(int256) {
+    /**
+     * @dev Returns free vote flag.
+     */
+    function getFreeField() public view returns (uint256) {
         uint256 len = votesOf[msg.sender].length;
-        if (len < activeVotesLimit) return int256(len);
+        if (len < activeVotesLimit) return len;
         for (uint256 i = 0; i < len; i++) {
-            //uint256 current = votesOf[msg.sender][i].proposal;
-            if (isFieldFree(i)) return int256(i);
+            if (isFieldFree(i)) return i;
         }
-        return -1;
+        return MAX_UINT; // not revert() to make a user understand;
+                         //MAX_UINT field will make vote() fail anyway: MAX_UINT just can't be below any UINT
     }
 }
 
@@ -238,7 +261,7 @@ contract Association is VotingSystem {
     event RulesChange(address token, uint256 quorum, uint256 period, uint256 votes);
     event NewArbitrator(address arbitrator);
 
-    uint256 constant MIN_DEALINE_PAUSE = 14 days;
+    uint256 constant MIN_DEADLINE_PAUSE = 14 days;
 
     modifier only(address _sender) {
         require(msg.sender == _sender);
@@ -254,10 +277,17 @@ contract Association is VotingSystem {
     uint256 public minQuorum;
     uint256 public minPeriod;
 
+    /**
+     * @dev Returns if user can vote.
+     */
     function canVote() public view returns(bool) {
         return voteToken.balanceOf(msg.sender) >= minVotes;
     }
 
+    /**
+     * @dev Returns if user can execute proposal.
+     * @param id Proposal id.
+     */
     function canExecute(uint256 id) public view returns (bool) {
         Proposal storage p = proposals[id];
         uint256 quorum = p.yea + p.nay;
@@ -286,36 +316,31 @@ contract Association is VotingSystem {
     }
 
     /**
-     * Get a balance of tokens
+     * @dev Gets a balance of tokens.
      */
     function unheldBalance() public view returns(uint256) {
         return govToken.balanceOf(msg.sender);
     }
 
     /**
-     * Get a length of proposals
+     * @dev Gets a length of proposals.
      */
     function proposalsLength() public view returns (uint256) {
         return proposals.length;
     }
 
     /**
-     * Get data about proposal
-     * @param id is id proposal
+     * @dev Gets data about proposal.
+     * @param id Proposal ID.
      */
-    function getVotingData(uint256 id) public view returns (
-        uint256,
-        uint256,
-        bool,
-        uint256
-    ) {
+    function getVotingData(uint256 id) public view returns (uint256, uint256, bool, uint256) {
         Proposal storage p = proposals[id];
         return (p.yea, p.nay, p.isVoted[msg.sender], p.deadline);
     }
 
     /**
-     * Veto proposal
-     * @param id Proposal ID
+     * @dev Veto proposal.
+     * @param id Proposal ID.
      */
     function veto(uint256 id) public only(arbitrator) {
         Proposal memory proposal = proposals[id];
@@ -328,8 +353,8 @@ contract Association is VotingSystem {
     }
 
     /**
-     * Cancel proposal
-     * @param id Proposal ID
+     * @dev Cancels proposal.
+     * @param id Proposal ID.
      */
     function cancel(uint256 id) public voters {
         Proposal storage p = proposals[id];
@@ -342,7 +367,7 @@ contract Association is VotingSystem {
     }
 
     /**
-     * Change voting rules
+     * @dev Change voting rules
      *
      * Make so that proposals need to be discussed for at least `minSecondsForDebate` seconds
      * and all voters combined must own more than `minShares` shares of token `gov` to be executed
@@ -353,12 +378,7 @@ contract Association is VotingSystem {
      * @param _minVotes the minimum amount of votes to vote
      */
      /* solium-disable-next-line */
-    function changeRules(
-        ERC20 gov,
-        uint256 _minQuorum,
-        uint256 _minPeriod,
-        uint256 _minVotes
-    ) public only(arbitrator) {
+    function changeRules(ERC20 gov, uint256 _minQuorum, uint256 _minPeriod, uint256 _minVotes) public only(arbitrator) {
         require(
             _minQuorum >= 0 &&
             _minPeriod > 0 &&
@@ -374,7 +394,7 @@ contract Association is VotingSystem {
     }
 
     /**
-     * Add Proposal
+     * @dev Add Proposal
      *
      * Propose to send `weiAmount / 1e18` ether to `target` for `jobDescription`. `transactionBytecode ? Contains : Does not contain` code.
      *
@@ -412,31 +432,37 @@ contract Association is VotingSystem {
         emit ProposalAdded(id);
     }
 
+    /**
+     * @dev Computes deadline to use in newProposal; internal.
+     * @param period Provided period.
+     */
     function getDeadline(uint256 period) internal view returns (uint256) {
         return now.add((period >= minPeriod) ? period : minPeriod);
     }
 
-    function voteRequire(uint256 id) public view returns (bool) {
-        Proposal storage p = proposals[id];
-        return (
-            its(p, Status.ACTIVE) &&
-            !p.isVoted[msg.sender] &&
-            p.deadline > now
-        );
+    /**
+     * @dev Short version of voting function.
+     *
+     * @param id Proposal ID.
+     * @param support Either in favor or against it.
+     */
+    function vote(uint256 id, bool support) public {
+        vote(id, support, getFreeField());
     }
 
     /**
-     * Log a vote for a proposal
+     * @dev Voting function.
      *
      * Vote `supportsProposal? in support of : against` proposal #`id`
      *
-     * @param id number of proposal
-     * @param support either in favor or against it
+     * @param id Proposal ID.
+     * @param support Either in favor or against it.
+     * @param field Vote field.
      */
-    function vote(uint256 id, bool support) public active voters {
+    function vote(uint256 id, bool support, uint256 field) public active voters {
         Proposal storage p = proposals[id];
 
-        require(its(p, Status.ACTIVE) && !p.isVoted[msg.sender] && now < p.deadline);
+        require(its(p, Status.ACTIVE) && !p.isVoted[msg.sender] && now < p.deadline && field < activeVotesLimit);
         p.isVoted[msg.sender] = true;
 
         uint256 power = votePower();
@@ -444,30 +470,24 @@ contract Association is VotingSystem {
         if (support) p.yea = p.yea.add(power);
         else p.nay = p.nay.add(power);
 
-        //int256 field = _field == -1 ? getFreeField() : _field;
-        int256 field = getFreeField();
-        require(field > -1 && field < int256(activeVotesLimit));
-        if (field >= int256(votesOf[msg.sender].length)) {
+        if (field >= votesOf[msg.sender].length) {
             votesOf[msg.sender].length++;
         } else {
-            // check if user sets incorrect field
-            //uint256 current = votesOf[msg.sender][uint256(field)].proposal;
-            // proposal of a filed must be: inactive, outdated
             require(isFieldFree(uint256(field)));
         }
 
-        votesOf[msg.sender][uint256(field)] = VoteItem({proposal: id, support: support});
-        fieldOf[msg.sender][id] = uint256(field);
+        votesOf[msg.sender][field] = VoteItem({proposal: id, support: support});
+        fieldOf[msg.sender][id] = field;
 
         emit Voted(id, support, power);
     }
 
     /**
-     * Execute proposal and finish vote
+     * @dev Executes proposal and finish vote.
      *
      * Count the votes proposal #`id` and execute it if approved
      *
-     * @param id proposal number
+     * @param id Proposal ID.
      */
     function execute(uint256 id) public active {
         require(canExecute(id));
@@ -479,12 +499,11 @@ contract Association is VotingSystem {
             p.target.call.value(p.etherValue)(p.bytecode)
         );
         emit ProposalTallied(id);
-
     }
 
     /**
-     * Change arbitrator
-     * @param _arbitrator - new arbitrator address
+     * @dev Changes arbitrator.
+     * @param _arbitrator New arbitrator address.
      */
     function changeArbitrator(address _arbitrator) public only(address(this)) {
         require(_arbitrator != address(0));
@@ -492,24 +511,32 @@ contract Association is VotingSystem {
         emit NewArbitrator(arbitrator);
     }
 
+    /**
+     * @dev Sets limit of active votes for one user.
+     * @param voteLimit The new limit.
+     */
     function setActiveLimit(uint256 voteLimit) public only(address(this)) {
-        require(voteLimit > MIN_VOTE_LIMIT);
+        require(voteLimit >= MIN_VOTE_LIMIT);
         activeVotesLimit = voteLimit;
     }
 
+    /**
+     * @dev Sets pause.
+     * @param date The timestamp "from" (when the pause shall start).
+     */
     function setPause(uint256 date) public only(address(this)) {
         require(
-            date >= (now + MIN_DEALINE_PAUSE) ||
+            date >= (now + MIN_DEADLINE_PAUSE) ||
             date == 0
         );
         deadline = date;
     }
 
+    /**
+     * @dev Allows the current owner to set the new owner.
+     * @param newOwner The address to transfer ownership to.
+     */
     function transferOwnership(address newOwner) public only(address(this)) {
         voteToken.transferOwnership(newOwner);
-    }
-    // For debugging only
-    function kill() public only(arbitrator) {
-        selfdestruct(arbitrator);
     }
 }
