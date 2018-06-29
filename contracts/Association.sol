@@ -111,7 +111,8 @@ contract VotingSystem is ProposalSystem {
         bool support;
     }
 
-    mapping(address=>mapping(uint256 =>uint256)) proposalField;
+// public for debug only
+    mapping(address => mapping(uint256 => uint256)) public fieldOf; // proposal => field
 
     modifier active {
         require(
@@ -127,12 +128,14 @@ contract VotingSystem is ProposalSystem {
     ERC20 public govToken;
 
     uint256 public deadline = 0;
-    uint256 constant MIN_VOTE_LIMIT = 10;
-    uint256 public activeVotesLimit = 10;
+    uint256 constant MIN_VOTE_LIMIT = 3;//10;
+    uint256 public activeVotesLimit = 3;//10;
     uint256 constant MINIMAL_VOTE_BALANCE = 2000 * 10 ** 18;
     uint256 public minVotes = MINIMAL_VOTE_BALANCE;
 
-    function its(Proposal p, Status s) pure internal returns (bool) {
+    uint256 constant MAX_UINT = 2 ** 256 - 1;
+
+    function its(Proposal p, Status s) internal pure returns (bool) {
         return p.status == s;
     }
 
@@ -152,73 +155,70 @@ contract VotingSystem is ProposalSystem {
         return voteToken.balanceOf(msg.sender);
     }
 
-    function cancelVote(uint256 id) public {
-        uint number = proposalField[msg.sender][id];
-        Proposal storage p = proposals[number];
+// for debug only
+    function propnumber(uint256 id) public view returns (uint256) {
+        return fieldOf[msg.sender][id];
+    }
+    // for debug
+    function canUnvote(uint256 id) public view returns (bool) {
+        Proposal storage p = proposals[id];
+        return
+            p.isVoted[msg.sender] &&
+            its(p, Status.ACTIVE);
+    }
+
+    function unvote(uint256 id) public {
+        uint field = fieldOf[msg.sender][id];
+        Proposal storage p = proposals[id];
 
         require(
             p.isVoted[msg.sender] &&
-            its(p,Status.ACTIVE)
+            its(p, Status.ACTIVE)
         );
-        recalcProposal(number,votePower(),false);
-        proposals[number].isVoted[msg.sender] = false;
+        recalcProposal(field, votePower(), false);
+        proposals[id].isVoted[msg.sender] = false;
+        votesOf[msg.sender][field].proposal = MAX_UINT;
     }
 
     function recalcProposal(uint256 i, uint256 _amount, bool increase) internal {
-            uint256 current = votesOf[msg.sender][i].proposal;
-            if (
-                its(proposals[current], Status.ACTIVE) &&
-                proposals[current].deadline > now
-            ) {
-                if (votesOf[msg.sender][i].support) {
-                    proposals[current].yea = increase ?
-                        proposals[current].yea.add(_amount) :
-                        proposals[current].yea.sub(_amount);
-                } else {
-                    proposals[current].nay = increase ?
-                        proposals[current].nay.add(_amount) :
-                        proposals[current].nay.sub(_amount);
-                }
+        uint256 current = votesOf[msg.sender][i].proposal;
+        if (
+            its(proposals[current], Status.ACTIVE) &&
+            proposals[current].deadline > now
+        ) {
+            if (votesOf[msg.sender][i].support) {
+                proposals[current].yea = increase ?
+                    proposals[current].yea.add(_amount) :
+                    proposals[current].yea.sub(_amount);
+            } else {
+                proposals[current].nay = increase ?
+                    proposals[current].nay.add(_amount) :
+                    proposals[current].nay.sub(_amount);
             }
+        }
     }
+
     function recalcProposals(uint256 _amount, bool increase) internal {
         for (uint256 i = 0; i < votesOf[msg.sender].length; i++) {
             recalcProposal(i, _amount, increase);
         }
     }
 
-    function addVote(uint256 proposal, bool support) internal active {
-        addVote(proposal, support, -1);
-    }
-
-    function addVote(uint256 proposal, bool support, int256 _field) internal active {
-        int256 field = _field == -1 ? getFreeField() : _field;
-        require(field > -1 && field < int256(activeVotesLimit));
-        if (field >= int256(votesOf[msg.sender].length)) {
-            votesOf[msg.sender].length++;
-        } else {
-            // user sets incorrect field
-            uint256 current = votesOf[msg.sender][uint256(field)].proposal;
-            require(its(proposals[current], Status.ACTIVE));
-        }
-
-        votesOf[msg.sender][uint256(field)] = VoteItem({
-            proposal: proposal,
-            support: support
-        });
-        proposalField[msg.sender][proposal] = uint256(field);
+// after debug make it internal
+    function isFieldFree(uint256 id) public view returns (bool) {
+        uint256 proposal = votesOf[msg.sender][id].proposal;
+        return proposal == MAX_UINT ||
+                !its(proposals[proposal], Status.ACTIVE) ||
+                proposals[proposal].deadline < now ||
+                !proposals[proposal].isVoted[msg.sender];
     }
 
     function getFreeField() public view returns(int256) {
         uint256 len = votesOf[msg.sender].length;
         if (len < activeVotesLimit) return int256(len);
         for (uint256 i = 0; i < len; i++) {
-            uint256 current = votesOf[msg.sender][i].proposal;
-            if (
-                !its(proposals[current], Status.ACTIVE) ||
-                proposals[current].deadline < now
-            )
-                return int256(i);
+            //uint256 current = votesOf[msg.sender][i].proposal;
+            if (isFieldFree(i)) return int256(i);
         }
         return -1;
     }
@@ -229,8 +229,6 @@ contract VotingSystem is ProposalSystem {
  * The shareholder association contract itself
  */
 contract Association is VotingSystem {
-
-    uint256 constant MIN_DEALINE_PAUSE = 14 days;
     struct Vote {
         bool inSupport;
         address voter;
@@ -240,6 +238,7 @@ contract Association is VotingSystem {
     event RulesChange(address token, uint256 quorum, uint256 period, uint256 votes);
     event NewArbitrator(address arbitrator);
 
+    uint256 constant MIN_DEALINE_PAUSE = 14 days;
 
     modifier only(address _sender) {
         require(msg.sender == _sender);
@@ -263,7 +262,7 @@ contract Association is VotingSystem {
         Proposal storage p = proposals[id];
         uint256 quorum = p.yea + p.nay;
         return (
-            its(p,Status.ACTIVE) &&
+            its(p, Status.ACTIVE) &&
             now > p.deadline &&
             quorum >= minQuorum &&
             p.yea > p.nay
@@ -314,15 +313,13 @@ contract Association is VotingSystem {
         return (p.yea, p.nay, p.isVoted[msg.sender], p.deadline);
     }
 
-
-
     /**
      * Veto proposal
      * @param id Proposal ID
      */
     function veto(uint256 id) public only(arbitrator) {
         Proposal memory proposal = proposals[id];
-        require(its(proposal,Status.ACTIVE));
+        require(its(proposal, Status.ACTIVE));
 
         proposals[id].status = Status.BLOCKED;
         proposalCount = proposalCount.sub(1);
@@ -419,6 +416,15 @@ contract Association is VotingSystem {
         return now.add((period >= minPeriod) ? period : minPeriod);
     }
 
+    function voteRequire(uint256 id) public view returns (bool) {
+        Proposal storage p = proposals[id];
+        return (
+            its(p, Status.ACTIVE) &&
+            !p.isVoted[msg.sender] &&
+            p.deadline > now
+        );
+    }
+
     /**
      * Log a vote for a proposal
      *
@@ -427,32 +433,32 @@ contract Association is VotingSystem {
      * @param id number of proposal
      * @param support either in favor or against it
      */
-    function vote(
-        uint256 id,
-        bool support
-    )
-        public
-        active
-        voters
-    {
+    function vote(uint256 id, bool support) public active voters {
         Proposal storage p = proposals[id];
 
-        require(
-            its(p,Status.ACTIVE) &&
-            !p.isVoted[msg.sender] &&
-            p.deadline > now
-        );
+        require(its(p, Status.ACTIVE) && !p.isVoted[msg.sender] && now < p.deadline);
         p.isVoted[msg.sender] = true;
 
         uint256 power = votePower();
 
-        if (support) {
-            p.yea = p.yea.add(power);
+        if (support) p.yea = p.yea.add(power);
+        else p.nay = p.nay.add(power);
+
+        //int256 field = _field == -1 ? getFreeField() : _field;
+        int256 field = getFreeField();
+        require(field > -1 && field < int256(activeVotesLimit));
+        if (field >= int256(votesOf[msg.sender].length)) {
+            votesOf[msg.sender].length++;
         } else {
-            p.nay = p.nay.add(power);
+            // check if user sets incorrect field
+            //uint256 current = votesOf[msg.sender][uint256(field)].proposal;
+            // proposal of a filed must be: inactive, outdated
+            require(isFieldFree(uint256(field)));
         }
 
-        addVote(id, support);
+        votesOf[msg.sender][uint256(field)] = VoteItem({proposal: id, support: support});
+        fieldOf[msg.sender][id] = uint256(field);
+
         emit Voted(id, support, power);
     }
 
