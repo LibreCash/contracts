@@ -156,7 +156,7 @@ contract ComplexExchanger is ExchangerI {
     /**
      * @dev Requests oracles rates updating; funds oracles if needed.
      */
-    function requestRates() public payable {
+    function requestRates(uint256 customGasPrice) public payable {
         require(getState() == State.REQUEST_RATES);
         // Or just sub msg.value
         // If it will be below zero - it will throw revert()
@@ -173,7 +173,7 @@ contract ComplexExchanger is ExchangerI {
                 oracles[i].transfer(callPrice);
             }
             
-            if (oracle.updateRate()) {
+            if (oracle.updateRate(customGasPrice)) {
                 emit OracleRequest(oracles[i]);
             }
         }

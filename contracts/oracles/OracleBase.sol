@@ -37,6 +37,7 @@ contract OracleBase is Ownable, usingOraclize, OracleI {
 
     
     uint256 public gasPrice = 3 * 10**9;
+    uint256 public tempGasPrice = gasPrice;
     uint256 public gasLimit = 100000;
 
     uint256 constant MIN_GAS_PRICE = 2 * 10**9; // Min gas price limit
@@ -99,7 +100,20 @@ contract OracleBase is Ownable, usingOraclize, OracleI {
     /**
      * @dev Requests updating rate from oraclize.
      */
-    function updateRate() external onlyBank returns (bool) {
+    function updateRate(uint256 customGasPrice) external onlyBank returns (bool) {
+        if (customGasPrice != 0) {
+            require((customGasPrice >= MIN_GAS_PRICE) && (customGasPrice <= MAX_GAS_PRICE));
+            if (customGasPrice != tempGasPrice) {
+                tempGasPrice = customGasPrice; // we change tempGasPrice, but don't change gasPrice
+                oraclize_setCustomGasPrice(tempGasPrice);
+            }
+        } else {
+            // if customGasPrice is 0 then check if gasPrice === tempGasPrice, unless set gasPrice back
+            if (tempGasPrice != gasPrice) {
+                tempGasPrice = gasPrice;
+                oraclize_setCustomGasPrice(tempGasPrice);
+            }
+        }
         if (getPrice() > this.balance) {
             emit OraclizeError("Not enough ether");
             return false;

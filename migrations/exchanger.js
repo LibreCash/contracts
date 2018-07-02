@@ -22,10 +22,11 @@ module.exports = async function (deployer, contracts, config) {
         config.deadline,
         config.withdrawWallet
     );
+    
     await exchanger.deployed();
-
+    console.log("console-log-2-1")
     await Promise.all(_oracles.map((oracle) => oracle.setBank(exchanger.address)));
-
+    console.log("console-log-2-2")
     await _cash.mint.sendTransaction(exchanger.address, contractConfig.Exchanger.mintAmount);
     await _cash.mint.sendTransaction(config.coinbase, contractConfig.main.cashMinting);
 };

@@ -40,6 +40,7 @@ module.exports = {
                 jsonInterface: ${JSON.stringify(contracts[i]._json.abi)}
             });`;
         }
+        console.log("console-log-2")
         fs.writeFileSync(loader, data);
     },
 
