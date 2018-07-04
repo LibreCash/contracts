@@ -1,4 +1,4 @@
-pragma solidity ^0.4.18;
+pragma solidity ^0.4.23;
 import "./OracleMockBase.sol";
 
 
@@ -7,7 +7,7 @@ import "./OracleMockBase.sol";
  * @title Mocked silent oracle contract for testing purposes.
  */
 contract OracleSilent is OracleMockBase {
-    function OracleSilent(address bank) OracleMockBase(bank) public {
+    constructor (address bank) OracleMockBase(bank) public {
         oracleName = "Silent Oracle";
         mockRate = 0;
     }

@@ -1,7 +1,7 @@
-pragma solidity ^0.4.18;
+pragma solidity ^0.4.23;
 
 import "./token/LibertyToken.sol";
-import "./zeppelin/ownership/Ownable.sol";
+import 'openzeppelin-solidity/contracts/ownership/Ownable.sol';
 
 
 contract LBRSMultitransfer is Ownable {
@@ -26,7 +26,7 @@ contract LBRSMultitransfer is Ownable {
      * @dev Constructor
      * @param LBRS - LBRS token address
      */
-    function LBRSMultitransfer(address LBRS, address _sender) public {
+    constructor (address LBRS, address _sender) public {
         lbrsToken = LBRS;
         sender = _sender;
         token = LibertyToken(lbrsToken);

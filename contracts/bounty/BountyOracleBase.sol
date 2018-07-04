@@ -1,6 +1,6 @@
-pragma solidity ^0.4.21;
+pragma solidity ^0.4.23;
 
-import "../zeppelin/ownership/Ownable.sol";
+import 'openzeppelin-solidity/contracts/ownership/Ownable.sol';
 import "../interfaces/I_Oracle.sol";
 
 
@@ -22,7 +22,7 @@ contract BountyOracleBase is Ownable {
     mapping (address => bool) private waitQuerys;
     uint256 constant MOCK_REQUEST_PRICE = 1000;
     mapping (address => uint256) private prices;
-    
+
     /**
      * @dev waitQuery getter for msg.sender.
      */
@@ -36,21 +36,21 @@ contract BountyOracleBase is Ownable {
     function price() public view returns (uint256) {
         return prices[msg.sender];
     }
-    
+
     /**
      * @dev Rate getter for msg.sender.
      */
     function rate() public view returns (uint256) {
         return rates[msg.sender];
     }
-    
+
     /**
      * @dev updateTime getter for msg.sender.
      */
     function updateTime() public view returns (uint256) {
         return updateTimes[msg.sender];
     }
-    
+
     /**
      * @dev callbackTime getter for msg.sender.
      */
@@ -73,7 +73,7 @@ contract BountyOracleBase is Ownable {
         callbackTimes[msg.sender] = now;
         rates[msg.sender] = mockRate;
 
-        if (prices[msg.sender] == 0) 
+        if (prices[msg.sender] == 0)
             prices[msg.sender] = MOCK_REQUEST_PRICE;
 
         emit PriceTicker(msg.sender, rates[msg.sender]);
@@ -81,7 +81,7 @@ contract BountyOracleBase is Ownable {
     }
 
     /**
-    * @dev Method used for oracle funding   
-    */    
+    * @dev Method used for oracle funding
+    */
     function () public payable { }
 }

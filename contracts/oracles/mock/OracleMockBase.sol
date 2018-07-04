@@ -1,6 +1,6 @@
-pragma solidity ^0.4.21;
+pragma solidity ^0.4.23;
 
-import "../../zeppelin/ownership/Ownable.sol";
+import 'openzeppelin-solidity/contracts/ownership/Ownable.sol';
 import "../../interfaces/I_Oracle.sol";
 import "../../ComplexBank.sol";
 
@@ -25,8 +25,8 @@ contract OracleMockBase is Ownable {
     bool public waitQuery = false;
     uint256 constant MOCK_REQUEST_PRICE = 10000000000;
     uint256 public price = 0;
-    
-    
+
+
     modifier onlyBank() {
         require(msg.sender == bankAddress);
         _;
@@ -35,7 +35,7 @@ contract OracleMockBase is Ownable {
     /**
      * @dev Constructor.
      */
-    function OracleMockBase(address bank) public {
+    constructor (address bank) public {
         bankAddress = bank;
     }
 
@@ -62,7 +62,7 @@ contract OracleMockBase is Ownable {
         callbackTime = now;
         rate = mockRate;
 
-        if (price == 0) 
+        if (price == 0)
             price = MOCK_REQUEST_PRICE;
 
         emit PriceTicker(rate);
@@ -72,14 +72,14 @@ contract OracleMockBase is Ownable {
     function setWaitQuery(bool waiting) external {
         waitQuery = waiting;
     }
-    
+
     function setRate(uint newRate) external {
         rate = newRate;
     }
 
     /**
-    * @dev Method used for oracle funding   
-    */    
+    * @dev Method used for oracle funding
+    */
     function () public payable {}
 
     /**

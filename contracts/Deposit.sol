@@ -1,7 +1,7 @@
-pragma solidity ^0.4.21;
+pragma solidity ^0.4.23;
 
-import "./zeppelin/math/SafeMath.sol";
-import "./zeppelin/ownership/Ownable.sol";
+import 'openzeppelin-solidity/contracts/math/SafeMath.sol';
+import 'openzeppelin-solidity/contracts/ownership/Ownable.sol';
 
 import "./token/LibreCash.sol";
 
@@ -15,7 +15,7 @@ contract Deposit is Ownable {
     uint256 constant REVERSE_PERCENT = 10000;
     uint256 constant YEAR_SECONDS = 365.25 * 24 * 60 * 60;
     uint256 public lockedTokens = 0;
-    
+
     DepositPlan[] public plans;
 
     event NewDeposit(address beneficiar, uint256 timestamp, uint256 deadline, uint256 amount, uint256 margin);
@@ -42,7 +42,7 @@ contract Deposit is Ownable {
     /**
      * @dev Constructor
      */
-    function Deposit(address _token) public {
+    constructor(address _token) public {
         Libre = _token;
         libre = LibreCash(Libre);
     }
@@ -121,7 +121,7 @@ contract Deposit is Ownable {
         uint256 amount = (_amount <= needAmount) ? _amount : needAmount;
         DepositPlan memory plan = plans[_planId];
         uint256 margin = calcProfit(amount, _planId);
-        
+
         require(amount >= plan.minAmount && margin <= availableTokens());
         lockedTokens = lockedTokens.add(margin).add(amount);
 
@@ -159,7 +159,7 @@ contract Deposit is Ownable {
         uint256 periodicProfit = yearlyProfitX100.mul(plan.period).div(YEAR_SECONDS).div(REVERSE_PERCENT);
         return periodicProfit;
     }
-    
+
     /**
      * @dev Gets deposit plans count.
      */

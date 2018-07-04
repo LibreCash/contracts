@@ -1,4 +1,4 @@
-pragma solidity ^0.4.18;
+pragma solidity ^0.4.23;
 
 import "./LibertyPreSale.sol";
 
@@ -6,7 +6,7 @@ import "./LibertyPreSale.sol";
 contract LibertyPreSaleMock is LibertyPreSale {
     uint256 mockTime = 0;
 
-    function LibertyPreSaleMock(address _token, address _fundsWallet)
+    constructor(address _token, address _fundsWallet)
         LibertyPreSale(_token, _fundsWallet)
      public {
         // emptiness
@@ -22,6 +22,6 @@ contract LibertyPreSaleMock is LibertyPreSale {
             return mockTime;
         } else {
             return now;
-        } 
+        }
     }
 }
