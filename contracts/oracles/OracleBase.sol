@@ -1,7 +1,7 @@
-pragma solidity ^0.4.21;
+pragma solidity ^0.4.23;
 
 import "./OraclizeAPI.sol";
-import "../zeppelin/ownership/Ownable.sol";
+import 'openzeppelin-solidity/contracts/ownership/Ownable.sol';
 import "../library/Helpers.sol";
 import "../interfaces/I_Oracle.sol";
 import "../ComplexBank.sol";
@@ -35,14 +35,14 @@ contract OracleBase is Ownable, usingOraclize, OracleI {
     bool public waitQuery = false;
     OracleConfig public oracleConfig;
 
-    
+
     uint256 public gasPrice = 3 * 10**9;
     uint256 public tempGasPrice = gasPrice;
     uint256 public gasLimit = 100000;
 
     uint256 constant MIN_GAS_PRICE = 2 * 10**9; // Min gas price limit
     uint256 constant MAX_GAS_PRICE = 15 * 10**9; // Max gas limit pric
-    uint256 constant MIN_GAS_LIMIT = 95000; 
+    uint256 constant MIN_GAS_LIMIT = 95000;
     uint256 constant MAX_GAS_LIMIT = 500000;
 
     modifier onlyBank() {
@@ -53,7 +53,7 @@ contract OracleBase is Ownable, usingOraclize, OracleI {
     /**
      * @dev Constructor.
      */
-    function OracleBase(address bank) public {
+    constructor(address bank) public {
         bankAddress = bank;
         oraclize_setProof(proofType_TLSNotary | proofStorage_IPFS);
     }
@@ -114,12 +114,12 @@ contract OracleBase is Ownable, usingOraclize, OracleI {
                 oraclize_setCustomGasPrice(tempGasPrice);
             }
         }
-        if (getPrice() > this.balance) {
+        if (getPrice() > address(this).balance) {
             emit OraclizeError("Not enough ether");
             return false;
         }
         bytes32 queryId = oraclize_query(oracleConfig.datasource, oracleConfig.arguments, gasLimit, priceLimit);
-        
+
         if (queryId == bytes32(0)) {
             emit OraclizeError("Unexpectedly high query price");
             return false;
@@ -159,8 +159,8 @@ contract OracleBase is Ownable, usingOraclize, OracleI {
     }
 
     /**
-    * @dev Method used for oracle funding   
-    */    
+    * @dev Method used for oracle funding
+    */
     function () public payable {}
 
     /**

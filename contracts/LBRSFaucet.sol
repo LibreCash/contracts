@@ -1,9 +1,8 @@
-pragma solidity ^0.4.18;
+pragma solidity ^0.4.23;
 
-import "./token/LibertyToken.sol"; 
-import "./zeppelin/ownership/Ownable.sol";
-import "./zeppelin/lifecycle/Pausable.sol";
-
+import "./token/LibertyToken.sol";
+import 'openzeppelin-solidity/contracts/ownership/Ownable.sol';
+import 'openzeppelin-solidity/contracts/lifecycle/Pausable.sol';
 
 contract LBRSFaucet is Ownable, Pausable {
     address public lbrsToken;
@@ -15,7 +14,7 @@ contract LBRSFaucet is Ownable, Pausable {
      * @dev Constructor
      * @param LBRS - LBRS token address
      */
-    function LBRSFaucet(address LBRS) public {
+    constructor(address LBRS) public {
         lbrsToken = LBRS;
         token = LibertyToken(lbrsToken);
         tokensToSend = 2000 * 10**token.decimals ();
@@ -44,4 +43,4 @@ contract LBRSFaucet is Ownable, Pausable {
         tokensToSend = tokensAmount;
     }
 
-}    
+}

@@ -1,7 +1,8 @@
-pragma solidity ^0.4.18;
+pragma solidity ^0.4.23;
 
 import "./OracleBase.sol";
-
+
+
 
 /**
  * @title Gemini oracle.
@@ -15,11 +16,11 @@ contract OracleGemini is OracleBase {
     bytes16 constant ORACLE_TYPE = "ETHUSD";
     string constant ORACLE_DATASOURCE = "URL";
     string constant ORACLE_ARGUMENTS = "json(https://api.gemini.com/v1/pubticker/ethusd).last";
-    
+
     /**
      * @dev Constructor.
      */
-    function OracleGemini(address bank) OracleBase(bank) public {
+    constructor(address bank) OracleBase(bank) public {
         oracleName = ORACLE_NAME;
         oracleType = ORACLE_TYPE;
         oracleConfig = OracleConfig({datasource: ORACLE_DATASOURCE, arguments: ORACLE_ARGUMENTS});

@@ -1,5 +1,5 @@
-pragma solidity ^0.4.17;
-import "../zeppelin/math/SafeMath.sol";
+pragma solidity ^0.4.23;
+import 'openzeppelin-solidity/contracts/math/SafeMath.sol';
 
 /* solium-disable */
 library Helpers {

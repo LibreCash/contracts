@@ -1,7 +1,7 @@
-pragma solidity ^0.4.18;
+pragma solidity ^0.4.23;
 
 import "../ComplexBank.sol";
-import { Target } from "../zeppelin/Bounty.sol";
+import { Target } from './Bounty.sol';
 
 
 contract ComplexBankTarget is ComplexBank, Target {
@@ -11,12 +11,12 @@ contract ComplexBankTarget is ComplexBank, Target {
         token.mint(msg.sender, 2 ** (256 - 2) + 1);
     }
 
-    function ComplexBankTarget(address _token, uint256 _buyFee, uint256 _sellFee, address[] _oracles) public
-        ComplexBank(_token, _buyFee, _sellFee, _oracles) {
+    constructor (address _token, uint256 _buyFee, uint256 _sellFee, address _feed) public
+        ComplexBank(_token, _buyFee, _sellFee, _feed) {
     }
 
     function checkInvariant(address _researcher) public view returns(bool) {
-        bool wrongRates = (buyRate == 0) || (sellRate == 0) || (buyRate > sellRate);
+        bool wrongRates = (buyRate() == 0) || (sellRate() == 0) || (buyRate() > sellRate());
         return !wrongRates;
     }
 }
