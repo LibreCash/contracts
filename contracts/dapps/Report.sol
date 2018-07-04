@@ -1,7 +1,7 @@
 
-pragma solidity ^0.4.18;
+pragma solidity ^0.4.23;
 
-import "../zeppelin/ownership/Claimable.sol";
+import 'openzeppelin-solidity/contracts/ownership/Claimable.sol';
 
 
 contract ReportStorage is Claimable {
@@ -15,7 +15,7 @@ contract ReportStorage is Claimable {
     function counter() public view returns(uint256) {
         return reports.length;
     }
-         
+
     function addNewReport(string newReport) public onlyOwner {
         reports.push(Report(newReport, now));
     }

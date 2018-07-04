@@ -1,8 +1,6 @@
-pragma solidity ^0.4.21;
+pragma solidity ^0.4.23;
 
-import "../zeppelin/ownership/Ownable.sol";
-
-
+import 'openzeppelin-solidity/contracts/ownership/Ownable.sol';
 
 /**
  * @title Base contract for Libre oracles.
@@ -33,7 +31,7 @@ contract OwnOracle is Ownable {
     /**
      * @dev Constructor.
      */
-    function OwnOracle(address bank) public {
+    constructor (address bank) public {
         bankAddress = bank;
     }
 
@@ -94,8 +92,8 @@ contract OwnOracle is Ownable {
     }
 
     /**
-    * @dev Method used for funding LibreOracle updater wallet. 
-    */    
+    * @dev Method used for funding LibreOracle updater wallet.
+    */
     function () public payable {
         updaterAddress.transfer(msg.value);
     }

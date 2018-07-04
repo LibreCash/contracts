@@ -1,7 +1,7 @@
-pragma solidity ^0.4.21;
+pragma solidity ^0.4.23;
 
-import "./zeppelin/token/ERC20.sol";
-import "./zeppelin/math/Math.sol";
+import 'openzeppelin-solidity/contracts/token/ERC20/ERC20.sol';
+import 'openzeppelin-solidity/contracts/math/Math.sol';
 import "./token/LibreCash.sol";
 import "./ComplexBank.sol";
 
@@ -46,15 +46,12 @@ contract Association {
         SET_BANK_ADDRESS,
         SET_FEES,
         ADD_ORACLE,
-        DISABLE_ORACLE,
-        ENABLE_ORACLE,
         DELETE_ORACLE,
         SET_SCHEDULER,
         WITHDRAW_BALANCE,
         SET_ORACLE_TIMEOUT,
         SET_ORACLE_ACTUAL,
         SET_RATE_PERIOD,
-        SET_PAUSED,
         CLAIM_OWNERSHIP,
         CHANGE_ARBITRATOR
     }
@@ -95,7 +92,7 @@ contract Association {
      *
      * First time setup
      */
-    function Association(ERC20 sharesAddress, ComplexBank _bank, LibreCash _cash, uint minShares, uint minDebatePeriod) public {
+    constructor(ERC20 sharesAddress, ComplexBank _bank, LibreCash _cash, uint minShares, uint minDebatePeriod) public {
         owner = msg.sender;
         changeVotingRules(sharesAddress, _bank, _cash, minShares, minDebatePeriod);
     }
@@ -193,16 +190,16 @@ contract Association {
      */
      /* solium-disable-next-line */
     function changeVotingRules(
-        ERC20 sharesAddress, 
-        ComplexBank _bank, 
-        LibreCash _cash, 
-        uint minimumSharesToPassAVote, 
+        ERC20 sharesAddress,
+        ComplexBank _bank,
+        LibreCash _cash,
+        uint minimumSharesToPassAVote,
         uint minSecondsForDebate
     ) public onlyArbitrator {
         sharesTokenAddress = ERC20(sharesAddress);
         bank = ComplexBank(_bank);
         cash = LibreCash(_cash);
-        if (minimumSharesToPassAVote == 0) 
+        if (minimumSharesToPassAVote == 0)
             minimumSharesToPassAVote = 1;
         minimumQuorum = minimumSharesToPassAVote;
         minDebatingPeriod = minSecondsForDebate;
@@ -236,15 +233,13 @@ contract Association {
             tp == TypeProposal.TRANSFER_OWNERSHIP ||
             tp == TypeProposal.ATTACH_TOKEN ||
             tp == TypeProposal.ADD_ORACLE ||
-            tp == TypeProposal.DISABLE_ORACLE ||
-            tp == TypeProposal.ENABLE_ORACLE ||
             tp == TypeProposal.DELETE_ORACLE ||
             tp == TypeProposal.SET_SCHEDULER ||
             tp == TypeProposal.SET_BANK_ADDRESS ||
             tp == TypeProposal.CHANGE_ARBITRATOR)
           require (_beneficiary != address(0));
 
-        proposalID = proposals.length++; 
+        proposalID = proposals.length++;
         Proposal storage p = proposals[proposalID];
         p.tp = tp;
         p.recipient = _beneficiary;
@@ -260,7 +255,7 @@ contract Association {
 
         return proposalID;
     }
-    
+
     /**
      * Log a vote for a proposal
      *
@@ -278,10 +273,10 @@ contract Association {
         returns (uint voteID)
     {
         Proposal storage p = proposals[proposalID];
-        
+
         require(
-            p.status == Status.ACTIVE && 
-            !p.voted[msg.sender] && 
+            p.status == Status.ACTIVE &&
+            !p.voted[msg.sender] &&
             p.votingDeadline > now
         );
 
@@ -303,13 +298,13 @@ contract Association {
      *
      * Count the votes proposal #`proposalID` and execute it if approved
      *
-     * @param proposalID proposal number    
+     * @param proposalID proposal number
      */
     function executeProposal(uint proposalID) public {
         Proposal storage p = proposals[proposalID];
 
         require(
-            p.status == Status.ACTIVE && 
+            p.status == Status.ACTIVE &&
             now > p.votingDeadline
         );
 
@@ -318,7 +313,7 @@ contract Association {
         uint quorum;
         uint yea;
         uint nay;
-        
+
         (yea, nay) = calcVotes(proposalID);
         quorum = yea + nay;
 
@@ -335,25 +330,19 @@ contract Association {
             } else if (p.tp == TypeProposal.SET_FEES) {
                 bank.setFees(p.amount, p.buffer);
             } else if (p.tp == TypeProposal.ADD_ORACLE) {
-                bank.addOracle(p.recipient);
-            } else if (p.tp == TypeProposal.DISABLE_ORACLE) {
-                bank.disableOracle(p.recipient);
-            } else if (p.tp == TypeProposal.ENABLE_ORACLE) {
-                bank.enableOracle(p.recipient);
+                //bank.addOracle(p.recipient)
             } else if (p.tp == TypeProposal.DELETE_ORACLE) {
-                bank.deleteOracle(p.recipient);
+                //bank.deleteOracle(p.recipient);
             } else if (p.tp == TypeProposal.SET_SCHEDULER) {
-                bank.setScheduler(p.recipient);
+                //bank.setScheduler(p.recipient);
             } else if (p.tp == TypeProposal.WITHDRAW_BALANCE) {
                 bank.withdrawBalance();
             } else if (p.tp == TypeProposal.SET_ORACLE_TIMEOUT) {
-                bank.setOracleTimeout(p.amount);
+                //bank.setOracleTimeout(p.amount);
             } else if (p.tp == TypeProposal.SET_ORACLE_ACTUAL) {
-                bank.setOracleActual(p.amount);
+                //bank.setOracleActual(p.amount);
             } else if (p.tp == TypeProposal.SET_RATE_PERIOD) {
-                bank.setRatePeriod(p.amount);
-            } else if (p.tp == TypeProposal.SET_PAUSED) {
-                (p.amount > 0) ? bank.pause() : bank.unpause();
+                //bank.setRatePeriod(p.amount);
             } else if (p.tp == TypeProposal.CLAIM_OWNERSHIP) {
                 bank.claimOwnership();
             } else if (p.tp == TypeProposal.SET_BANK_ADDRESS) {
@@ -390,4 +379,3 @@ contract Association {
 
     function() public payable {}
 }
-

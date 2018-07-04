@@ -1,16 +1,15 @@
-pragma solidity ^0.4.18;
+pragma solidity ^0.4.23;
 
-import "../zeppelin/token/StandardToken.sol";
-import "../zeppelin/token/BurnableToken.sol";
+import 'openzeppelin-solidity/contracts/token/ERC20/StandardBurnableToken.sol';
 
 
-contract LibertyToken is StandardToken, BurnableToken {
-  string public name = "LibreBank";
-  string public symbol = "LBRS";
-  uint256 public decimals = 18;
+contract LibertyToken is StandardBurnableToken {
+   string public name = "LibreBank";
+   string public symbol = "LBRS";
+   uint256 public decimals = 18;
 
-function LibertyToken() public {
-  totalSupply_ = 100 * (10**6) * (10**decimals);
-  balances[msg.sender] = totalSupply_;
+   constructor() public {
+     totalSupply_ = 100 * (10**6) * (10**decimals);
+     balances[msg.sender] = totalSupply_;
+   }
 }
-} 

@@ -1,8 +1,8 @@
-pragma solidity ^0.4.21;
+pragma solidity ^0.4.23;
 
-import "./zeppelin/math/SafeMath.sol";
-import "./zeppelin/lifecycle/Pausable.sol";
-import "./zeppelin/ownership/Ownable.sol";
+import 'openzeppelin-solidity/contracts/math/SafeMath.sol';
+import 'openzeppelin-solidity/contracts/lifecycle/Pausable.sol';
+import 'openzeppelin-solidity/contracts/ownership/Ownable.sol';
 import "./interfaces/I_Bank.sol";
 import "./token/LibreCash.sol";
 import "./ComplexExchanger.sol";
@@ -10,8 +10,12 @@ import "./ComplexExchanger.sol";
 
 contract Loans is Ownable {
     using SafeMath for uint256;
+
     address public Libre;
     address public Exchanger;
+    address public feed;
+    OracleFeed private feedContract;
+
 
     uint256 constant MAX_UINT256 = 2**256 - 1;
 
@@ -70,9 +74,9 @@ contract Loans is Ownable {
      * @param _libre address libre contract
      * @param _exchanger address exchanger contract
      */
-    function Loans(address _libre, address _exchanger) public {
+    constructor(address _libre, address _exchanger) public {
         require(_libre != 0x0 && _exchanger != 0x0);
-        Libre = _libre; 
+        Libre = _libre;
         Exchanger = _exchanger;
         token = LibreCash(Libre);
         exchanger = ComplexExchanger(Exchanger);
@@ -99,7 +103,7 @@ contract Loans is Ownable {
      * @param asset select type array
      * @param loan Loan struct element
      */
-    function getLoan(Assets asset, Loan loan) internal view 
+    function getLoan(Assets asset, Loan loan) internal view
         returns(address, address, uint256[6], Status)
     {
         uint256[6] memory loanData = [
@@ -137,7 +141,7 @@ contract Loans is Ownable {
      */
     function giveLibre(uint256 _period, uint256 _amount, uint256 _margin) public {
         require(_amount >= loanLimitLibre.min && _amount <= loanLimitLibre.max);
-        
+
         token.transferFrom(msg.sender, this, _amount);
         Loan memory curLoan = Loan(msg.sender, 0x0, now, _period, _amount, _margin, feeLibre, 0, Status.ACTIVE);
         loansLibre.push(curLoan);
@@ -153,13 +157,13 @@ contract Loans is Ownable {
      */
     function giveEth(uint256 _period, uint256 _amount, uint256 _margin) public payable {
         require(_amount <= msg.value && _amount >= loanLimitEth.min && _amount <= loanLimitEth.max);
-        
+
         uint256 refund = msg.value.sub(_amount);
-        
+
         Loan memory curLoan = Loan(msg.sender, 0x0, now, _period, _amount, _margin, feeEth, 0, Status.ACTIVE);
-        
+
         loansEth.push(curLoan);
-        
+
         emit NewLoan(Assets.LIBRE, now, _period, _amount, _margin, Status.ACTIVE);
 
         if (refund > 0)
@@ -206,7 +210,7 @@ contract Loans is Ownable {
         uint256 needReturn = refundAmount(loan);
 
         require(
-            loan.status == Status.USED && 
+            loan.status == Status.USED &&
             msg.sender == loan.recipient &&
             msg.value >= needReturn
         );
@@ -252,7 +256,7 @@ contract Loans is Ownable {
             msg.sender == loan.holder &&
             loan.status == Status.USED &&
             exchanger.getState() == ComplexExchanger.State.PROCESSING_ORDERS &&
-            (now > (loan.timestamp + loan.period) || 
+            (now > (loan.timestamp + loan.period) ||
             calcPledgeEth(loan, marginCallPercent) > loan.pledge)
         );
 
@@ -301,7 +305,7 @@ contract Loans is Ownable {
         require(token.balanceOf(Exchanger) >= needSend);
         uint256 buyTokens = needSend.mul(RATE_MULTIPLIER) / rate;
 
-        if ( (buyTokens * rate / RATE_MULTIPLIER) < needSend)
+        if ((buyTokens * rate / RATE_MULTIPLIER) < needSend)
             buyTokens++;
 
         loansLibre[id].status = Status.COMPLETED;
@@ -460,7 +464,7 @@ contract Loans is Ownable {
 
         uint256 pledge = calcPledgeLibre(loan, pledgePercent);
         uint256 refund = msg.value.sub(pledge); // throw ex if msg.value < pledge
-        
+
         loan.recipient = msg.sender;
         loan.timestamp = now;
         loan.status = Status.USED;
@@ -529,7 +533,7 @@ contract Loans is Ownable {
      */
     function claimBalance(uint256 _amount) public {
         require(balance[msg.sender] > 0);
-        
+
         _amount = (_amount == 0) ? balance[msg.sender] : _amount;
 
         balance[msg.sender] = balance[msg.sender].sub(_amount);

@@ -4,7 +4,6 @@ build/data/*.txt
 bin/*
 # Visual Studio Code
 .vscode
-web3tests/data/*.js
 
 ### Node ###
 # Logs
@@ -68,7 +67,4 @@ typings/
 
 # dotenv environment variables file
 .env
-
-# End of https://www.gitignore.io/api/node
-/web3tests/**
-
+truffle.js

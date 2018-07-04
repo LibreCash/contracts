@@ -1,7 +1,8 @@
-pragma solidity ^0.4.18;
+pragma solidity ^0.4.23;
 
 import "./OracleBase.sol";
-
+
+
 
 /**
  * @title WEX.NZ oracle.
@@ -18,7 +19,7 @@ contract OracleWEX is OracleBase {
     /**
      * @dev Constructor.
      */
-    function OracleWEX(address bank) OracleBase(bank) public {
+    constructor(address bank) OracleBase(bank) public {
         oracleName = ORACLE_NAME;
         oracleType = ORACLE_TYPE;
         oracleConfig = OracleConfig({datasource: ORACLE_DATASOURCE, arguments: ORACLE_ARGUMENTS});

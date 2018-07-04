@@ -1,14 +1,8 @@
-pragma solidity ^0.4.21;
+pragma solidity ^0.4.23;
 
-import "./zeppelin/math/SafeMath.sol";
-import "./zeppelin/ownership/Ownable.sol";
-import "./zeppelin/token/StandardToken.sol";
-import "./zeppelin/token/BurnableToken.sol";
-
-
-contract BurnableERC20 is BurnableToken, StandardToken {}
-
-
+import 'openzeppelin-solidity/contracts/math/SafeMath.sol';
+import 'openzeppelin-solidity/contracts/ownership/Ownable.sol';
+import 'openzeppelin-solidity/contracts/token/ERC20/StandardBurnableToken.sol';
 
 /**
  * @title Token exchanger contract.
@@ -20,8 +14,8 @@ contract Exchanger is Ownable {
 
     address public supplyTokenAddress = 0x0;
     address public collectingTokenAddress = 0x0;
-    StandardToken private supplyToken;
-    BurnableERC20 private collectingToken;
+    StandardBurnableToken private supplyToken;
+    StandardBurnableToken private collectingToken;
     uint constant RATE_MULTIPLIER = 10**9;
     uint public rate = 10**9; // 10**9 / RATE_MULTIPLIER = 1
 
@@ -55,7 +49,7 @@ contract Exchanger is Ownable {
         require(_address != collectingTokenAddress);
         require(_address != 0x0);
         supplyTokenAddress = _address;
-        supplyToken = StandardToken(_address);
+        supplyToken = StandardBurnableToken(_address);
     }
 
     /**
@@ -67,7 +61,7 @@ contract Exchanger is Ownable {
         require(_address != supplyTokenAddress);
         emit NewCollectingToken(collectingTokenAddress, _address);
         collectingTokenAddress = _address;
-        collectingToken = BurnableERC20(_address);
+        collectingToken = StandardBurnableToken(_address);
     }
 
     /**
