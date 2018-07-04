@@ -3,7 +3,7 @@ const
     contractConfig = require('./config.js');
 
 module.exports = async function (deployer, contracts, config) {
-    let [cash, exchanger, ...oracles] = contracts;
+    let [store, feed, cash, exchanger, ...oracles] = contracts;
 
     await oraclesDeploy(deployer, oracles);
     let _oracles = await Promise.all(oracles.map((oracle) => oracle.deployed()));
@@ -12,21 +12,26 @@ module.exports = async function (deployer, contracts, config) {
     await deployer.deploy(cash);
     let _cash = await cash.deployed();
 
+    await deployer.deploy(store, oraclesAddress);
+    let _store = await store.deployed;
+
+    await deployer.deploy(feed, store.address);
+    let _feed = await feed.deployed;
+
     await deployer.deploy(
         exchanger,
         /* Constructor params */
         cash.address, // Token address
         config.buyFee, // Buy Fee
         config.sellFee, // Sell Fee,
-        oraclesAddress, // oracles (array of address)
+        feed.address, // Oracle Feed
         config.deadline,
         config.withdrawWallet
     );
-    
     await exchanger.deployed();
-    console.log("console-log-2-1")
-    await Promise.all(_oracles.map((oracle) => oracle.setBank(exchanger.address)));
-    console.log("console-log-2-2")
+
+    await Promise.all(_oracles.map((oracle) => oracle.setBank(feed.address)));
+
     await _cash.mint.sendTransaction(exchanger.address, contractConfig.Exchanger.mintAmount);
     await _cash.mint.sendTransaction(config.coinbase, contractConfig.main.cashMinting);
 };

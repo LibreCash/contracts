@@ -42,7 +42,7 @@ module.exports = {
     },
     exchanger: {
         network: network_default,
-        contracts: ['LibreCash', 'ComplexExchanger', ...mainnet],
+        contracts: ['OracleStore', 'OracleFeed', 'LibreCash', 'ComplexExchanger', ...mainnet],
     },
     exchangerLocal: {
         network: network_default,
@@ -54,7 +54,7 @@ module.exports = {
     },
     bank: {
         network: network_default,
-        contracts: ['LibreCash', 'ComplexBank', ...mainnet],
+        contracts: ['OracleStore', 'OracleFeed', 'LibreCash', 'ComplexBank', ...mainnet],
     },
     bankLocal: {
         network: network_default,
@@ -109,5 +109,5 @@ module.exports = {
         network: network_default,
         contracts: 'ReportStorage',
     },
-    
+
 };

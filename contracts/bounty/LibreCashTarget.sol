@@ -1,7 +1,7 @@
-pragma solidity ^0.4.18;
+pragma solidity ^0.4.23;
 
 import "../token/LibreCash.sol";
-import { Target } from "../zeppelin/Bounty.sol";
+import { Target } from './Bounty.sol';
 
 
 contract LibreCashTarget is LibreCash, Target {

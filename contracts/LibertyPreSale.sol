@@ -1,8 +1,8 @@
-pragma solidity ^0.4.21;
+pragma solidity ^0.4.23;
 
-import "./zeppelin/ownership/Ownable.sol";
-import "./zeppelin/token/ERC20.sol";
-import "./zeppelin/math/SafeMath.sol";
+import 'openzeppelin-solidity/contracts/ownership/Ownable.sol';
+import 'openzeppelin-solidity/contracts/token/ERC20/ERC20.sol';
+import 'openzeppelin-solidity/contracts/math/SafeMath.sol';
 
 
 contract LibertyPreSale is Ownable {
@@ -31,7 +31,7 @@ contract LibertyPreSale is Ownable {
     // Address of token
     ERC20 public token = ERC20(0x0);
 
-    // Number of tokens to distribute when pre-sale finished 
+    // Number of tokens to distribute when pre-sale finished
     uint256 public saleTokenAmount = 5 * (10**6) * (10**18);
 
     // Numbers of ether raised from each buyer
@@ -57,7 +57,7 @@ contract LibertyPreSale is Ownable {
      * Public Methods
      */
 
-    function LibertyPreSale(address _token, address _fundsWallet) public {
+    constructor(address _token, address _fundsWallet) public {
         require(_fundsWallet != 0x0);
         require(_token != 0x0);
         token = ERC20(_token);
@@ -71,8 +71,8 @@ contract LibertyPreSale is Ownable {
     function buyTokens(address recipient) public payable {
         require(
             getTime() >= dateStart &&
-            getTime() < dateEnd && 
-            weiRaised < saleCap && 
+            getTime() < dateEnd &&
+            weiRaised < saleCap &&
             msg.value > 0
         );
         uint256 weiToAccept = 0;
@@ -101,7 +101,7 @@ contract LibertyPreSale is Ownable {
     function distributeTokens(uint256 _limit) public onlyOwner {
         require(!isFinalized);
         require(
-            getTime() >= dateEnd || 
+            getTime() >= dateEnd ||
             weiRaised >= saleCap
         );
         if (weiRaised > 0) {
@@ -122,7 +122,7 @@ contract LibertyPreSale is Ownable {
         }
     }
 
-    /* 
+    /*
      * Internal Methods
      */
 
