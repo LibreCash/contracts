@@ -20,7 +20,7 @@ contract TimePause is Ownable {
   uint256 constant PAUSE_PERIOD = 10 minutes; // min period between pauses
 
   function paused() public view returns (bool) {
-      return now >= pauseStart && now <= pauseEnd;
+      return now >= pauseStart && now < pauseEnd;
   }
 
   /**
@@ -53,8 +53,9 @@ contract TimePause is Ownable {
    * @dev called by the owner to unpause contract
    */
   function unpause() onlyOwner whenPaused public {
-    pauseStart = pauseEnd.add(1); // make pauseStart later then pauseEnd so pause condition never be true
-    // also we need to save pauseEnd to keep intervals
+    pauseEnd = now;
+    pauseStart = pauseEnd; // make pauseStart equal to pauseEnd so pause condition never be true
+    // also we need to set pauseEnd to now to keep intervals
   }
 
 }
