@@ -343,8 +343,6 @@ contract Association {
                 //bank.setOracleActual(p.amount);
             } else if (p.tp == TypeProposal.SET_RATE_PERIOD) {
                 //bank.setRatePeriod(p.amount);
-            } else if (p.tp == TypeProposal.SET_PAUSED) {
-                //(p.amount > 0) ? bank.pause() : bank.unpause();
             } else if (p.tp == TypeProposal.CLAIM_OWNERSHIP) {
                 bank.claimOwnership();
             } else if (p.tp == TypeProposal.SET_BANK_ADDRESS) {

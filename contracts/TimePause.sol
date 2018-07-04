@@ -10,14 +10,14 @@ import 'openzeppelin-solidity/contracts/ownership/Ownable.sol';
  */
 contract TimePause is Ownable {
   using SafeMath for uint256;
-  
+
   event Pause(uint256 from, uint256 to);
 
   uint256 public pauseStart;
-  uint256 pauseEnd;
-  uint256 constant MIN_PAUSE = 10 minutes;
-  uint256 constant MAX_PAUSE = 48 hours;
-  uint256 constant PAUSE_PERIOD = 48 hours; // min period between pauses
+  uint256 public pauseEnd;
+  uint256 constant MIN_PAUSE = 3 minutes;
+  uint256 constant MAX_PAUSE = 10 minutes;
+  uint256 constant PAUSE_PERIOD = 10 minutes; // min period between pauses
 
   function paused() public view returns (bool) {
       return now >= pauseStart && now <= pauseEnd;
@@ -48,4 +48,13 @@ contract TimePause is Ownable {
     pauseEnd = now.add(interval);
     emit Pause(pauseStart, pauseEnd);
   }
+
+  /**
+   * @dev called by the owner to unpause contract
+   */
+  function unpause() onlyOwner whenPaused public {
+    pauseStart = pauseEnd.add(1); // make pauseStart later then pauseEnd so pause condition never be true
+    // also we need to save pauseEnd to keep intervals
+  }
+
 }
