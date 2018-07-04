@@ -14,10 +14,10 @@ contract TimePause is Ownable {
   event Pause(uint256 from, uint256 to);
 
   uint256 public pauseStart;
-  uint256 pauseEnd;
+  uint256 public pauseEnd;
   uint256 constant MIN_PAUSE = 3 minutes;
   uint256 constant MAX_PAUSE = 10 minutes;
-  uint256 constant PAUSE_PERIOD = 10 hours; // min period between pauses
+  uint256 constant PAUSE_PERIOD = 10 minutes; // min period between pauses
 
   function paused() public view returns (bool) {
       return now >= pauseStart && now <= pauseEnd;
@@ -56,4 +56,5 @@ contract TimePause is Ownable {
     pauseStart = pauseEnd.add(1); // make pauseStart later then pauseEnd so pause condition never be true
     // also we need to save pauseEnd to keep intervals
   }
+
 }
